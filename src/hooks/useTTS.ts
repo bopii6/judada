@@ -46,8 +46,13 @@ export function useTTS() {
         }
       }
       utterance.rate = rate;
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utterance);
+      try {
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.resume();
+        window.speechSynthesis.speak(utterance);
+      } catch {
+        /* noop */
+      }
     },
     [voices]
   );
@@ -55,6 +60,15 @@ export function useTTS() {
   const cancel = useCallback(() => {
     if (!supportRef.current) return;
     window.speechSynthesis.cancel();
+  }, []);
+
+  const unlock = useCallback(() => {
+    if (!supportRef.current) return;
+    try {
+      window.speechSynthesis.resume();
+    } catch {
+      /* noop */
+    }
   }, []);
 
   const englishVoices = useMemo(
@@ -68,6 +82,7 @@ export function useTTS() {
     voices,
     englishVoices,
     speak,
-    cancel
+    cancel,
+    unlock
   };
 }

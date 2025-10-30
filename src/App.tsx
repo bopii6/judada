@@ -144,7 +144,7 @@ export default function App() {
   const [settings, setSettings] = useLocalStore<GameSettings>('jl-settings', DEFAULT_SETTINGS);
   const [history, setHistory] = useLocalStore<PracticeHistory>('jl-history', DEFAULT_HISTORY);
   const [meta, setMeta] = useLocalStore<MetaStats>('jl-meta', DEFAULT_META);
-  const { speak, voices, supported: ttsSupported } = useTTS();
+  const { speak, voices, supported: ttsSupported, unlock } = useTTS();
   const vibration = useVibration(settings.enableVibration);
   const audioContextRef = useRef<AudioContext | null>(null);
   const transitionTimerRef = useRef<number | null>(null);
@@ -192,6 +192,19 @@ export default function App() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!settings.enableTTS || !ttsSupported) return;
+    const handlePointer = () => {
+      unlock();
+    };
+    window.addEventListener('pointerdown', handlePointer, { once: true });
+    window.addEventListener('touchstart', handlePointer, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', handlePointer);
+      window.removeEventListener('touchstart', handlePointer);
+    };
+  }, [settings.enableTTS, ttsSupported, unlock]);
 
   const currentSentence = session.queue[session.currentIndex];
   const allowInput = !session.locked && !session.finished && Boolean(currentSentence);

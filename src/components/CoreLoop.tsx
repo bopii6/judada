@@ -26,6 +26,16 @@ export function CoreLoop({ sentence, settings, combo, allowInput, onResult, spea
   const [floatingToken, setFloatingToken] = useState<string | null>(null);
   const [shakeKey, setShakeKey] = useState(0);
   const floatTimerRef = useRef<number | null>(null);
+  const [fontSize, setFontSize] = useState(36);
+
+  const recalcFontSize = useCallback((content: string) => {
+    const length = content.length;
+    if (length > 120) return 20;
+    if (length > 80) return 24;
+    if (length > 50) return 28;
+    if (length > 30) return 32;
+    return 36;
+  }, []);
 
   useEffect(() => {
     setValue('');
@@ -33,6 +43,7 @@ export function CoreLoop({ sentence, settings, combo, allowInput, onResult, spea
     setDiffState(null);
     setFloatingToken(null);
     setShakeKey(x => x + 1);
+    setFontSize(36);
     if (floatTimerRef.current) {
       window.clearTimeout(floatTimerRef.current);
       floatTimerRef.current = null;
@@ -50,9 +61,7 @@ export function CoreLoop({ sentence, settings, combo, allowInput, onResult, spea
   const userTokens = useMemo(() => tokenize(value), [value]);
 
   useEffect(() => {
-    if (!allowInput) {
-      return;
-    }
+    if (!allowInput) return;
     if (settings.enableTTS) {
       speakSentence();
     }
@@ -67,8 +76,13 @@ export function CoreLoop({ sentence, settings, combo, allowInput, onResult, spea
     const diff = tokenDiff(sentence.en, trimmed);
     setDiffState(diff);
     setFeedback(success ? 'correct' : 'incorrect');
+
     if (!success && diff.expectedToken) {
       setFloatingToken(diff.expectedToken);
+      const correctTokens = tokenize(sentence.en).slice(0, Math.max(diff.mismatchIndex, 0));
+      const correctedValue = correctTokens.length > 0 ? `${correctTokens.join(' ')} ` : '';
+      setValue(correctedValue);
+      setFontSize(recalcFontSize(correctedValue));
       if (floatTimerRef.current) {
         window.clearTimeout(floatTimerRef.current);
       }
@@ -87,13 +101,19 @@ export function CoreLoop({ sentence, settings, combo, allowInput, onResult, spea
       timestamp: Date.now()
     };
     onResult({ attempt, diff });
-  }, [allowInput, onResult, sentence, value]);
+  }, [allowInput, onResult, recalcFontSize, sentence, value]);
 
   const handleKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement> = event => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       handleSubmit();
     }
+  };
+
+  const handleChange: React.ChangeEventHandler<HTMLTextAreaElement> = event => {
+    const next = event.target.value;
+    setValue(next);
+    setFontSize(recalcFontSize(next));
   };
 
   return (
@@ -103,11 +123,12 @@ export function CoreLoop({ sentence, settings, combo, allowInput, onResult, spea
         <textarea
           className="sentence-input"
           value={value}
-          onChange={event => setValue(event.target.value)}
+          onChange={handleChange}
           onKeyDown={handleKeyDown}
           placeholder="用英文打出完整句子..."
           disabled={!allowInput}
           rows={2}
+          style={{ fontSize: `${fontSize}px`, height: '150px', lineHeight: 1.4 }}
         />
         <Particles active={feedback === 'correct'} />
         {floatingToken && <div className="floating-token">{floatingToken}</div>}
@@ -125,9 +146,6 @@ export function CoreLoop({ sentence, settings, combo, allowInput, onResult, spea
             ))}
           </div>
         )}
-        <button type="button" className="secondary-button" onClick={speakSentence}>
-          🔁 再听一遍 (Space)
-        </button>
         <div className="combo-hint">当前连击：{combo}</div>
       </div>
     </div>
