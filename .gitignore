@@ -1,5 +1,11 @@
 node_modules/
+.pnpm-store/
 dist/
-.vite/
-.DS_Store
+build/
+.cache/
+.env.local
+.env
+.prisma/
 *.log
+.DS_Store
+.vscode/

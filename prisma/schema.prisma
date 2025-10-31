@@ -1,0 +1,352 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CourseStatus {
+  draft
+  pending_review
+  published
+  archived
+}
+
+enum VersionStatus {
+  draft
+  pending_review
+  published
+  archived
+}
+
+enum SourceType {
+  pdf_upload
+  image_ocr
+  manual_input
+  ai_generated
+  mixed
+}
+
+enum LessonItemType {
+  vocabulary
+  phrase
+  sentence
+  dialogue
+  quiz_single_choice
+  quiz_multiple_choice
+  fill_blank
+  reorder
+  listening
+  speaking
+  writing
+  custom
+}
+
+enum JobType {
+  package_generation
+  lesson_generation
+  asset_processing
+  content_review
+}
+
+enum JobStatus {
+  queued
+  processing
+  succeeded
+  failed
+  canceled
+}
+
+enum JobLogLevel {
+  info
+  warning
+  error
+}
+
+enum ReviewStatus {
+  pending
+  approved
+  rejected
+  changes_requested
+}
+
+enum NotificationType {
+  job_completed
+  review_submitted
+  review_decision
+  version_published
+  system
+}
+
+model User {
+  id           String        @id
+  email        String?       @unique
+  name         String?
+  avatarUrl    String?
+  roles        UserRole[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
+  notifications Notification[]
+  auditTrails  AuditTrail[]
+  createdPackages CoursePackage[] @relation("PackageCreator")
+  createdVersions CoursePackageVersion[] @relation("PackageVersionCreator")
+  reviewedVersions CoursePackageVersion[] @relation("PackageVersionReviewer")
+  createdLessons Lesson[] @relation("LessonCreator")
+  createdLessonVersions LessonVersion[] @relation("LessonVersionCreator")
+  reviewedLessonVersions LessonVersion[] @relation("LessonVersionReviewer")
+  jobs         GenerationJob[] @relation("JobTrigger")
+  submittedReviews Review[] @relation("ReviewSubmitter")
+  reviewedReviews Review[] @relation("ReviewReviewer")
+}
+
+model Role {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  label     String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  userRoles UserRole[]
+}
+
+model UserRole {
+  userId String
+  roleId String
+  assignedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model CoursePackage {
+  id                String                  @id @default(uuid())
+  title             String
+  topic             String
+  description       String?
+  coverUrl          String?
+  status            CourseStatus            @default(draft)
+  createdById       String?
+  currentVersionId  String?               @unique
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  deletedAt         DateTime?
+
+  createdBy         User?                   @relation("PackageCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  currentVersion    CoursePackageVersion?   @relation("PackageCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  versions          CoursePackageVersion[]
+  lessons           Lesson[]
+  assets            Asset[]
+  jobs              GenerationJob[]
+
+  @@index([status])
+}
+
+model CoursePackageVersion {
+  id                 String                @id @default(uuid())
+  packageId          String
+  versionNumber      Int
+  label              String?
+  status             VersionStatus         @default(draft)
+  sourceType         SourceType            @default(manual_input)
+  notes              String?
+  payload            Json?
+  previousVersionId  String?
+  createdById        String?
+  reviewedById       String?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  publishedAt        DateTime?
+  reviewDecidedAt    DateTime?
+  deletedAt          DateTime?
+
+  package            CoursePackage         @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  previousVersion    CoursePackageVersion? @relation("PackageVersionHistory", fields: [previousVersionId], references: [id])
+  nextVersions       CoursePackageVersion[] @relation("PackageVersionHistory")
+  createdBy          User?                 @relation("PackageVersionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  reviewedBy         User?                 @relation("PackageVersionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  lessons            Lesson[]              @relation("PackageVersionLessons")
+  assets             Asset[]
+  jobs               GenerationJob[]
+  reviews            Review[]
+  currentForPackage  CoursePackage?        @relation("PackageCurrentVersion")
+
+  @@unique([packageId, versionNumber])
+  @@index([status])
+}
+
+model Lesson {
+  id               String             @id @default(uuid())
+  packageId        String
+  packageVersionId String?
+  title            String
+  sequence         Int
+  status           CourseStatus       @default(draft)
+  currentVersionId String?           @unique
+  createdById      String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  deletedAt        DateTime?
+
+  package          CoursePackage      @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  packageVersion   CoursePackageVersion? @relation("PackageVersionLessons", fields: [packageVersionId], references: [id], onDelete: SetNull)
+  currentVersion   LessonVersion?     @relation("LessonCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  versions         LessonVersion[]
+  createdBy        User?              @relation("LessonCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([packageId])
+  @@index([status])
+  @@unique([packageId, sequence])
+}
+
+model LessonVersion {
+  id                String              @id @default(uuid())
+  lessonId          String
+  versionNumber     Int
+  title             String
+  summary           String?
+  difficulty        Int?
+  status            VersionStatus       @default(draft)
+  previousVersionId String?
+  createdById       String?
+  reviewedById      String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  publishedAt       DateTime?
+  reviewDecidedAt   DateTime?
+  deletedAt         DateTime?
+
+  lesson            Lesson              @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  previousVersion   LessonVersion?      @relation("LessonVersionHistory", fields: [previousVersionId], references: [id])
+  nextVersions      LessonVersion[]     @relation("LessonVersionHistory")
+  createdBy         User?               @relation("LessonVersionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  reviewedBy        User?               @relation("LessonVersionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  items             LessonItem[]
+  currentForLesson  Lesson?             @relation("LessonCurrentVersion")
+
+  @@unique([lessonId, versionNumber])
+  @@index([status])
+}
+
+model LessonItem {
+  id              String         @id @default(uuid())
+  lessonVersionId String
+  orderIndex      Int
+  type            LessonItemType
+  title           String?
+  payload         Json
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  lessonVersion   LessonVersion  @relation(fields: [lessonVersionId], references: [id], onDelete: Cascade)
+
+  @@index([lessonVersionId])
+  @@unique([lessonVersionId, orderIndex])
+}
+
+model Asset {
+  id                 String                @id @default(uuid())
+  packageId          String?
+  packageVersionId   String?
+  storagePath        String
+  originalName       String
+  mimeType           String?
+  fileSize           Int?
+  sourceType         SourceType            @default(pdf_upload)
+  metadata           Json?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  deletedAt          DateTime?
+
+  package            CoursePackage?        @relation(fields: [packageId], references: [id], onDelete: SetNull)
+  packageVersion     CoursePackageVersion? @relation(fields: [packageVersionId], references: [id], onDelete: SetNull)
+
+  @@index([packageId])
+  @@index([packageVersionId])
+}
+
+model GenerationJob {
+  id                String               @id @default(uuid())
+  jobType           JobType
+  status            JobStatus            @default(queued)
+  packageId         String?
+  packageVersionId  String?
+  triggeredById     String?
+  sourceType        SourceType?
+  inputInfo         Json?
+  progress          Int?                 @default(0)
+  result            Json?
+  errorMessage      String?
+  startedAt         DateTime?            @default(now())
+  completedAt       DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  package           CoursePackage?       @relation(fields: [packageId], references: [id], onDelete: SetNull)
+  packageVersion    CoursePackageVersion? @relation(fields: [packageVersionId], references: [id], onDelete: SetNull)
+  triggeredBy       User?                @relation("JobTrigger", fields: [triggeredById], references: [id], onDelete: SetNull)
+  logs              JobLog[]
+
+  @@index([status])
+  @@index([jobType])
+}
+
+model JobLog {
+  id        String      @id @default(uuid())
+  jobId     String
+  level     JobLogLevel @default(info)
+  message   String
+  details   Json?
+  createdAt DateTime    @default(now())
+
+  job       GenerationJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+}
+
+model Review {
+  id                 String         @id @default(uuid())
+  packageVersionId   String
+  status             ReviewStatus   @default(pending)
+  submittedById      String?
+  reviewedById       String?
+  notes              String?
+  createdAt          DateTime       @default(now())
+  decidedAt          DateTime?
+
+  packageVersion     CoursePackageVersion @relation(fields: [packageVersionId], references: [id], onDelete: Cascade)
+  submittedBy        User?          @relation("ReviewSubmitter", fields: [submittedById], references: [id], onDelete: SetNull)
+  reviewedBy         User?          @relation("ReviewReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([status])
+}
+
+model Notification {
+  id          String           @id @default(uuid())
+  userId      String
+  type        NotificationType @default(system)
+  payload     Json?
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+}
+
+model AuditTrail {
+  id          String   @id @default(uuid())
+  entityType  String
+  entityId    String
+  action      String
+  changes     Json?
+  performedBy String?
+  createdAt   DateTime @default(now())
+
+  user        User?    @relation(fields: [performedBy], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+}

@@ -1,0 +1,150 @@
+.packages {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.packages-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.packages-header h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.packages-header p {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: #475569;
+}
+
+.packages-create {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 10px;
+  background-color: #2563eb;
+  color: #ffffff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.packages-create.outline {
+  background-color: transparent;
+  color: #2563eb;
+  border: 1px solid #2563eb;
+}
+
+.packages-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  border-radius: 16px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.packages-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.packages-form-row label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.packages-form-row input,
+.packages-form-row textarea {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  font-size: 14px;
+}
+
+.packages-form-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.packages-form-hint {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.packages-form-error {
+  font-size: 13px;
+  color: #b91c1c;
+}
+
+.packages-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #f8fafc;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.packages-table th,
+.packages-table td {
+  padding: 14px 18px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.packages-table tbody tr:hover {
+  background-color: #e2e8f0;
+}
+
+.packages-status {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+}
+
+.packages-status.published {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #047857;
+}
+
+.packages-status.pending {
+  background-color: rgba(234, 179, 8, 0.15);
+  color: #b45309;
+}
+
+.packages-status.draft {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #1d4ed8;
+}
+
+.packages-status.archived {
+  background-color: rgba(148, 163, 184, 0.2);
+  color: #475569;
+}
+
+.packages-hint,
+.packages-error {
+  padding: 16px;
+  border-radius: 12px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-size: 14px;
+  color: #334155;
+}
+
+.packages-error {
+  color: #b91c1c;
+  border-color: #fecaca;
+  background-color: #fee2e2;
+}
+
+.packages-link {
+  color: #2563eb;
+  font-weight: 600;
+}

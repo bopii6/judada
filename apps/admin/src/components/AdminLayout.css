@@ -1,0 +1,21 @@
+.layout-shell {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 100vh;
+}
+
+.layout-main {
+  display: flex;
+  flex-direction: column;
+  background-color: #f8fafc;
+}
+
+.layout-content {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  background-color: #ffffff;
+  border-top-left-radius: 24px;
+  margin: 0 24px 24px;
+  box-shadow: 0 12px 40px -24px rgba(15, 23, 42, 0.6);
+}

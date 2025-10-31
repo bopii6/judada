@@ -1,22 +1,20 @@
 {
-  "name": "sentence-playground",
+  "name": "judada-monorepo",
   "private": true,
-  "version": "0.0.1",
-  "type": "module",
+  "packageManager": "pnpm@8.15.4",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "format": "turbo run format",
+    "db:generate": "pnpm --filter server prisma:generate",
+    "db:migrate": "pnpm --filter server prisma:migrate",
+    "db:deploy": "pnpm --filter server prisma:deploy"
   },
   "devDependencies": {
-    "@types/react": "^18.2.66",
-    "@types/react-dom": "^18.2.22",
-    "@vitejs/plugin-react": "^4.2.1",
-    "typescript": "^5.4.5",
-    "vite": "^5.2.11"
+    "@prisma/client": "5.22.0",
+    "prisma": "5.22.0",
+    "turbo": "^1.10.14",
+    "typescript": "^5.3.3"
   }
 }

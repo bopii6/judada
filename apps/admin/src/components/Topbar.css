@@ -1,0 +1,40 @@
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px 12px;
+}
+
+.topbar-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.topbar-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.topbar-button {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #1d4ed8;
+  background-color: #1d4ed8;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.topbar-button:hover {
+  background-color: #1e3a8a;
+}
+
+.topbar-button.danger {
+  border-color: #ea580c;
+  background-color: #f97316;
+}
+
+.topbar-button.danger:hover {
+  background-color: #c2410c;
+}
