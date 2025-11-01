@@ -10,3 +10,44 @@ body {
   @apply bg-slate-100 text-slate-900;
 }
 
+
+@keyframes lesson-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+@keyframes lesson-pop {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.6;
+  }
+  60% {
+    transform: scale(1.03);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.lesson-animate-shake {
+  animation: lesson-shake 0.36s ease;
+}
+
+.lesson-animate-pop {
+  animation: lesson-pop 0.45s ease;
+}

@@ -1,4 +1,4 @@
-import { Router } from "express";
+Ôªøimport { Router } from "express";
 import { CourseStatus, LessonItemType } from "@prisma/client";
 import { getPrisma } from "../lib/prisma";
 
@@ -82,34 +82,45 @@ router.get("/:id/questions", async (req, res, next) => {
     });
 
     if (!course || course.status !== CourseStatus.published || !course.currentVersion) {
-      res.status(404).json({ error: "øŒ≥Ã≤ª¥Ê‘⁄ªÚŒ¥∑¢≤º" });
+      res.status(404).json({ error: "ËØæÁ®ã‰∏çÂ≠òÂú®ÊàñÊú™ÂèëÂ∏É" });
       return;
     }
 
-    const questions = course.currentVersion.lessons.flatMap(lesson => {
-      const difficulty = lesson.currentVersion?.difficulty ?? 3;
-      const tier = Math.min(Math.max(typeof difficulty === "number" ? difficulty : 3, 1), 6);
+    let stageSequence = 1;
 
-      return (lesson.currentVersion?.items ?? []).map(item => {
-        const payload = (item.payload ?? {}) as Record<string, any>;
-        const baseCn = payload.cn ?? payload.prompt ?? lesson.currentVersion?.summary ?? lesson.title ?? "";
-        const baseEn = payload.en ?? payload.target ?? payload.answer ?? payload.enText ?? payload.text ?? baseCn;
-        const variants = Array.isArray(payload.variants)
-          ? payload.variants
-          : Array.isArray(payload.options)
-            ? payload.options
-            : [];
+    const stages = course.currentVersion.lessons.flatMap(lesson => {
+      const lessonItems = [...(lesson.currentVersion?.items ?? [])].sort((a, b) => a.orderIndex - b.orderIndex);
+      const firstItem = lessonItems[0];
 
-        return {
-          id: item.id,
-          tier,
-          type: lessonItemTypeMap[item.type] ?? "type",
-          cn: baseCn || "—ßœ∞Ã· æ",
-          en: baseEn || baseCn || "",
-          variants,
-          tags: [lesson.title]
-        };
-      });
+      if (!firstItem) {
+        return [];
+      }
+
+      const payload = (firstItem.payload ?? {}) as Record<string, any>;
+      const cn = payload.cn ?? payload.prompt ?? lesson.currentVersion?.summary ?? lesson.title ?? "";
+      const en = payload.en ?? payload.target ?? payload.answer ?? payload.enText ?? payload.text ?? cn;
+      const variants = Array.isArray(payload.variants)
+        ? payload.variants
+        : Array.isArray(payload.options)
+          ? payload.options
+          : [];
+
+      const stage = {
+        id: `${lesson.id}-${firstItem.id}`,
+        lessonId: lesson.id,
+        lessonTitle: lesson.currentVersion?.title ?? lesson.title,
+        lessonSequence: lesson.sequence,
+        stageSequence: stageSequence++,
+        promptCn: cn || "Â≠¶‰π†ÊèêÁ§∫",
+        answerEn: en || cn || "",
+        variants,
+        type: lessonItemTypeMap[firstItem.type] ?? "type",
+        audioUrl: typeof payload.audioUrl === "string" ? payload.audioUrl : null,
+        hints: Array.isArray(payload.hints) ? payload.hints : undefined,
+        estimatedSeconds: 20
+      };
+
+      return [stage];
     });
 
     res.json({
@@ -119,9 +130,10 @@ router.get("/:id/questions", async (req, res, next) => {
         topic: course.topic,
         description: course.description,
         coverUrl: course.coverUrl,
-        lessonCount: course.currentVersion.lessons.length
+        updatedAt: course.updatedAt,
+        stageCount: stages.length
       },
-      questions
+      stages
     });
   } catch (error) {
     next(error);

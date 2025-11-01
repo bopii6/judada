@@ -1,5 +1,4 @@
-import api from "./client";
-import type { Question } from "./types";
+﻿import api from "./client";
 
 export interface CourseSummary {
   id: string;
@@ -15,16 +14,26 @@ export interface CourseListResponse {
   courses: CourseSummary[];
 }
 
-export interface CourseQuestionsResponse {
-  course: {
-    id: string;
-    title: string;
-    topic: string;
-    description: string | null;
-    coverUrl: string | null;
-    lessonCount: number;
-  };
-  questions: Question[];
+export type LessonInteractionType = "type" | "tiles" | "listenTap" | "speak";
+
+export interface CourseStage {
+  id: string;
+  lessonId: string;
+  lessonTitle: string;
+  lessonSequence: number;
+  stageSequence: number;
+  promptCn: string;
+  answerEn: string;
+  variants: string[];
+  type: LessonInteractionType;
+  audioUrl?: string | null;
+  hints?: string[];
+  estimatedSeconds?: number;
+}
+
+export interface CourseContentResponse {
+  course: CourseSummary & { stageCount: number };
+  stages: CourseStage[];
 }
 
 export const fetchPublishedCourses = async () => {
@@ -32,7 +41,7 @@ export const fetchPublishedCourses = async () => {
   return data.courses;
 };
 
-export const fetchCourseQuestions = async (courseId: string) => {
-  const { data } = await api.get<CourseQuestionsResponse>(`/courses/${courseId}/questions`);
+export const fetchCourseContent = async (courseId: string) => {
+  const { data } = await api.get<CourseContentResponse>(`/courses/${courseId}/questions`);
   return data;
 };
