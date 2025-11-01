@@ -116,5 +116,13 @@ router.get("/course-packages/:id", async (req, res, next) => {
   }
 });
 
-export default router;
+router.post("/course-packages/:id/publish", async (req, res, next) => {
+  try {
+    const result = await coursePackageService.publishCurrentDraft(req.params.id);
+    res.json({ success: true, result });
+  } catch (error) {
+    next(error);
+  }
+});
 
+export default router;

@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { Prisma, SourceType } from "@prisma/client";
+import path from "node:path";
 import { getPrisma } from "../lib/prisma";
 import { getSupabase } from "../lib/supabase";
 import { getEnv } from "../config/env";
@@ -166,8 +167,18 @@ export const coursePackageService = {
     const { SUPABASE_STORAGE_BUCKET } = getEnv();
     const supabase = getSupabase();
     const now = Date.now();
-    const cleanName = file.originalname.replace(/\s+/g, "-");
-    const storagePath = `packages/${packageId}/${now}-${cleanName}`;
+    const originalName = file.originalname || "upload.bin";
+    const ext = path.extname(originalName).toLowerCase();
+    const baseName = path.basename(originalName, ext);
+    const normalizedBase = baseName
+      .normalize("NFKD")
+      .replace(/[^\w.-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .toLowerCase();
+    const safeBaseName = normalizedBase || "upload";
+    const safeFileName = `${now}-${safeBaseName}${ext || ".bin"}`;
+    const storagePath = `packages/${packageId}/${safeFileName}`;
     const contentType = file.mimetype || "application/octet-stream";
 
     const uploadResult = await supabase.storage
@@ -185,12 +196,13 @@ export const coursePackageService = {
       data: {
         packageId,
         storagePath,
-        originalName: cleanName,
+        originalName: safeFileName,
         mimeType: contentType,
         fileSize: file.size,
         sourceType,
         metadata: {
-          uploadedAt: new Date().toISOString()
+          uploadedAt: new Date().toISOString(),
+          originalFileName: originalName
         }
       }
     });
@@ -212,5 +224,81 @@ export const coursePackageService = {
     await enqueuePackageGenerationJob(job.id);
 
     return { job, asset };
+  },
+
+  /**
+   * 发布当前草稿版本，供前台学员端使用
+   */
+  publishCurrentDraft: async (packageId: string) => {
+    return prisma.$transaction(async transaction => {
+      const pkg = await transaction.coursePackage.findUnique({
+        where: { id: packageId },
+        include: {
+          currentVersion: {
+            include: {
+              lessons: {
+                include: {
+                  currentVersion: {
+                    select: { id: true }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!pkg) {
+        const error = new Error("课程包不存在");
+        (error as any).status = 404;
+        throw error;
+      }
+
+      if (!pkg.currentVersion) {
+        throw new Error("当前课程包没有可发布的版本");
+      }
+
+      const lessonIds = pkg.currentVersion.lessons.map(lesson => lesson.id);
+      const lessonVersionIds = pkg.currentVersion.lessons
+        .map(lesson => lesson.currentVersion?.id)
+        .filter((id): id is string => Boolean(id));
+
+      if (lessonIds.length) {
+        await transaction.lesson.updateMany({
+          where: { id: { in: lessonIds } },
+          data: { status: "published" }
+        });
+      }
+
+      if (lessonVersionIds.length) {
+        await transaction.lessonVersion.updateMany({
+          where: { id: { in: lessonVersionIds } },
+          data: { status: "published" }
+        });
+      }
+
+      await transaction.coursePackageVersion.update({
+        where: { id: pkg.currentVersion.id },
+        data: {
+          status: "published",
+          publishedAt: new Date()
+        }
+      });
+
+      await transaction.coursePackage.update({
+        where: { id: packageId },
+        data: {
+          status: "published",
+          currentVersionId: pkg.currentVersion.id,
+          updatedAt: new Date()
+        }
+      });
+
+      return {
+        packageId,
+        versionId: pkg.currentVersion.id,
+        lessonCount: pkg.currentVersion.lessons.length
+      };
+    });
   }
 };

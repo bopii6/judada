@@ -20,9 +20,9 @@ interface PracticeBoardProps {
 
 export const PracticeBoard = ({ sessionId, questions, onFinished }: PracticeBoardProps) => {
   const [index, setIndex] = useState(0);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [records, setRecords] = useState<PracticeRecordPayload[]>([]);
-  const [status, setStatus] = useState<'idle' | 'correct' | 'incorrect'>('idle');
+  const [status, setStatus] = useState<"idle" | "correct" | "incorrect">("idle");
   const startedAtRef = useRef(Date.now());
 
   const currentQuestion = questions[index];
@@ -34,7 +34,7 @@ export const PracticeBoard = ({ sessionId, questions, onFinished }: PracticeBoar
     }
   }, [currentQuestion]);
 
-  const progress = useMemo(() => ((index) / questions.length) * 100, [index, questions.length]);
+  const progress = useMemo(() => (questions.length ? (index / questions.length) * 100 : 0), [index, questions.length]);
 
   const handleSubmit = async () => {
     if (!currentQuestion) return;
@@ -42,9 +42,11 @@ export const PracticeBoard = ({ sessionId, questions, onFinished }: PracticeBoar
     const normalizedAnswer = normalizeForCompare(input);
     const target = normalizeForCompare(currentQuestion.en);
     const variants = currentQuestion.variants ?? [];
-    const correct = normalizedAnswer === target || variants.some(variant => normalizeForCompare(variant) === normalizedAnswer);
+    const correct =
+      normalizedAnswer === target ||
+      variants.some(variant => normalizeForCompare(variant) === normalizedAnswer);
 
-    const nextRecord = {
+    const nextRecord: PracticeRecordPayload = {
       questionId: currentQuestion.id,
       answerText: input,
       durationMs: duration,
@@ -53,28 +55,32 @@ export const PracticeBoard = ({ sessionId, questions, onFinished }: PracticeBoar
     const nextRecords = [...records, nextRecord];
     setRecords(nextRecords);
 
-    setStatus(correct ? 'correct' : 'incorrect');
+    setStatus(correct ? "correct" : "incorrect");
     if (correct) {
-      speak('Great job!');
+      speak("Great job!");
       vibrate(50);
     } else {
-      speak('Keep trying!');
+      speak("Keep trying!");
     }
 
-    setInput('');
+    setInput("");
 
     setTimeout(() => {
-      setStatus('idle');
+      setStatus("idle");
       if (index + 1 >= questions.length) {
-        api
-          .post('/records', { sessionId, records: nextRecords })
-          .catch(error => {
-            // eslint-disable-next-line no-console
-            console.error('Failed to store practice records', error);
-          })
-          .finally(() => {
-            onFinished();
-          });
+        if (sessionId && !sessionId.startsWith("preview")) {
+          api
+            .post("/records", { sessionId, records: nextRecords })
+            .catch(error => {
+              // eslint-disable-next-line no-console
+              console.error("Failed to store practice records", error);
+            })
+            .finally(() => {
+              onFinished();
+            });
+        } else {
+          onFinished();
+        }
       } else {
         setIndex(prev => prev + 1);
       }
@@ -82,35 +88,37 @@ export const PracticeBoard = ({ sessionId, questions, onFinished }: PracticeBoar
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
+    if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       handleSubmit();
     }
-    if (event.key === ' ' && event.ctrlKey) {
+    if (event.key === " " && event.ctrlKey) {
       event.preventDefault();
       if (currentQuestion) speak(currentQuestion.en);
     }
   };
 
   if (!currentQuestion) {
-    return <div className="rounded-xl bg-white p-6">没有可用的题目。</div>;
+    return <div className="rounded-xl bg-white p-6">无可用的题目。</div>;
   }
 
   return (
     <div className="rounded-3xl bg-white p-6 shadow-sm">
-      <div className="mb-4 text-sm text-slate-500">题目 {index + 1} / {questions.length}</div>
+      <div className="mb-4 text-sm text-slate-500">
+        题目 {index + 1} / {questions.length}
+      </div>
       <h3 className="text-2xl font-semibold text-slate-900">{currentQuestion.cn}</h3>
-      <p className="mt-1 text-sm text-slate-500">输入完整英文句子，Enter 提交，Ctrl + Space 重播语音。</p>
+      <p className="mt-1 text-sm text-slate-500">回答对应的英文句子，Enter 提交，Ctrl + Space 重播语音。</p>
 
       <textarea
         value={input}
         onChange={event => setInput(event.target.value)}
         onKeyDown={handleKeyDown}
         className={`mt-4 w-full rounded-2xl border bg-slate-50 p-4 text-lg shadow-inner focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 ${
-          status === 'correct' ? 'border-green-500' : ''
-        } ${status === 'incorrect' ? 'border-rose-400' : ''}`}
+          status === "correct" ? "border-green-500" : ""
+        } ${status === "incorrect" ? "border-rose-400" : ""}`}
         rows={3}
-        placeholder="我来造句..."
+        placeholder="输入你的答案..."
       />
 
       <div className="mt-4 flex items-center justify-between text-sm text-slate-500">
@@ -126,7 +134,7 @@ export const PracticeBoard = ({ sessionId, questions, onFinished }: PracticeBoar
           className="text-xs text-slate-500 hover:text-slate-700"
           onClick={() => speak(currentQuestion.en)}
         >
-          重播语音
+          重播提示
         </button>
       </div>
 
@@ -136,4 +144,3 @@ export const PracticeBoard = ({ sessionId, questions, onFinished }: PracticeBoar
     </div>
   );
 };
-

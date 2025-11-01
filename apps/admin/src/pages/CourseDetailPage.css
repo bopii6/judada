@@ -45,6 +45,13 @@
   color: #b91c1c;
 }
 
+.course-detail-upload-feedback-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+}
+
 .course-detail-actions button {
   padding: 8px 16px;
   border-radius: 8px;

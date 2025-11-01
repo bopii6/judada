@@ -43,8 +43,8 @@ async function testTencentOCR() {
     // 导入编译后的模块
     const { recognizeImageByUrl } = require('./dist/lib/ocr');
 
-    // 使用一个稳定的测试图片（腾讯云官方示例图片）
-    const testImageUrl = "https://ocr-demo-1254418846.cos.ap-guangzhou.myqcloud.com/general/general.jpg";
+    // 使用一个更稳定的公开测试图片
+    const testImageUrl = "https://www.baidu.com/img/flexible/logo/pc/result.png";
 
     console.log('[测试] 开始OCR识别测试图片:', testImageUrl);
 

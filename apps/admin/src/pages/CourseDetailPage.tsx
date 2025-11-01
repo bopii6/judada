@@ -4,7 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CoursePackageDetail,
   fetchCoursePackageDetail,
-  uploadCoursePackageMaterial
+  uploadCoursePackageMaterial,
+  publishCoursePackage
 } from "../api/coursePackages";
 import "./CourseDetailPage.css";
 
@@ -25,6 +26,8 @@ export const CourseDetailPage = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [publishSuccess, setPublishSuccess] = useState<string | null>(null);
 
   const {
     data,
@@ -63,6 +66,28 @@ export const CourseDetailPage = () => {
     }
   });
 
+  const publishMutation = useMutation({
+    mutationFn: async () => {
+      if (!id) {
+        throw new Error("当前页面缺少课程包标识，请刷新后重试。");
+      }
+      return publishCoursePackage(id);
+    },
+    onMutate: () => {
+      setPublishError(null);
+      setPublishSuccess(null);
+    },
+    onSuccess: ({ result }) => {
+      setPublishSuccess(`发布成功，版本包含 ${result.lessonCount} 个关卡。`);
+      void refetchDetail();
+      void queryClient.invalidateQueries({ queryKey: ["course-packages"] });
+      void queryClient.invalidateQueries({ queryKey: ["courses"] });
+    },
+    onError: failure => {
+      setPublishError((failure as Error).message);
+    }
+  });
+
   const detail = useMemo<CoursePackageDetail | null>(() => data?.package ?? null, [data]);
 
   if (!id) {
@@ -86,6 +111,8 @@ export const CourseDetailPage = () => {
   const handleUploadButtonClick = () => {
     setUploadError(null);
     setUploadSuccess(null);
+    setPublishError(null);
+    setPublishSuccess(null);
     fileInputRef.current?.click();
   };
 
@@ -116,8 +143,13 @@ export const CourseDetailPage = () => {
           <button type="button" onClick={handleUploadButtonClick} disabled={uploadMutation.isPending}>
             {uploadMutation.isPending ? "正在上传..." : "上传素材并重新生成"}
           </button>
-          <button type="button" className="primary" disabled={detail.status !== "draft"}>
-            发布当前草稿
+          <button
+            type="button"
+            className="primary"
+            disabled={detail.status !== "draft" || publishMutation.isPending}
+            onClick={() => publishMutation.mutate()}
+          >
+            {publishMutation.isPending ? "正在发布..." : "发布当前草稿"}
           </button>
         </div>
       </header>
@@ -128,10 +160,19 @@ export const CourseDetailPage = () => {
         hidden
         onChange={handleFileChange}
       />
-      {(uploadError || uploadSuccess) && (
-        <p className={`course-detail-upload-feedback ${uploadError ? "error" : "success"}`}>
-          {uploadError ?? uploadSuccess}
-        </p>
+      {(uploadError || uploadSuccess || publishError || publishSuccess) && (
+        <div className="course-detail-upload-feedback-stack">
+          {(uploadError || uploadSuccess) && (
+            <p className={`course-detail-upload-feedback ${uploadError ? "error" : "success"}`}>
+              {uploadError ?? uploadSuccess}
+            </p>
+          )}
+          {(publishError || publishSuccess) && (
+            <p className={`course-detail-upload-feedback ${publishError ? "error" : "success"}`}>
+              {publishError ?? publishSuccess}
+            </p>
+          )}
+        </div>
       )}
 
       <section className="course-detail-meta">

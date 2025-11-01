@@ -222,9 +222,9 @@ const extractOcrText = (raw: unknown): string => {
 const buildAiInstructions = () =>
   [
     "You are an experienced ESL curriculum designer for Chinese learners aged 16-30.",
-    "Design a coherent mini-course from provided raw materials. Assemble 3-5 lessons, each with concise summary, a difficulty rating (1-6), and 3-6 activity items.",
-    "Activity types must match the provided enum. Populate payloads with bilingual content whenever possible (both English and Chinese).",
-    "Keep vocabulary and prompts concise (<= 120 characters). Avoid markdown. The JSON must pass the provided schema."
+    "Design a coherent mini-course from provided raw materials. Create 15-20 sequential lessons, each with a concise summary, a difficulty rating (1-6), and 3-6 activity items that gradually increase in challenge.",
+    "Activity types must match the provided enum. Populate payloads with bilingual content whenever possible (both English and Chinese) and ensure every activity includes both CN and EN text when it makes sense.",
+    "Keep vocabulary and prompts concise (<= 120 characters). Avoid markdown. The JSON must pass the provided schema precisely."
   ].join("\n");
 
 const generationJsonSchema = {
@@ -241,8 +241,8 @@ const generationJsonSchema = {
       },
       lessons: {
         type: "array",
-        minItems: 2,
-        maxItems: 6,
+        minItems: 15,
+        maxItems: 20,
         items: {
           type: "object",
           additionalProperties: false,
@@ -275,7 +275,7 @@ const generationJsonSchema = {
               maxItems: 8,
               items: {
                 type: "object",
-                additionalProperties: true,
+                additionalProperties: false,
                 required: ["type", "payload"],
                 properties: {
                   type: {
@@ -291,7 +291,8 @@ const generationJsonSchema = {
                     maxLength: 280
                   },
                   payload: {
-                    type: "object"
+                    type: "object",
+                    additionalProperties: true
                   }
                 }
               }
@@ -432,10 +433,14 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
         model: OPENAI_MODEL_NAME,
         instructions: buildAiInstructions(),
         input: promptSegments.join("\n\n"),
-        response_format: {
-          type: "json_schema",
-          json_schema: generationJsonSchema
-        } as any,
+        text: {
+          format: {
+            type: "json_schema",
+            name: generationJsonSchema.name,
+            schema: generationJsonSchema.schema,
+            strict: false
+          }
+        },
         temperature: 0.4
       });
     },
@@ -491,9 +496,10 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
   const packageId = generationJob.packageId;
   const existingDescription = generationJob.package?.description ?? null;
 
-  const persisted = await prisma.$transaction(async transaction => {
-    const versionCount = await transaction.coursePackageVersion.count({ where: { packageId } });
-    const nextVersionNumber = versionCount + 1;
+  const persisted = await prisma.$transaction(
+    async transaction => {
+      const versionCount = await transaction.coursePackageVersion.count({ where: { packageId } });
+      const nextVersionNumber = versionCount + 1;
 
     const version = await transaction.coursePackageVersion.create({
       data: {
@@ -575,12 +581,16 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
       }
     });
 
-    return {
-      versionId: version.id,
-      versionNumber: nextVersionNumber,
-      lessonCount: lessonSummaries.length
-    };
-  });
+      return {
+        versionId: version.id,
+        versionNumber: nextVersionNumber,
+        lessonCount: lessonSummaries.length
+      };
+    },
+    {
+      timeout: 60000
+    }
+  );
 
   await generationJobRepository.appendLog(generationJobId, "课程草稿落库成功", "info", persisted);
 

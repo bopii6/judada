@@ -173,3 +173,11 @@ export const uploadCoursePackageMaterial = (
     }
   );
 };
+
+export const publishCoursePackage = (packageId: string) =>
+  apiFetch<{ success: boolean; result: { packageId: string; versionId: string; lessonCount: number } }>(
+    `/admin/course-packages/${packageId}/publish`,
+    {
+      method: "POST"
+    }
+  );
