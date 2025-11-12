@@ -111,34 +111,17 @@ export interface CreateCoursePackageVersionInput {
 }
 
 const mapToListItem = (
-  pkg: CoursePackageGetPayload<{
-    include: {
-      currentVersion: {
-        select: {
-          id: true;
-          status: true;
-          versionNumber: true;
-          createdAt: true;
-        };
-      };
-      _count: {
-        select: {
-          versions: true;
-          lessons: true;
-        };
-      };
-    };
-  }>
+  pkg: any
 ): CoursePackageListItem => ({
   id: pkg.id,
   title: pkg.title,
   topic: pkg.topic,
   status: pkg.status,
-  coverUrl: pkg.coverUrl,
+  coverUrl: pkg.coverUrl || null,
   createdAt: pkg.createdAt,
   updatedAt: pkg.updatedAt,
-  versionCount: pkg._count.versions,
-  lessonCount: pkg._count.lessons,
+  versionCount: pkg._count?.versions || 0,
+  lessonCount: pkg._count?.lessons || 0,
   currentVersion: pkg.currentVersion
     ? {
         id: pkg.currentVersion.id,
