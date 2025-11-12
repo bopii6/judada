@@ -19,8 +19,55 @@ const resolvePreferredVoice = (preferredLocales?: string[]) => {
     return cachedPreferredVoice;
   }
 
-  const preferences = preferredLocales && preferredLocales.length ? preferredLocales : ["en-GB", "en-US", "en-AU"];
+  // 专门为小朋友选择友好的男声，按优先级排序
+  const kidFriendlyVoices = [
+    "Google US English Male",        // Google男声，清晰友好
+    "Microsoft David Desktop",      // 微软男声，适合儿童
+    "Microsoft Mark Desktop",       // 微软男声，很清晰
+    "Alex",                         // macOS男声，温暖友好
+    "Daniel",                       // 英式男声，温和
+    "Aaron",                        // Windows男声
+    "Tyler",                        // 美式男声
+    "Fred",                         // 简单男声
+    "Microsoft Mike Desktop",       // 经典微软男声
+    "Google UK English Male",        // 英式Google男声
+  ];
 
+  // 优先选择专门适合儿童的声音
+  for (const voiceName of kidFriendlyVoices) {
+    const match = voices.find(voice =>
+      voice.name === voiceName &&
+      (voice.lang.includes('en') || voice.lang.includes('EN'))
+    );
+    if (match) {
+      cachedPreferredVoice = match;
+      return match;
+    }
+  }
+
+  // 如果没有找到特定声音，查找男性声音
+  const maleVoices = voices.filter(voice =>
+    voice.lang.includes('en') && (
+      voice.name.includes('Male') ||
+      voice.name.includes('Man') ||
+      voice.name.includes('Boy') ||
+      voice.name.toLowerCase().includes('alex') ||
+      voice.name.toLowerCase().includes('david') ||
+      voice.name.toLowerCase().includes('mark') ||
+      voice.name.toLowerCase().includes('daniel') ||
+      voice.name.toLowerCase().includes('aaron') ||
+      voice.name.toLowerCase().includes('tyler') ||
+      voice.name.toLowerCase().includes('fred')
+    )
+  );
+
+  if (maleVoices.length > 0) {
+    cachedPreferredVoice = maleVoices[0];
+    return maleVoices[0];
+  }
+
+  // 最后按地区查找美式英语（最通用）
+  const preferences = ["en-US", "en-GB", "en-AU"];
   for (const locale of preferences) {
     const match = voices.find(voice => voice.lang?.toLowerCase().includes(locale.toLowerCase()));
     if (match) {
@@ -47,15 +94,17 @@ export const speak = (text: string, options: SpeakOptions = {}) => {
     if (voice) {
       utterance.voice = voice;
     }
-    if (options.rate) {
-      utterance.rate = options.rate;
-    }
-    if (options.pitch) {
-      utterance.pitch = options.pitch;
-    }
-    if (options.volume) {
-      utterance.volume = options.volume;
-    }
+
+    // 为小朋友设置适合男声的朗读参数
+    // 语速适中，便于孩子理解
+    utterance.rate = options.rate ?? 0.9;
+
+    // 男声音调适中，不要太低也不要太高
+    utterance.pitch = options.pitch ?? 0.95;
+
+    // 音量适中，保护听力
+    utterance.volume = options.volume ?? 0.8;
+
     if (options.onEnd) {
       utterance.onend = options.onEnd;
     }

@@ -1,4 +1,17 @@
 import { Prisma, SourceType, VersionStatus } from "@prisma/client";
+import {
+  SourceType as ST,
+  VersionStatus as VS,
+  CoursePackageVersionGetPayload,
+  LessonGetPayload,
+  InputJsonValue,
+  CoursePackageGetPayload,
+  CoursePackageUpdateInput
+} from "../types/prisma-temp";
+
+// 使用类型别名以避免冲突
+type LocalSourceType = ST;
+type LocalVersionStatus = VS;
 import { getPrisma } from "../lib/prisma";
 
 const prisma = getPrisma();
@@ -30,7 +43,7 @@ export interface CoursePackageDetail {
   coverUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
-  currentVersion: Prisma.CoursePackageVersionGetPayload<{
+  currentVersion: CoursePackageVersionGetPayload<{
     include: {
       lessons: {
         orderBy: {
@@ -50,7 +63,7 @@ export interface CoursePackageDetail {
       };
     };
   }> | null;
-  versions: Prisma.CoursePackageVersionGetPayload<{
+  versions: CoursePackageVersionGetPayload<{
     include: {
       lessons: {
         select: {
@@ -67,7 +80,7 @@ export interface CoursePackageDetail {
       createdAt: "desc";
     };
   }>[];
-  lessons: Prisma.LessonGetPayload<{
+  lessons: LessonGetPayload<{
     orderBy: {
       sequence: "asc";
     };
@@ -91,14 +104,14 @@ export interface CreateCoursePackageVersionInput {
   notes?: string | null;
   status?: VersionStatus;
   sourceType?: SourceType;
-  payload?: Prisma.InputJsonValue | null;
+  payload?: InputJsonValue | null;
   createdById?: string | null;
   previousVersionId?: string | null;
   versionNumber?: number;
 }
 
 const mapToListItem = (
-  pkg: Prisma.CoursePackageGetPayload<{
+  pkg: CoursePackageGetPayload<{
     include: {
       currentVersion: {
         select: {
