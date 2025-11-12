@@ -3,8 +3,7 @@
 const links = [
   { to: "/", label: "Dashboard" },
   { to: "/courses", label: "课程" },
-  { to: "/settings", label: "设置" },
-  { to: "/admin", label: "Admin" }
+  { to: "/settings", label: "设置" }
 ];
 
 export const AppLayout = () => (

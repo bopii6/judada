@@ -30,6 +30,15 @@
   color: #64748b;
 }
 
+.login-help {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background-color: #f0f9ff;
+  border: 1px solid #bfdbfe;
+  font-size: 13px;
+  color: #1e40af;
+}
+
 .login-field {
   display: flex;
   flex-direction: column;

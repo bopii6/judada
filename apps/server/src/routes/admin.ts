@@ -125,4 +125,31 @@ router.post("/course-packages/:id/publish", async (req, res, next) => {
   }
 });
 
+router.delete("/course-packages/:id", async (req, res, next) => {
+  try {
+    await coursePackageService.deletePackage(req.params.id);
+    res.json({ success: true, message: "课程包删除成功" });
+  } catch (error) {
+    next(error);
+  }
+});
+
+const deletePackagesSchema = z.object({
+  packageIds: z.array(z.string().uuid()).min(1, "请至少选择一个课程包")
+});
+
+router.delete("/course-packages", async (req, res, next) => {
+  try {
+    const { packageIds } = deletePackagesSchema.parse(req.body);
+    const result = await coursePackageService.deletePackages(packageIds);
+    res.json({
+      success: true,
+      message: `成功删除 ${result.deletedCount} 个课程包`,
+      failedPackages: result.failedPackages
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

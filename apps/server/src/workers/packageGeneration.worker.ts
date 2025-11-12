@@ -7,7 +7,7 @@ import { getPrisma } from "../lib/prisma";
 import { getSupabase } from "../lib/supabase";
 import { getEnv } from "../config/env";
 import { parsePdfToQuestions, ParsedQuestion } from "../utils/pdf";
-import { recognizeImageByUrl } from "../lib/ocr";
+import { recognizeImageByUrl, recognizeImagesBatch } from "../lib/ocr";
 import { getOpenAI, callOpenAIWithRetry } from "../lib/openai";
 import { generationJobRepository } from "../repositories/generationJob.repository";
 
@@ -227,6 +227,45 @@ const buildAiInstructions = () =>
     "Keep vocabulary and prompts concise (<= 120 characters). Avoid markdown. The JSON must pass the provided schema precisely."
   ].join("\n");
 
+/**
+ * 优化的AI指令 - 更简洁，专注于速度
+ */
+const buildOptimizedAiInstructions = () =>
+  [
+    "ESL curriculum designer for Chinese learners (16-30).",
+    "Create 15-20 lessons from materials. Each lesson: title, summary (max 100 chars), difficulty (1-6), 3-6 items with bilingual content.",
+    "Use exact activity types from schema. Keep content concise. No markdown. Valid JSON required."
+  ].join("\n");
+
+/**
+ * 优化输入提示词，减少长度以提高速度
+ */
+const optimizePromptForSpeed = (promptSegments: string[]): string => {
+  console.log('[Worker Fast] 开始优化提示词，原始段落数:', promptSegments.length);
+
+  // 合并相关段落并限制总长度
+  let optimizedText = promptSegments
+    .filter(segment => segment && segment.trim().length > 10) // 过滤太短的段落
+    .map(segment => {
+      // 限制每个段落的长度
+      if (segment.length > 2000) {
+        return segment.substring(0, 2000) + "...[truncated]";
+      }
+      return segment;
+    })
+    .join("\n\n");
+
+  // 限制总输入长度
+  const maxLength = 8000; // 输入长度限制
+  if (optimizedText.length > maxLength) {
+    optimizedText = optimizedText.substring(0, maxLength) + "...[truncated for speed]";
+    console.log('[Worker Fast] 输入文本被截断以提高处理速度');
+  }
+
+  console.log('[Worker Fast] 优化完成，最终文本长度:', optimizedText.length);
+  return optimizedText;
+};
+
 const generationJsonSchema = {
   name: "course_generation_plan",
   schema: {
@@ -425,14 +464,19 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
   });
   await job.updateProgress(55);
 
-  // 使用增强的重试机制调用OpenAI
+  // 优化的AI生成调用 - 专注于速度
   const aiResponse = await callOpenAIWithRetry(
     async () => {
-      console.log('[Worker] 开始OpenAI API调用');
-      return await openai.responses.parse({
+      console.log('[Worker Fast] 开始优化的OpenAI API调用');
+      const apiStartTime = Date.now();
+
+      // 优化输入文本，减少长度以提高速度
+      const optimizedInput = optimizePromptForSpeed(promptSegments);
+
+      const response = await openai.responses.parse({
         model: OPENAI_MODEL_NAME,
-        instructions: buildAiInstructions(),
-        input: promptSegments.join("\n\n"),
+        instructions: buildOptimizedAiInstructions(), // 使用优化的指令
+        input: optimizedInput,
         text: {
           format: {
             type: "json_schema",
@@ -441,26 +485,25 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
             strict: false
           }
         },
-        temperature: 0.4
+        temperature: 0.3, // 降低温度以获得更一致的结果
+        top_p: 0.9 // 添加top_p参数以提高效率
       });
+
+      const apiDuration = Date.now() - apiStartTime;
+      console.log(`[Worker Fast] OpenAI API调用完成，耗时: ${apiDuration}ms`);
+
+      return response;
     },
     {
-      maxRetries: 5,
-      baseDelay: 2000,
-      maxDelay: 30000,
+      maxRetries: 2, // 减少重试次数
+      baseDelay: 500, // 减少基础延迟
+      timeout: 60000, // 1分钟超时
       retryCondition: (error: any) => {
-        // 网络相关错误才重试
+        // 更严格的重试条件，只对真正可重试的错误重试
         return (
-          error.code === 'ETIMEDOUT' ||
-          error.code === 'ECONNRESET' ||
-          error.code === 'ENOTFOUND' ||
-          error.code === 'ECONNREFUSED' ||
-          error.message?.includes('Connection error') ||
-          error.message?.includes('timeout') ||
-          error.message?.includes('network') ||
-          error.type === 'network_error' ||
           error.status === 429 || // Rate limit
-          (error.status >= 500 && error.status < 600) // Server errors
+          (error.status >= 500 && error.status < 600) || // Server errors
+          error.code === 'ETIMEDOUT'
         );
       }
     }
@@ -496,101 +539,136 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
   const packageId = generationJob.packageId;
   const existingDescription = generationJob.package?.description ?? null;
 
-  const persisted = await prisma.$transaction(
-    async transaction => {
-      const versionCount = await transaction.coursePackageVersion.count({ where: { packageId } });
-      const nextVersionNumber = versionCount + 1;
+  // 分步骤创建，避免大事务超时
+  // 1. 首先创建课程包版本
+  const versionCount = await prisma.coursePackageVersion.count({ where: { packageId } });
+  const nextVersionNumber = versionCount + 1;
 
-    const version = await transaction.coursePackageVersion.create({
-      data: {
-        packageId,
-        versionNumber: nextVersionNumber,
-        label: `AI Draft #${nextVersionNumber}`,
-        notes: `生成自 ${originalName}`,
-        status: "draft",
-        sourceType: "ai_generated",
-        payload: plan as unknown as Prisma.JsonObject,
-        createdById: triggerUserId
-      }
+  const version = await prisma.coursePackageVersion.create({
+    data: {
+      packageId,
+      versionNumber: nextVersionNumber,
+      label: `AI Draft #${nextVersionNumber}`,
+      notes: `生成自 ${originalName}`,
+      status: "draft",
+      sourceType: "ai_generated",
+      payload: plan as unknown as Prisma.JsonObject,
+      createdById: triggerUserId
+    }
+  });
+
+  await generationJobRepository.appendLog(generationJobId, "课程包版本创建成功，开始创建课程", "info", {
+    versionId: version.id,
+    versionNumber: nextVersionNumber
+  });
+
+  // 2. 逐个创建课程和课时，使用小事务
+  let sequence = 1;
+  const lessonSummaries: Array<{ id: string; versionId: string }> = [];
+
+  for (let i = 0; i < plan.lessons.length; i++) {
+    const lessonPlan = plan.lessons[i];
+
+    // 更新进度
+    const progress = 70 + Math.floor((i / plan.lessons.length) * 25);
+    await generationJobRepository.updateStatus(generationJobId, {
+      status: "processing",
+      progress
     });
+    await job.updateProgress(progress);
 
-    let sequence = 1;
-    const lessonSummaries: Array<{ id: string; versionId: string }> = [];
+    try {
+      const lessonResult = await prisma.$transaction(
+        async (tx) => {
+          const lesson = await tx.lesson.create({
+            data: {
+              packageId,
+              packageVersionId: version.id,
+              title: lessonPlan.title,
+              sequence,
+              createdById: triggerUserId
+            }
+          });
 
-    for (const lessonPlan of plan.lessons) {
-      const lesson = await transaction.lesson.create({
-        data: {
-          packageId,
-          packageVersionId: version.id,
-          title: lessonPlan.title,
-          sequence,
-          createdById: triggerUserId
-        }
-      });
+          const difficulty = clampDifficulty(lessonPlan.difficulty);
 
-      const difficulty = clampDifficulty(lessonPlan.difficulty);
+          const lessonVersion = await tx.lessonVersion.create({
+            data: {
+              lessonId: lesson.id,
+              versionNumber: 1,
+              title: lessonPlan.title,
+              summary: lessonPlan.summary,
+              difficulty,
+              status: "draft",
+              createdById: triggerUserId
+            }
+          });
 
-      const lessonVersion = await transaction.lessonVersion.create({
-        data: {
-          lessonId: lesson.id,
-          versionNumber: 1,
-          title: lessonPlan.title,
-          summary: lessonPlan.summary,
-          difficulty,
-          status: "draft",
-          createdById: triggerUserId
-        }
-      });
+          await tx.lesson.update({
+            where: { id: lesson.id },
+            data: { currentVersionId: lessonVersion.id }
+          });
 
-      await transaction.lesson.update({
-        where: { id: lesson.id },
-        data: { currentVersionId: lessonVersion.id }
-      });
+          const validItems = Array.isArray(lessonPlan.items) ? lessonPlan.items : [];
+          let orderIndex = 1;
 
-      const validItems = Array.isArray(lessonPlan.items) ? lessonPlan.items : [];
-      let orderIndex = 1;
+          for (const item of validItems) {
+            if (!item || typeof item !== "object") continue;
+            if (!LESSON_ITEM_TYPES.includes(item.type as LessonItemType)) continue;
 
-      for (const item of validItems) {
-        if (!item || typeof item !== "object") continue;
-        if (!LESSON_ITEM_TYPES.includes(item.type as LessonItemType)) continue;
+            await tx.lessonItem.create({
+              data: {
+                lessonVersionId: lessonVersion.id,
+                orderIndex,
+                type: item.type as LessonItemType,
+                title: item.title ?? null,
+                payload: normalizePayload(item.payload)
+              }
+            });
 
-        await transaction.lessonItem.create({
-          data: {
-            lessonVersionId: lessonVersion.id,
-            orderIndex,
-            type: item.type as LessonItemType,
-            title: item.title ?? null,
-            payload: normalizePayload(item.payload)
+            orderIndex += 1;
           }
-        });
 
-        orderIndex += 1;
-      }
+          return {
+            lessonId: lesson.id,
+            versionId: lessonVersion.id
+          };
+        },
+        {
+          timeout: 30000 // 每个课程30秒超时
+        }
+      );
 
-      lessonSummaries.push({ id: lesson.id, versionId: lessonVersion.id });
+      lessonSummaries.push({ id: lessonResult.lessonId, versionId: lessonResult.versionId });
       sequence += 1;
-    }
 
-    await transaction.coursePackage.update({
-      where: { id: packageId },
-      data: {
-        currentVersionId: version.id,
-        status: "draft",
-        description:
-          existingDescription == null || existingDescription.trim().length === 0 ? plan.packageSummary : existingDescription
-      }
-    });
+      await generationJobRepository.appendLog(generationJobId, `课程创建成功: ${lessonPlan.title}`, "info");
 
-      return {
-        versionId: version.id,
-        versionNumber: nextVersionNumber,
-        lessonCount: lessonSummaries.length
-      };
-    },
-    {
-      timeout: 60000
+    } catch (error) {
+      await generationJobRepository.appendLog(generationJobId, `课程创建失败: ${lessonPlan.title} - ${(error as Error).message}`, "error", {
+        lessonTitle: lessonPlan.title,
+        error: (error as Error).message
+      });
+      throw error;
     }
-  );
+  }
+
+  // 3. 最后更新课程包状态
+  await prisma.coursePackage.update({
+    where: { id: packageId },
+    data: {
+      currentVersionId: version.id,
+      status: "draft",
+      description:
+        existingDescription == null || existingDescription.trim().length === 0 ? plan.packageSummary : existingDescription
+    }
+  });
+
+  const persisted = {
+    versionId: version.id,
+    versionNumber: nextVersionNumber,
+    lessonCount: lessonSummaries.length
+  };
 
   await generationJobRepository.appendLog(generationJobId, "课程草稿落库成功", "info", persisted);
 

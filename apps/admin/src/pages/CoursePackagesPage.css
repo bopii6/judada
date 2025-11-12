@@ -147,4 +147,242 @@
 .packages-link {
   color: #2563eb;
   font-weight: 600;
+  text-decoration: none;
+}
+
+.packages-link:hover {
+  text-decoration: underline;
+}
+
+.packages-link-separator {
+  margin: 0 8px;
+  color: #94a3b8;
+}
+
+.packages-delete {
+  background: none;
+  border: none;
+  color: #dc2626;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.packages-delete:hover {
+  background-color: rgba(220, 38, 38, 0.1);
+}
+
+.packages-delete:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.packages-delete-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #dc2626;
+  margin-left: 8px;
+}
+
+.packages-delete-yes,
+.packages-delete-no {
+  background: none;
+  border: 1px solid #d1d5db;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.packages-delete-yes {
+  background-color: #dc2626;
+  color: white;
+  border-color: #dc2626;
+}
+
+.packages-delete-yes:hover:not(:disabled) {
+  background-color: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.packages-delete-no {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.packages-delete-no:hover:not(:disabled) {
+  background-color: #e5e7eb;
+}
+
+.packages-delete-yes:disabled,
+.packages-delete-no:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 批量操作样式 */
+.packages-batch-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background-color: #f0f9ff;
+  border: 1px solid #bfdbfe;
+  margin-bottom: 16px;
+}
+
+.packages-batch-info {
+  font-size: 14px;
+  color: #1e40af;
+  font-weight: 600;
+}
+
+.packages-batch-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.packages-batch-delete {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background-color: #dc2626;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.packages-batch-delete:hover:not(:disabled) {
+  background-color: #b91c1c;
+}
+
+.packages-batch-delete:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.packages-batch-cancel {
+  padding: 8px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background-color: white;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.packages-batch-cancel:hover:not(:disabled) {
+  background-color: #f3f4f6;
+}
+
+.packages-batch-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 表格选择框样式 */
+.packages-table input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.packages-selected-row {
+  background-color: #f0f9ff !important;
+}
+
+/* 批量删除确认对话框 */
+.packages-batch-delete-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.packages-batch-delete-dialog {
+  background-color: white;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px -30px rgba(15, 23, 42, 0.65);
+  max-width: 400px;
+  width: 90%;
+}
+
+.packages-batch-delete-dialog h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.packages-batch-delete-dialog p {
+  margin: 0 0 24px 0;
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.5;
+}
+
+.packages-batch-delete-dialog small {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.packages-batch-delete-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.packages-batch-delete-confirm {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background-color: #dc2626;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.packages-batch-delete-confirm:hover:not(:disabled) {
+  background-color: #b91c1c;
+}
+
+.packages-batch-delete-confirm:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.packages-batch-delete-cancel {
+  padding: 10px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background-color: white;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.packages-batch-delete-cancel:hover:not(:disabled) {
+  background-color: #f3f4f6;
+}
+
+.packages-batch-delete-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }

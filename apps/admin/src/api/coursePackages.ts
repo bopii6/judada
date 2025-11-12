@@ -181,3 +181,24 @@ export const publishCoursePackage = (packageId: string) =>
       method: "POST"
     }
   );
+
+export const deleteCoursePackage = (packageId: string) =>
+  apiFetch<{ success: boolean; message: string }>(
+    `/admin/course-packages/${packageId}`,
+    {
+      method: "DELETE"
+    }
+  );
+
+export const deleteCoursePackages = (packageIds: string[]) =>
+  apiFetch<{
+    success: boolean;
+    message: string;
+    failedPackages: Array<{ id: string; title: string; error: string }>
+  }>(
+    `/admin/course-packages`,
+    {
+      method: "DELETE",
+      body: JSON.stringify({ packageIds })
+    }
+  );

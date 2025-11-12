@@ -230,8 +230,9 @@ export const coursePackageService = {
    * 发布当前草稿版本，供前台学员端使用
    */
   publishCurrentDraft: async (packageId: string) => {
-    return prisma.$transaction(async transaction => {
-      const pkg = await transaction.coursePackage.findUnique({
+    return prisma.$transaction(
+      async transaction => {
+        const pkg = await transaction.coursePackage.findUnique({
         where: { id: packageId },
         include: {
           currentVersion: {
@@ -295,10 +296,154 @@ export const coursePackageService = {
       });
 
       return {
-        packageId,
-        versionId: pkg.currentVersion.id,
-        lessonCount: pkg.currentVersion.lessons.length
-      };
-    });
+          packageId,
+          versionId: pkg.currentVersion.id,
+          lessonCount: pkg.currentVersion.lessons.length
+        };
+      },
+      {
+        timeout: 30000 // 30秒超时
+      }
+    );
+  },
+
+  /**
+   * 删除课程包
+   */
+  deletePackage: async (packageId: string) => {
+    return prisma.$transaction(
+      async transaction => {
+        // 检查课程包是否存在
+        const pkg = await transaction.coursePackage.findUnique({
+          where: { id: packageId },
+          include: {
+            versions: {
+              include: {
+                lessons: {
+                  include: {
+                    versions: true
+                  }
+                }
+              }
+            }
+          }
+        });
+
+        if (!pkg) {
+          const error = new Error("课程包不存在");
+          (error as any).status = 404;
+          throw error;
+        }
+
+        // 检查是否已发布，已发布的课程包不能删除
+        if (pkg.status === 'published') {
+          const error = new Error("已发布的课程包不能删除");
+          (error as any).status = 400;
+          throw error;
+        }
+
+        // 递归删除所有相关数据
+        // 1. 删除所有课程版本
+        for (const version of pkg.versions) {
+          for (const lesson of version.lessons) {
+            // 删除课程版本
+            await transaction.lessonVersion.deleteMany({
+              where: { lessonId: lesson.id }
+            });
+          }
+          // 删除课程
+          await transaction.lesson.deleteMany({
+            where: { packageVersionId: version.id }
+          });
+        }
+
+        // 2. 删除课程包版本
+        await transaction.coursePackageVersion.deleteMany({
+          where: { packageId }
+        });
+
+        // 3. 删除相关的生成任务
+        await transaction.generationJob.deleteMany({
+          where: { packageId }
+        });
+
+        // 4. 删除相关的资源
+        await transaction.asset.deleteMany({
+          where: { packageId }
+        });
+
+        // 5. 最后删除课程包
+        await transaction.coursePackage.delete({
+          where: { id: packageId }
+        });
+      },
+      {
+        timeout: 60000 // 60秒超时，删除操作可能需要更长时间
+      }
+    );
+  },
+
+  /**
+   * 批量删除课程包
+   */
+  deletePackages: async (packageIds: string[]) => {
+    const results = {
+      deletedCount: 0,
+      failedPackages: [] as Array<{ id: string; title: string; error: string }>
+    };
+
+    // 逐个处理，避免复杂事务
+    for (const packageId of packageIds) {
+      try {
+        // 检查课程包是否存在
+        const pkg = await prisma.coursePackage.findUnique({
+          where: { id: packageId }
+        });
+
+        if (!pkg) {
+          results.failedPackages.push({
+            id: packageId,
+            title: '未知',
+            error: "课程包不存在"
+          });
+          continue;
+        }
+
+        // 检查是否已发布
+        if (pkg.status === 'published') {
+          results.failedPackages.push({
+            id: packageId,
+            title: pkg.title,
+            error: "已发布的课程包不能删除"
+          });
+          continue;
+        }
+
+        // 使用单个删除方法来删除课程包
+        await coursePackageService.deletePackage(packageId);
+        results.deletedCount++;
+      } catch (error) {
+        // 获取课程包标题用于错误报告
+        try {
+          const pkg = await prisma.coursePackage.findUnique({
+            where: { id: packageId },
+            select: { title: true }
+          });
+          results.failedPackages.push({
+            id: packageId,
+            title: pkg?.title || '未知',
+            error: (error as Error).message
+          });
+        } catch {
+          results.failedPackages.push({
+            id: packageId,
+            title: '未知',
+            error: (error as Error).message
+          });
+        }
+      }
+    }
+
+    return results;
   }
 };

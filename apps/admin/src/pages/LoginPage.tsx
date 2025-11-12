@@ -34,6 +34,9 @@ export const LoginPage = () => {
       <form className="login-card" onSubmit={handleSubmit}>
         <h1 className="login-title">课程管理后台登录</h1>
         <p className="login-tip">输入姓名和管理员密钥即可进入后台，稍后可以换成正式的账号体系。</p>
+        <div className="login-help">
+          <strong>开发环境默认密钥：</strong> dev-admin-key
+        </div>
 
         <label className="login-field">
           <span>姓名</span>
