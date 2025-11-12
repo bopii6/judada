@@ -1,0 +1,41 @@
+services:
+  # 后端API服务
+  - type: web
+    name: judada-api
+    runtime: node
+    plan: free
+    buildCommand: cd apps/server && pnpm install && pnpm build
+    startCommand: cd apps/server && pnpm start
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: TENCENT_SECRET_ID
+        sync: false
+      - key: TENCENT_SECRET_KEY
+        sync: false
+      - key: NODE_ENV
+        value: production
+
+  # 前端Web应用
+  - type: web
+    name: judada-web
+    runtime: static
+    buildCommand: cd apps/web && pnpm install && pnpm build
+    staticPublishPath: apps/web/dist
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://judada-api.onrender.com/api/*
+
+  # 管理后台
+  - type: web
+    name: judada-admin
+    runtime: static
+    buildCommand: cd apps/admin && pnpm install && pnpm build
+    staticPublishPath: apps/admin/dist
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://judada-api.onrender.com/api/*

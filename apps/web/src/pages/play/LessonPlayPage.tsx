@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchCourseContent, type CourseStage } from "../../api/courses";
 import { TilesLessonExperience } from "../../components/play/TilesLessonExperience";
 import { TypingLessonExperience } from "../../components/play/TypingLessonExperience";
+import { progressStore } from "../../store/progressStore";
 
 const MODES = ["tiles", "type"] as const;
 
@@ -17,16 +18,15 @@ interface CelebrationState {
   message: string;
 }
 
-const calculateStars = (combo: number) => {
-  if (combo >= 6) return 3;
-  if (combo >= 3) return 2;
+const calculateStars = (mistakes: number) => {
+  if (mistakes === 0) return 3;
+  if (mistakes === 1) return 2;
   return 1;
 };
 
 export const LessonPlayPage = () => {
   const { courseId, stageId, mode } = useParams<{ courseId: string; stageId: string; mode: string }>();
   const navigate = useNavigate();
-  const activeMode: LessonMode = isValidMode(mode) ? (mode as LessonMode) : "tiles";
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["course-content", courseId],
@@ -38,12 +38,14 @@ export const LessonPlayPage = () => {
   const stageIndex = useMemo(() => stages.findIndex(stage => stage.id === stageId), [stages, stageId]);
   const currentStage = stageIndex >= 0 ? stages[stageIndex] : undefined;
   const nextStage = stageIndex >= 0 ? stages[stageIndex + 1] : undefined;
+  const activeMode: LessonMode = isValidMode(mode) ? (mode as LessonMode) : "tiles";
 
   const [combo, setCombo] = useState(0);
   const [bestCombo, setBestCombo] = useState(0);
   const [attempts, setAttempts] = useState(0);
   const [completed, setCompleted] = useState(false);
   const [celebration, setCelebration] = useState<CelebrationState | null>(null);
+  const [stageMistakes, setStageMistakes] = useState(0);
 
   const celebrationTimeoutRef = useRef<number | null>(null);
 
@@ -54,6 +56,7 @@ export const LessonPlayPage = () => {
     }
     setCelebration(null);
     setCompleted(false);
+    setStageMistakes(0);
   }, [stageId]);
 
   const handleBack = () => {
@@ -66,15 +69,24 @@ export const LessonPlayPage = () => {
 
   const handleSuccess = () => {
     setAttempts(prev => prev + 1);
+    if (courseId && stageId) {
+      const starsEarned = calculateStars(stageMistakes);
+      progressStore.recordStageCompletion({
+        courseId,
+        stageId,
+        stars: starsEarned,
+        mode: activeMode
+      });
+      setStageMistakes(0);
+      setCelebration({
+        stars: starsEarned,
+        combo: combo + 1,
+        message: starsEarned === 3 ? "完美连击！" : starsEarned === 2 ? "越来越棒！" : "继续加油！"
+      });
+    }
     setCombo(prevCombo => {
       const nextCombo = prevCombo + 1;
       setBestCombo(prevBest => (nextCombo > prevBest ? nextCombo : prevBest));
-      const stars = calculateStars(nextCombo);
-      setCelebration({
-        stars,
-        combo: nextCombo,
-        message: stars === 3 ? "完美连击！" : stars === 2 ? "越来越棒！" : "继续加油！"
-      });
       return nextCombo;
     });
 
@@ -91,6 +103,7 @@ export const LessonPlayPage = () => {
   const handleMistake = () => {
     setAttempts(prev => prev + 1);
     setCombo(0);
+    setStageMistakes(prev => prev + 1);
   };
 
   useEffect(() => () => {
@@ -164,7 +177,9 @@ export const LessonPlayPage = () => {
         </button>
         <div className="text-center">
           <div className="text-xs uppercase tracking-[0.3em] text-white/60">{currentStage.lessonTitle}</div>
-          <h1 className="mt-2 text-3xl font-bold drop-shadow-lg">模式：{activeMode === "tiles" ? "点词成句" : "键入练习"}</h1>
+          <h1 className="mt-2 text-3xl font-bold drop-shadow-lg">
+            模式：{activeMode === "tiles" ? "点词成句" : "键入练习"}
+          </h1>
           <div className="mt-3 flex items-center justify-center gap-4 text-xs text-white/70">
             <span>关卡 #{currentStage.stageSequence}</span>
             <span>进度 {stageIndex + 1} / {stages.length}</span>

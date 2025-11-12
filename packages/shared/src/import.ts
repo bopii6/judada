@@ -17,8 +17,8 @@ export const parseCsvQuestions = async (fileBuffer: Buffer): Promise<QuestionInp
     Papa.parse(fileBuffer.toString("utf8"), {
       header: true,
       skipEmptyLines: true,
-      transformHeader: header => header.trim().toLowerCase(),
-      complete: results => {
+      transformHeader: (header: string) => header.trim().toLowerCase(),
+      complete: (results: Papa.ParseResult<any>) => {
         try {
           const rows = (results.data as Record<string, string>[]).map(raw => {
             const parsed = csvHeaderSchema.parse(raw);
@@ -36,7 +36,7 @@ export const parseCsvQuestions = async (fileBuffer: Buffer): Promise<QuestionInp
           reject(error);
         }
       },
-      error: error => reject(error)
+      error: (error: any) => reject(error)
     });
   });
 

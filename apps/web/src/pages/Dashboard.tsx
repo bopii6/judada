@@ -1,9 +1,11 @@
-﻿import { useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "../api/client";
 import type { QuestionBank, PlacementStartResponse, PlacementSubmitResponse } from "../api/types";
 import { useDeviceId } from "../hooks/useDeviceId";
 import { PlacementBoard } from "../components/PlacementBoard";
+import { DailyQuestBoard } from "../components/DailyQuestBoard";
+import { useProgressStore } from "../store/progressStore";
 
 interface BanksResponse {
   banks: QuestionBank[];
@@ -25,6 +27,14 @@ export const Dashboard = () => {
   const { data: placementBanks } = useQuery({ queryKey: ["placement-banks"], queryFn: fetchPlacementBanks });
   const [placementSession, setPlacementSession] = useState<PlacementStartResponse | null>(null);
   const [placementResult, setPlacementResult] = useState<PlacementSubmitResponse | null>(null);
+  const progress = useProgressStore();
+
+  const progressSummary = useMemo(() => {
+    const records = Object.values(progress.stages);
+    const totalStars = records.reduce((sum, record) => sum + record.bestStars, 0);
+    const totalStages = records.length;
+    return { totalStars, totalStages };
+  }, [progress]);
 
   const startPlacement = async () => {
     if (!deviceId) return;
@@ -44,7 +54,21 @@ export const Dashboard = () => {
     <div className="space-y-8">
       <section>
         <h1 className="text-3xl font-bold text-slate-900">我的学习概况</h1>
-        <p className="mt-2 text-sm text-slate-600">选择一个课程开始练习，或完成定位测获得推荐难度。</p>
+        <p className="mt-2 text-sm text-slate-600">朝着冒险地图前进，完成每日任务即可解锁更多故事。</p>
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <p className="text-xs text-slate-500">累计完成关卡</p>
+            <p className="mt-1 text-2xl font-semibold text-slate-900">{progressSummary.totalStages}</p>
+          </div>
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <p className="text-xs text-slate-500">获得星星</p>
+            <p className="mt-1 text-2xl font-semibold text-amber-500">{progressSummary.totalStars}</p>
+          </div>
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <p className="text-xs text-slate-500">设备 ID</p>
+            <p className="mt-1 text-sm font-mono text-slate-700">{deviceId ?? "加载中..."}</p>
+          </div>
+        </div>
         {placementResult && (
           <div className="mt-4 rounded-2xl bg-white p-4 text-sm text-slate-700 shadow-sm">
             <div className="text-lg font-semibold text-slate-900">定位测结果</div>
@@ -58,6 +82,8 @@ export const Dashboard = () => {
           </div>
         )}
       </section>
+
+      <DailyQuestBoard />
 
       <section className="grid gap-4 md:grid-cols-2">
         <div className="rounded-2xl bg-white p-6 shadow-sm">

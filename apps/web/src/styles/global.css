@@ -51,3 +51,44 @@ body {
 .lesson-animate-pop {
   animation: lesson-pop 0.45s ease;
 }
+
+@keyframes drag-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-8px);
+  }
+  40% {
+    transform: translateX(8px);
+  }
+  60% {
+    transform: translateX(-5px);
+  }
+  80% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes drag-pop {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.6;
+  }
+  60% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.drag-feedback-error {
+  animation: drag-shake 0.4s ease;
+}
+
+.drag-feedback-success {
+  animation: drag-pop 0.5s ease;
+}
