@@ -228,15 +228,24 @@ const buildAiInstructions = () =>
   ].join("\n");
 
 /**
- * AI指令 - 强制生成至少15个关卡
+ * AI指令 - 极度强制生成15个不同的关卡
  */
 const buildOptimizedAiInstructions = () =>
   [
+    "CRITICAL REQUIREMENT: You MUST generate EXACTLY 15 DIFFERENT lessons. No exceptions!",
     "ESL curriculum designer for Chinese learners (16-30).",
-    "IMPORTANT: You MUST generate EXACTLY 15 lessons minimum. If materials are insufficient, creatively expand content by creating variations, practice exercises, and related vocabulary.",
-    "Generate 15-20 lessons from materials. Each lesson: title, summary (max 100 chars), difficulty (1-6), 3-6 items with bilingual content.",
+    "If source materials are limited, create comprehensive variations:",
+    "- Create vocabulary lessons with different word sets",
+    "- Add grammar exercises with various sentence patterns",
+    "- Include listening comprehension with different scenarios",
+    "- Add speaking practice with varied topics",
+    "- Create reading exercises with different contexts",
+    "- Include writing prompts with diverse themes",
+    "- Add review and practice lessons",
+    "EACH lesson must be unique in content and learning objective.",
+    "Generate EXACTLY 15 lessons. Each lesson: title, summary (max 100 chars), difficulty (1-6), 3-6 items with bilingual content.",
     "Use exact activity types from schema. Keep content concise. No markdown. Valid JSON required.",
-    "REQUIREMENT: Minimum 15 lessons - expand or create additional content if needed to reach this minimum."
+    "FAILURE to generate exactly 15 lessons will result in rejection."
   ].join("\n");
 
 /**
@@ -538,29 +547,58 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
 
     const additionalLessonsNeeded = 15 - plan.lessons.length;
 
-    // 自动补充关卡 - 基于已有内容创建变体
-    for (let i = 0; i < additionalLessonsNeeded; i++) {
-      const baseLessonIndex = i % plan.lessons.length;
-      const baseLesson = plan.lessons[baseLessonIndex];
+    // 智能补充关卡 - 创建多样化的课程内容
+    const lessonTypes = [
+      { type: "vocabulary", title: "词汇扩展", difficulty: 2 },
+      { type: "phrase", title: "常用短语", difficulty: 3 },
+      { type: "sentence", title: "句子练习", difficulty: 4 },
+      { type: "dialogue", title: "对话练习", difficulty: 5 },
+      { type: "quiz_single_choice", title: "单选题", difficulty: 3 },
+      { type: "quiz_multiple_choice", title: "多选题", difficulty: 4 },
+      { type: "fill_blank", title: "填空题", difficulty: 3 },
+      { type: "reorder", title: "排序题", difficulty: 4 },
+      { type: "listening", title: "听力练习", difficulty: 4 },
+      { type: "speaking", title: "口语练习", difficulty: 5 }
+    ];
 
-      // 创建关卡变体
-      const variantLesson = {
-        title: `${baseLesson.title} - 练习 ${i + 1}`,
-        summary: `基于"${baseLesson.title}"的强化练习课程`,
-        difficulty: Math.min(6, Math.max(1, (baseLesson.difficulty || 3) + (i % 2))),
-        items: baseLesson.items.map(item => ({
-          type: item.type,
-          title: `${item.title} - 变体`,
-          payload: {
-            en: `${(item.payload as any)?.en || item.title} - variation ${i + 1}`,
-            cn: `${(item.payload as any)?.cn || item.title} - 练习 ${i + 1}`,
-            prompt: `${(item.payload as any)?.prompt || item.title} - 练习 ${i + 1}`,
-            ...item.payload
+    for (let i = 0; i < additionalLessonsNeeded; i++) {
+      const lessonType = lessonTypes[i % lessonTypes.length];
+      const baseContent = plan.lessons.length > 0 ? plan.lessons[0] : null;
+
+      // 创建有意义的补充关卡
+      const supplementalLesson = {
+        title: `${lessonType.title} - 第${i + 1}课`,
+        summary: `针对${lessonType.title}的专项训练课程，提升英语应用能力`,
+        difficulty: lessonType.difficulty,
+        items: [
+          {
+            type: lessonType.type,
+            title: `${lessonType.title}练习${i + 1}`,
+            orderIndex: 1,
+            payload: {
+              en: baseContent ? `Practice ${lessonType.title} based on ${baseContent.title}` : `Practice ${lessonType.title} ${i + 1}`,
+              cn: `练习${lessonType.title}${i + 1}`,
+              prompt: `请完成这个${lessonType.title}练习，提高你的英语技能`,
+              answer: lessonType.type === "fill_blank" ? "practice" : "practice",
+              hints: [`仔细阅读题目`, `注意语法规则`]
+            }
+          },
+          {
+            type: lessonType.type,
+            title: `${lessonType.title}强化练习${i + 1}`,
+            orderIndex: 2,
+            payload: {
+              en: baseContent ? `Advanced ${lessonType.title} practice for ${baseContent.title}` : `Advanced ${lessonType.title} practice ${i + 1}`,
+              cn: `${lessonType.title}强化练习${i + 1}`,
+              prompt: `通过这个练习巩固你的${lessonType.title}技能`,
+              answer: lessonType.type === "fill_blank" ? "advanced" : "advanced",
+              hints: [`运用所学知识`, `注意上下文理解`]
+            }
           }
-        }))
+        ]
       };
 
-      plan.lessons.push(variantLesson);
+      plan.lessons.push(supplementalLesson);
     }
 
     await generationJobRepository.appendLog(generationJobId, `成功补充${additionalLessonsNeeded}个关卡，当前总数：${plan.lessons.length}`, "info");
