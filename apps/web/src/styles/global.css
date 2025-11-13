@@ -8,6 +8,63 @@
 
 body {
   @apply bg-slate-100 text-slate-900;
+  /* 移动端优化 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 移动端优化样式 */
+@media (max-width: 768px) {
+  /* 移动端按钮最小点击区域 */
+  button, a, input, textarea, select {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* 移动端输入框优化 */
+  input, textarea {
+    font-size: 16px; /* 防止iOS缩放 */
+  }
+
+  /* 移动端滚动优化 */
+  body {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+
+  /* 移动端卡片阴影优化 */
+  .shadow-sm {
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  }
+
+  .shadow {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+}
+
+/* 移动端触控反馈 */
+@media (hover: none) and (pointer: coarse) {
+  button:active,
+  a:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+  }
+}
+
+/* 移动端输入框焦点样式 */
+@media (max-width: 768px) {
+  input:focus,
+  textarea:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  }
+}
+
+/* 移动端文本选择优化 */
+@media (max-width: 768px) {
+  ::selection {
+    background-color: rgba(59, 130, 246, 0.3);
+  }
 }
 
 

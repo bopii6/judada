@@ -51,22 +51,44 @@ export const Dashboard = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <section>
-        <h1 className="text-3xl font-bold text-slate-900">我的学习概况</h1>
-        <p className="mt-2 text-sm text-slate-600">朝着冒险地图前进，完成每日任务即可解锁更多故事。</p>
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <p className="text-xs text-slate-500">累计完成关卡</p>
-            <p className="mt-1 text-2xl font-semibold text-slate-900">{progressSummary.totalStages}</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">我的学习概况</h1>
+            <p className="mt-1 sm:mt-2 text-sm text-slate-600">朝着冒险地图前进，完成每日任务即可解锁更多故事。</p>
           </div>
+        </div>
+
+        <div className="mt-4 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <p className="text-xs text-slate-500">获得星星</p>
-            <p className="mt-1 text-2xl font-semibold text-amber-500">{progressSummary.totalStars}</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-slate-500">累计完成关卡</p>
+                <p className="mt-1 text-2xl font-semibold text-slate-900">{progressSummary.totalStages}</p>
+              </div>
+              <div className="text-3xl">🏆</div>
+            </div>
           </div>
+
           <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <p className="text-xs text-slate-500">设备 ID</p>
-            <p className="mt-1 text-sm font-mono text-slate-700">{deviceId ?? "加载中..."}</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-slate-500">获得星星</p>
+                <p className="mt-1 text-2xl font-semibold text-amber-500">{progressSummary.totalStars}</p>
+              </div>
+              <div className="text-3xl">⭐</div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-white p-4 shadow-sm sm:col-span-2 lg:col-span-1">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-xs text-slate-500">设备 ID</p>
+                <p className="mt-1 text-sm font-mono text-slate-700 break-all">{deviceId ?? "加载中..."}</p>
+              </div>
+              <div className="text-3xl ml-3">📱</div>
+            </div>
           </div>
         </div>
         {placementResult && (
