@@ -3,17 +3,21 @@
   align-items: center;
   justify-content: space-between;
   padding: 18px 24px 12px;
+  position: relative;
 }
 
 .topbar-title {
   font-size: 20px;
   font-weight: 600;
   color: #0f172a;
+  flex: 1;
+  text-align: center;
 }
 
 .topbar-actions {
   display: flex;
   gap: 12px;
+  align-items: center;
 }
 
 .topbar-button {
@@ -24,6 +28,13 @@
   color: #ffffff;
   cursor: pointer;
   transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .topbar-button:hover {
@@ -37,4 +48,178 @@
 
 .topbar-button.danger:hover {
   background-color: #c2410c;
+}
+
+.topbar-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 移动端菜单按钮 */
+.topbar-menu-btn {
+  display: none;
+  width: 40px;
+  height: 40px;
+  background: #1d4ed8;
+  border: none;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 18px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.topbar-menu-btn:hover {
+  background-color: #1e3a8a;
+  transform: scale(1.05);
+}
+
+.topbar-menu-btn:active {
+  transform: scale(0.95);
+}
+
+/* 桌面端布局 */
+@media (min-width: 769px) {
+  .topbar-title {
+    text-align: left;
+    flex: none;
+  }
+
+  .topbar {
+    padding: 18px 24px 12px;
+  }
+}
+
+/* 平板端适配 */
+@media (max-width: 1024px) {
+  .topbar {
+    padding: 16px 20px 10px;
+  }
+
+  .topbar-title {
+    font-size: 18px;
+  }
+
+  .topbar-button {
+    padding: 6px 12px;
+    font-size: 13px;
+    min-height: 32px;
+  }
+
+  .topbar-actions {
+    gap: 8px;
+  }
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .topbar {
+    padding: 12px 16px 8px;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background-color: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .topbar-menu-btn {
+    display: flex;
+  }
+
+  .topbar-title {
+    font-size: 16px;
+    margin: 0 16px;
+  }
+
+  .topbar-actions {
+    gap: 8px;
+  }
+
+  .topbar-button {
+    padding: 8px 12px;
+    font-size: 12px;
+    min-height: 36px;
+    border-radius: 6px;
+  }
+
+  .topbar-button.danger {
+    padding: 8px 12px;
+  }
+}
+
+/* 小屏幕手机适配 */
+@media (max-width: 480px) {
+  .topbar {
+    padding: 10px 12px 6px;
+  }
+
+  .topbar-menu-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+
+  .topbar-title {
+    font-size: 15px;
+    margin: 0 12px;
+  }
+
+  .topbar-actions {
+    gap: 6px;
+  }
+
+  .topbar-button {
+    padding: 6px 10px;
+    font-size: 11px;
+    min-height: 32px;
+  }
+
+  .topbar-button.danger {
+    padding: 6px 10px;
+  }
+}
+
+/* 横屏适配 */
+@media (max-height: 600px) and (orientation: landscape) {
+  .topbar {
+    padding: 8px 16px 4px;
+  }
+
+  .topbar-title {
+    font-size: 14px;
+  }
+
+  .topbar-menu-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+
+  .topbar-button {
+    padding: 4px 8px;
+    font-size: 11px;
+    min-height: 28px;
+  }
+}
+
+/* 工具类 */
+.mobile-only {
+  display: none;
+}
+
+.desktop-only {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .mobile-only {
+    display: block;
+  }
+
+  .desktop-only {
+    display: none;
+  }
 }

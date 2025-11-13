@@ -19,6 +19,8 @@ body,
 
 body {
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 a {
@@ -28,4 +30,95 @@ a {
 
 button {
   font: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+input, textarea, select {
+  font-family: inherit;
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  /* 防止iOS输入框放大 */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+
+  /* 确保按钮有足够大的点击区域 */
+  button, a, input, textarea, select {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* 优化滚动体验 */
+  body {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+
+  /* 防止横向滚动 */
+  html, body, #root {
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* 移动端文字渲染优化 */
+  body {
+    text-rendering: optimizeLegibility;
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+  }
+
+  /* 移动端触摸优化 */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+
+  /* 允许文本选择的元素 */
+  input, textarea, [contenteditable] {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+  }
+}
+
+/* 小屏幕优化 */
+@media (max-width: 480px) {
+  /* 更大的点击区域 */
+  button, a, input, textarea, select {
+    min-height: 48px;
+    min-width: 48px;
+  }
+
+  /* 防止元素过于拥挤 */
+  .card, .panel, .section {
+    margin-bottom: 16px;
+  }
+
+  /* 优化边距 */
+  .container, .content {
+    padding: 8px;
+  }
+}
+
+/* 横屏优化 */
+@media (max-height: 600px) and (orientation: landscape) {
+  /* 减少垂直间距 */
+  .section, .panel, .card {
+    margin-bottom: 12px;
+  }
+
+  /* 优化头部高度 */
+  .header, .topbar {
+    padding: 8px 12px;
+  }
 }

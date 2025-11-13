@@ -5,6 +5,14 @@
   padding: 24px 20px;
   background: linear-gradient(175deg, #1e40af, #0f172a);
   color: #e2e8f0;
+  position: relative;
+}
+
+/* 桌面端侧边栏始终显示 */
+@media (min-width: 769px) {
+  .sidebar {
+    position: static;
+  }
 }
 
 .sidebar-header {
@@ -35,6 +43,8 @@
   border-radius: 10px;
   color: #cbd5f5;
   transition: background-color 0.2s ease, color 0.2s ease;
+  text-decoration: none;
+  display: block;
 }
 
 .sidebar-link:hover {
@@ -46,4 +56,153 @@
   background-color: rgba(255, 255, 255, 0.2);
   color: #ffffff;
   font-weight: 600;
+}
+
+/* 移动端遮罩层 */
+.sidebar-mobile-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 35;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.sidebar-mobile-overlay:has(+ .sidebar.open) {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* 移动端关闭按钮 */
+.sidebar-close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.sidebar-close-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* 移动端底部信息 */
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-footer-content {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+}
+
+.sidebar-footer-content p {
+  margin: 2px 0;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 260px;
+    z-index: 40;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-header {
+    padding-top: 12px;
+    padding-bottom: 8px;
+  }
+
+  .sidebar-brand {
+    font-size: 16px;
+  }
+
+  .sidebar-user {
+    font-size: 13px;
+  }
+
+  .sidebar-nav {
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .sidebar-link {
+    padding: 12px 16px;
+    font-size: 14px;
+    min-height: 44px; /* 移动端最小点击区域 */
+    display: flex;
+    align-items: center;
+  }
+}
+
+/* 平板端适配 */
+@media (max-width: 1024px) {
+  .sidebar {
+    padding: 20px 16px;
+    gap: 14px;
+  }
+
+  .sidebar-link {
+    padding: 12px 16px;
+  }
+}
+
+/* 小屏幕手机适配 */
+@media (max-width: 480px) {
+  .sidebar {
+    width: 240px;
+    padding: 16px 12px;
+  }
+
+  .sidebar-brand {
+    font-size: 15px;
+  }
+
+  .sidebar-user {
+    font-size: 12px;
+  }
+
+  .sidebar-link {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+}
+
+/* 工具类 */
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-only {
+    display: block;
+  }
 }
