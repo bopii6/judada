@@ -670,6 +670,16 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
     lessonCount: lessonSummaries.length
   };
 
+  // 验证生成的课程包是否满足最少15个关卡的要求
+  if (lessonSummaries.length < 15) {
+    const errorMessage = `课程包生成失败：必须包含至少15个关卡，当前只生成了${lessonSummaries.length}个关卡`;
+    await generationJobRepository.appendLog(generationJobId, errorMessage, "error", {
+      currentLessonCount: lessonSummaries.length,
+      requiredMinLessons: 15
+    });
+    throw new Error(errorMessage);
+  }
+
   await generationJobRepository.appendLog(generationJobId, "课程草稿落库成功", "info", persisted);
 
   await generationJobRepository.updateStatus(generationJobId, {

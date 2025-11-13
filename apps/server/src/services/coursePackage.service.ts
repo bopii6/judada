@@ -259,6 +259,14 @@ export const coursePackageService = {
         throw new Error("当前课程包没有可发布的版本");
       }
 
+      // 验证课程包至少包含15个关卡
+      const lessonCount = pkg.currentVersion.lessons.length;
+      if (lessonCount < 15) {
+        const error = new Error(`课程包必须包含至少15个关卡，当前只有${lessonCount}个关卡`);
+        (error as any).status = 400;
+        throw error;
+      }
+
       const lessonIds = pkg.currentVersion.lessons.map(lesson => lesson.id);
       const lessonVersionIds = pkg.currentVersion.lessons
         .map(lesson => lesson.currentVersion?.id)
