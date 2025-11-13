@@ -1,79 +1,79 @@
 # JudeDa Monorepo
 
-Ò»¸ö°üº¬Ç°¶Ë£¨React + Vite£©ºÍºó¶Ë£¨Express + Prisma£©µÄÓ¢Óï¿Î³ÌÁ·Ï°Æ½Ì¨£¬Ö§³Ö¹Ù·½Ìâ¿âºóÌ¨Î¬»¤¡¢¿Î³ÌÌôÕ½Ñ§Ï°ÒÔ¼°¶¨Î»²âÆÀ¡£
+ä¸€ä¸ªå‰åç«¯åˆ†ç¦»ã€React + Vite å‰ç«¯ã€Express + Prisma åç«¯çš„è‹±è¯­è¯¾ç¨‹ç»ƒä¹ å¹³å°ï¼Œæ”¯æŒå®˜æ–¹åå°ç»´æŠ¤è¯¾ç¨‹åŒ…ã€åœ¨çº¿ç»ƒä¹ å­¦ä¹ ä»¥åŠå¾®ç»ƒä½åŠŸèƒ½ã€‚
 
-## ¼¼ÊõÕ»
+## æŠ€æœ¯æ ˆ
 
-- **Monorepo**£ºpnpm + Turbo
-- **Ç°¶Ë**£¨`apps/web`£©£ºVite¡¢React 18¡¢TypeScript¡¢TailwindCSS¡¢TanStack Query
-- **ºó¶Ë**£¨`apps/server`£©£ºNode.js¡¢Express¡¢TypeScript¡¢Prisma£¨SQLite Dev / Postgres Ready£©
-- **¹«¹²°ü**£¨`packages/shared`£©£ºÌâÄ¿ÀàĞÍ¶¨Òå¡¢Ğ£ÑéÂß¼­¡¢CSV/JSON ½âÎö¡¢¶¨Î»²âÆÀ·Ö¹¤¾ß
-- **Êı¾İ¿â**£ºPrisma schema ¶¨Òå QuestionBank / Question / Device / PracticeSession / PracticeRecord
+- **Monorepo**ï¼špnpm + Turbo
+- **å‰ç«¯**ï¼š`apps/web`ï¼ŒVite + React 18 + TypeScript + TailwindCSS + TanStack Query
+- **åç«¯**ï¼š`apps/server`ï¼ŒNode.js + Express + TypeScript + Prisma + SQLite Dev / Postgres Ready
+- **å…±äº«åŒ…**ï¼š`packages/shared`ï¼Œå…¬å…±ç±»å‹ã€å·¥å…·ç±»ã€æ ¡éªŒé€»è¾‘ã€CSV/JSON è§£æã€å¾®ç»ƒä½ç­‰åŠŸèƒ½
+- **æ•°æ®åº“**ï¼šPrisma schema åŒ…å« QuestionBank / Question / Device / PracticeSession / PracticeRecord
 
-## Ä¿Â¼½á¹¹
+## ç›®å½•ç»“æ„
 
 ```
 .
-©À©¤ apps/
-©¦  ©À©¤ web/            # Vite + React Ç°¶Ë
-©¦  ©¸©¤ server/         # Express + Prisma ºó¶Ë
-©À©¤ packages/
-©¦  ©¸©¤ shared/         # ¹²ÏíÀàĞÍÓë¹¤¾ß
-©À©¤ prisma/            # schema.prisma µÈÊı¾İ¿âÅäÖÃ
-©À©¤ pnpm-workspace.yaml
-©À©¤ turbo.json
-©À©¤ tsconfig.json
-©À©¤ .env.example       # ºó¶Ë»·¾³±äÁ¿Ä£°å
-©¸©¤ README.md
+â”œâ”€â”€ apps/
+â”‚   â”œâ”€â”€ web/            # Vite + React å‰ç«¯
+â”‚   â””â”€â”€ server/         # Express + Prisma åç«¯
+â”œâ”€â”€ packages/
+â”‚   â””â”€â”€ shared/         # å…±äº«ç±»å‹å·¥å…·
+â”œâ”€â”€ prisma/             # schema.prisma æ•°æ®åº“å®šä¹‰
+â”œâ”€â”€ pnpm-workspace.yaml
+â”œâ”€â”€ turbo.json
+â”œâ”€â”€ tsconfig.json
+â”œâ”€â”€ .env.example        # ç¯å¢ƒå˜é‡æ¨¡æ¿
+â””â”€â”€ README.md
 ```
 
-## ¿ªÊ¼Ê¹ÓÃ
+## å¼€å§‹ä½¿ç”¨
 
-### 1. ×¼±¸»·¾³
+### 1. å‡†å¤‡ç¯å¢ƒ
 
 - Node.js 18+
 - pnpm `npm install -g pnpm`
 
-### 2. °²×°ÒÀÀµ
+### 2. å®‰è£…ä¾èµ–
 
 ```bash
 pnpm install
 ```
 
-### 3. Êı¾İ¿â & Prisma
+### 3. æ•°æ®åº“ & Prisma
 
-Ä¬ÈÏÊ¹ÓÃ SQLite£¨`DATABASE_URL=file:./dev.db`£©£¬Ò²¿ÉÌæ»»Îª Postgres¡£
+é»˜è®¤ä½¿ç”¨ SQLiteï¼ˆ`DATABASE_URL=file:./dev.db`ï¼‰ï¼Œä¹Ÿå¯æ›¿æ¢ä¸º Postgresã€‚
 
 ```bash
-# Éú³É Prisma Client
+# ç”Ÿæˆ Prisma Client
 pnpm db:generate
 
-# ±¾µØ¿ª·¢¿ÉÖ´ĞĞ migrate dev
+# å¦‚éœ€æœ¬åœ°å¼€å‘å¯æ‰§è¡Œ migrate dev
 pnpm db:migrate
 ```
 
-Prisma schema Î»ÓÚ `prisma/schema.prisma`£¬°üº¬ÒÔÏÂÄ£ĞÍ£ºQuestionBank¡¢Question¡¢Device¡¢PracticeSession¡¢PracticeRecord£»ÒÔ¼°Ã¶¾Ù `QuestionType`¡¢`SessionMode`¡£
+Prisma schema ä½äº `prisma/schema.prisma`ï¼ŒåŒ…å«ä¸»è¦æ¨¡å‹ï¼šQuestionBankã€Questionã€Deviceã€PracticeSessionã€PracticeRecordï¼Œä»¥åŠæšä¸¾ `QuestionType`ã€`SessionMode`ã€‚
 
-### 4. ±¾µØ¿ª·¢
+### 4. å¯åŠ¨å¼€å‘
 
 ```bash
 pnpm dev
 ```
 
-Turbo »á²¢ĞĞÆô¶¯£º
-- `apps/server` ¡ú http://localhost:4000
-- `apps/web` ¡ú http://localhost:5173 £¨×Ô¶¯´úÀí `/api` ÇëÇóµ½ºó¶Ë£©
+Turbo ä¼šå¹¶è¡Œå¯åŠ¨ï¼š
+- `apps/server` â†’ http://localhost:4000
+- `apps/web` â†’ http://localhost:5173ï¼ˆè‡ªåŠ¨å°† `/api` ä»£ç†åˆ°åç«¯ï¼‰
 
-Ò²¿É·Ö±ğÆô¶¯£º
+ä¹Ÿå¯å•ç‹¬å¯åŠ¨ï¼š
 
 ```bash
 pnpm --filter server dev
 pnpm --filter web dev
 ```
 
-### 5. »·¾³±äÁ¿
+### 5. ç¯å¢ƒå˜é‡
 
-Çë¸´ÖÆ `.env.example` ÖÁ `.env.local` ²¢¸ù¾İ²¿Êğ»·¾³ĞŞ¸Ä£º
+å¤åˆ¶ `.env.example` åˆ° `.env.local` å¹¶æ ¹æ®ç¯å¢ƒä¿®æ”¹ï¼š
 
 ```
 ADMIN_KEY=change-me
@@ -81,67 +81,72 @@ PORT=4000
 DATABASE_URL=file:./dev.db
 ```
 
-- `ADMIN_KEY`£ººóÌ¨¹ÜÀí½Ó¿ÚËùĞèµÄ x-admin-key¡£
-- `DATABASE_URL`£ºPrisma Êı¾İÔ´£¬¿ª·¢Ä¬ÈÏ SQLite¡£
+- `ADMIN_KEY`ï¼šåå°ç®¡ç†æ¥å£å¯†é’¥ï¼Œæ¥å£ Header éœ€æºå¸¦ `x-admin-key`ã€‚
+- `DATABASE_URL`ï¼šPrisma æ•°æ®æºåœ°å€ï¼Œé»˜è®¤ SQLiteã€‚
 
-Ç°¶ËÎŞĞè¶îÍâ»·¾³±äÁ¿£¨Í¨¹ı´úÀí·ÃÎÊºó¶Ë£©¡£
+å‰ç«¯é€šè¿‡ç¯å¢ƒå˜é‡è‡ªåŠ¨è¿æ¥ï¼Œæ— éœ€æ‰‹åŠ¨é…ç½®ã€‚
 
-## ºó¶Ë API ¸ÅÀÀ
+## åå° API æ¥å£
 
-> ËùÓĞ¹ÜÀí¶Ë½Ó¿ÚĞèÔÚ Header ÖĞĞ¯´ø `x-admin-key: <ADMIN_KEY>`¡£
+> æ‰€æœ‰ç®¡ç†æ¥å£å‡éœ€ Header æºå¸¦ `x-admin-key: <ADMIN_KEY>`ã€‚
 
-### ¹ÜÀí¶Ë
+### é¢˜åº“ç®¡ç†
 
-| ·½·¨ | Â·¾¶ | ËµÃ÷ |
+| æ–¹æ³• | è·¯å¾„ | è¯´æ˜ |
 | ---- | ---- | ---- |
-| POST | `/admin/banks` | ´´½¨Ìâ¿â |
-| PUT | `/admin/banks/:id` | ¸üĞÂÌâ¿â»ù´¡ĞÅÏ¢ |
-| GET | `/admin/banks` | ÁĞ³öÌâ¿â¼°ÌâÁ¿Í³¼Æ |
-| DELETE | `/admin/banks/:id` | É¾³ıÌâ¿â£¨¼¶ÁªÌâÄ¿£© |
-| POST | `/admin/banks/:id/import-json` | µ¼ÈëÌâ¿âÌâÄ¿£¨JSON Êı×é£© |
-| POST | `/admin/banks/:id/import-pdf` | ÉÏ´« PDF£¬ÌáÈ¡¾ä×ÓÉú³ÉÌâÄ¿ |
+| POST | `/admin/banks` | åˆ›å»ºé¢˜åº“ |
+| PUT | `/admin/banks/:id` | æ›´æ–°é¢˜åº“åŠé¢˜ç›®ä¿¡æ¯ |
+| GET | `/admin/banks` | åˆ—å‡ºé¢˜åº“åŠé¢˜ç›®ç»Ÿè®¡ |
+| DELETE | `/admin/banks/:id` | åˆ é™¤é¢˜åº“ï¼ˆå«æ‰€æœ‰é¢˜ç›®ï¼‰ |
+| POST | `/admin/banks/:id/import-json` | å¯¼å…¥é¢˜ç›®ï¼ˆJSON æ•°ç»„ï¼‰ |
+| POST | `/admin/banks/:id/import-pdf` | ä¸Šä¼  PDF è§£æå¹¶å¯¼å…¥é¢˜ç›® |
 
-### ¹«¹²¶Ë
+### è®¾å¤‡ä¸ç»ƒä¹ 
 
-| ·½·¨ | Â·¾¶ | ËµÃ÷ |
+| æ–¹æ³• | è·¯å¾„ | è¯´æ˜ |
 | ---- | ---- | ---- |
-| POST | `/device` | ´´½¨ÄäÃûÉè±¸ ID |
-| GET | `/banks` | »ñÈ¡¿ÉÓÃ¿Î³ÌÌâ¿â |
-| GET | `/banks/:id/questions` | °´Ìõ¼şËæ»ú³éÌâ |
-| POST | `/sessions` | ´´½¨Á·Ï° / ¶¨Î»²â session |
-| POST | `/records` | ÅúÁ¿Ğ´ÈëÆÕÍ¨Á·Ï°½á¹û |
-| GET | `/placement/banks` | »ñÈ¡¶¨Î»²âÌâ¿â |
-| POST | `/placement/start` | Æô¶¯¶¨Î»²â£¬·µ»ØÌâÄ¿Óë sessionId |
-| POST | `/placement/submit` | Ìá½»¶¨Î»²â×÷´ğ£¬·µ»¹·ÖÊı / ÍÆ¼ö tier Óë¿Î³Ì |
+| POST | `/device` | ç»‘å®š/è·å–è®¾å¤‡ ID |
+| GET | `/banks` | è·å–æ‰€æœ‰è¯¾ç¨‹é¢˜åº“ |
+| GET | `/banks/:id/questions` | åˆ†é¡µè·å–é¢˜åº“é¢˜ç›® |
+| POST | `/sessions` | åˆ›å»ºç»ƒä¹  / å¾®ç»ƒä½ session |
+| POST | `/records` | æ‰¹é‡æäº¤é€šå…³ç»ƒä¹ è®°å½• |
+| GET | `/placement/banks` | è·å–å¾®ç»ƒä½é¢˜åº“ |
+| POST | `/placement/start` | å¼€å§‹å¾®ç»ƒä½ï¼Œè¿”å›é¢˜ç›®åŠ sessionId |
+| POST | `/placement/submit` | æäº¤å¾®ç»ƒä½ç­”æ¡ˆï¼Œè¿”å›å¾—åˆ† / æ¨è tier è¯¾ç¨‹ |
 
-¶¨Î»²âÆÀ·ÖÂß¼­£¨ÔÚ `packages/shared/placement.ts` ÖĞ£©£º
-- ÕıÈ·µÃ 1 ·Ö£¬¸½¼Ó·´Ó¦Ê±¼ÓÈ¨£¨¡Ü3s +0.3£¬3-6s +0.1£¬>6s +0£©¡£
-- ÍÆ¼öµÈ¼¶Ó³Éä±í¿ÉÍ¨¹ı `tierMappings` ½øĞĞµ÷Õû£¨´úÂëÄÚÓĞ×¢ÊÍ£©¡£
+å¾®ç»ƒä½æ¨èé€»è¾‘è¯¦è§ `packages/shared/placement.ts`ï¼š
+- æ­£ç¡®å¾— 1 åˆ†ï¼Œæ ¹æ®ååº”æ—¶é—´åŠ æƒï¼š3s å†… +0.3ï¼Œ3-6s +0.1ï¼Œ>6s +0
+- æ¨èç­‰çº§æ˜ å°„è§ä»£ç ä¸­çš„ `tierMappings` æ•°ç»„ï¼Œå¯æ ¹æ®æ•™å­¦éœ€æ±‚è°ƒæ•´ã€‚
 
-## Ç°¶ËÒ³Ãæ
+## å‰ç«¯é¡µé¢
 
-- **Dashboard**£ºÕ¹Ê¾¿Î³Ì¸Å¿ö¡¢¶¨Î»²âÈë¿Ú¡¢½á¹ûÌáÊ¾¡£
-- **Courses**£ºÁĞ³öÌâ¿â£¬Æô¶¯¿Î³ÌÁ·Ï°£¨TTS + Õğ¶¯·´À¡£©¡£
-- **Settings**£ºÖ÷ÌâÓëÓïÒôÆ«ºÃÉèÖÃ¡£
-- **Admin**£ºÊäÈë ADMIN_KEY ºó½øĞĞ¿Î³Ì¹ÜÀí¡¢´´½¨Ìâ¿â¡¢µ¼Èë JSON/PDF¡£
+- **Dashboard**ï¼šå±•ç¤ºè¯¾ç¨‹åŒ…æ¦‚è§ˆã€å¾®ç»ƒä½å…¥å£ã€ç»ƒä¹ å†å²æ¦‚è§ˆã€‚
+- **Courses**ï¼šåˆ—å‡ºé¢˜åº“ï¼Œè¿›å…¥è¯¾ç¨‹ç»ƒä¹ ï¼ˆTTS + åŠ¨ç”»åé¦ˆï¼‰ã€‚
+- **Settings**ï¼šè¯­é€Ÿè°ƒèŠ‚ã€éŸ³é‡åå¥½ã€è‡ªåŠ¨çº é”™ç­‰ã€‚
+- **Admin**ï¼šè¾“å…¥ ADMIN_KEY åå¯è¿›è¡Œè¯¾ç¨‹åŒ…ç®¡ç†ã€é¢˜åº“ç»´æŠ¤ã€å¯¼å…¥ JSON/PDFã€‚
 
-Á·Ï°»·½Ú²ÉÓÃ¼üÅÌÇı¶¯Á÷³Ì£¬`Enter` Ìá½»¡¢`Ctrl + Space` ÖØ²¥ÓïÒô£¬Ê¹ÓÃ `speechSynthesis` ºÍ `navigator.vibrate` Ìá¹©¶à¸Ğ¹Ù·´À¡¡£
+ç»ƒä¹ è¿‡ç¨‹é‡‡ç”¨é”®ç›˜äº¤äº’ç­”é¢˜ï¼Œ`Enter` æäº¤ï¼Œ`Ctrl + Space` è¿”å›èœå•ï¼Œä½¿ç”¨ `speechSynthesis` å’Œ `navigator.vibrate` æä¾›æ„Ÿå®˜åé¦ˆã€‚
 
-## ³£ÓÃ½Å±¾
+## å¸¸ç”¨è„šæœ¬
 
-| ½Å±¾ | ËµÃ÷ |
+| è„šæœ¬ | è¯´æ˜ |
 | ---- | ---- |
-| `pnpm dev` | Æô¶¯Ç°ºó¶Ë¿ª·¢·şÎñÆ÷ |
-| `pnpm build` | Í¨¹ı Turbo ¹¹½¨ËùÓĞ°ü |
-| `pnpm lint` | ÔËĞĞ¸÷°ü lint£¨Ğè°´ĞèÅäÖÃ£© |
-| `pnpm format` | Ö´ĞĞ Prettier |
-| `pnpm db:generate` | Éú³É Prisma Client |
-| `pnpm db:migrate` | ÔËĞĞ¿ª·¢»·¾³Ç¨ÒÆ |
+| `pnpm dev` | å¹¶è¡Œå¯åŠ¨å‰åç«¯å¼€å‘æœåŠ¡å™¨ |
+| `pnpm build` | é€šè¿‡ Turbo ç¼–è¯‘æ‰€æœ‰åŒ… |
+| `pnpm lint` | å¯¹æ‰€æœ‰åŒ…æ‰§è¡Œ lint å’Œé£æ ¼æ£€æŸ¥ |
+| `pnpm format` | æ‰§è¡Œ Prettier |
+| `pnpm db:generate` | ç”Ÿæˆ Prisma Client |
+| `pnpm db:migrate` | æ‰§è¡Œæ‰€æœ‰æ•°æ®åº“è¿ç§» |
 
-## ×¢ÒâÊÂÏî
+## æ³¨æ„äº‹é¡¹
 
-- Ç°¶ËÄ¬ÈÏ´úÀí `/api` µ½ `http://localhost:4000`£¬ÈçĞè¸ü¸ÄÇëĞŞ¸Ä `apps/web/vite.config.ts`¡£
-- Prisma Ä¬ÈÏ SQLite£¬ÈçÇĞ»»µ½ Postgres£¬¸üĞÂ `.env` ÖĞµÄ `DATABASE_URL` ²¢ÖØĞÂ `pnpm db:migrate`¡£
-- PDF µ¼ÈëÒÀÀµ¼òµ¥µÄ¾ä×Ó²ğ·Ö¹æÔò£¬½¨ÒéÈË¹¤¸´ºËÉú³ÉÌâÄ¿¡£
+- å‰ç«¯é»˜è®¤ä»£ç† `/api` åˆ° `http://localhost:4000`ï¼Œç”Ÿäº§ç¯å¢ƒéœ€ä¿®æ”¹ `apps/web/vite.config.ts`ã€‚
+- Prisma é»˜è®¤ SQLiteï¼Œåˆ‡æ¢åˆ° Postgres éœ€ä¿®æ”¹ `.env` ä¸­çš„ `DATABASE_URL` å¹¶è¿è¡Œ `pnpm db:migrate`ã€‚
+- PDF å¯¼å…¥åŸºäºç®€å•çš„å¥å¼åˆ†å‰²æˆ–å…³é”®è¯åŒ¹é…ï¼Œæœªæ¥å¯æ¥å…¥ AI è‡ªåŠ¨ç”Ÿæˆé¢˜ç›®ã€‚
 
-»¶Ó­¼ÌĞøÀ©Õ¹£¬ÀıÈç£ºÓÃ»§Í³¼Æ¡¢¸ü¶àÌâĞÍ½»»¥¡¢ÌâÄ¿ÉóºËÁ÷µÈ¡£
+æ¬¢è¿è´¡çŒ®ä»£ç ï¼šç”¨æˆ·ç»Ÿè®¡ã€ç»ƒä¹ è¿›åº¦è·Ÿè¸ªã€é¡¹ç›®é›†æˆç­‰ã€‚
+
+---
+ğŸ¤– Test Commit: GitHubè´¡çŒ®å›¾æ˜¾ç¤ºæµ‹è¯•
+Generated with [Claude Code](https://claude.com/claude-code)
+æµ‹è¯•æ—¶é—´ï¼š2025-11-13
