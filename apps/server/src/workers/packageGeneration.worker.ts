@@ -549,16 +549,16 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
 
     // 智能补充关卡 - 创建多样化的课程内容
     const lessonTypes = [
-      { type: "vocabulary", title: "词汇扩展", difficulty: 2 },
-      { type: "phrase", title: "常用短语", difficulty: 3 },
-      { type: "sentence", title: "句子练习", difficulty: 4 },
-      { type: "dialogue", title: "对话练习", difficulty: 5 },
-      { type: "quiz_single_choice", title: "单选题", difficulty: 3 },
-      { type: "quiz_multiple_choice", title: "多选题", difficulty: 4 },
-      { type: "fill_blank", title: "填空题", difficulty: 3 },
-      { type: "reorder", title: "排序题", difficulty: 4 },
-      { type: "listening", title: "听力练习", difficulty: 4 },
-      { type: "speaking", title: "口语练习", difficulty: 5 }
+      { type: "vocabulary" as LessonItemType, title: "词汇扩展", difficulty: 2 },
+      { type: "phrase" as LessonItemType, title: "常用短语", difficulty: 3 },
+      { type: "sentence" as LessonItemType, title: "句子练习", difficulty: 4 },
+      { type: "dialogue" as LessonItemType, title: "对话练习", difficulty: 5 },
+      { type: "quiz_single_choice" as LessonItemType, title: "单选题", difficulty: 3 },
+      { type: "quiz_multiple_choice" as LessonItemType, title: "多选题", difficulty: 4 },
+      { type: "fill_blank" as LessonItemType, title: "填空题", difficulty: 3 },
+      { type: "reorder" as LessonItemType, title: "排序题", difficulty: 4 },
+      { type: "listening" as LessonItemType, title: "听力练习", difficulty: 4 },
+      { type: "speaking" as LessonItemType, title: "口语练习", difficulty: 5 }
     ];
 
     for (let i = 0; i < additionalLessonsNeeded; i++) {
@@ -574,7 +574,6 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
           {
             type: lessonType.type,
             title: `${lessonType.title}练习${i + 1}`,
-            orderIndex: 1,
             payload: {
               en: baseContent ? `Practice ${lessonType.title} based on ${baseContent.title}` : `Practice ${lessonType.title} ${i + 1}`,
               cn: `练习${lessonType.title}${i + 1}`,
@@ -586,7 +585,6 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
           {
             type: lessonType.type,
             title: `${lessonType.title}强化练习${i + 1}`,
-            orderIndex: 2,
             payload: {
               en: baseContent ? `Advanced ${lessonType.title} practice for ${baseContent.title}` : `Advanced ${lessonType.title} practice ${i + 1}`,
               cn: `${lessonType.title}强化练习${i + 1}`,
