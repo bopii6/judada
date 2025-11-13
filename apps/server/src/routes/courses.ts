@@ -44,15 +44,21 @@ router.get("/", async (_req, res, next) => {
       }
     });
 
-    const items = packages.map(pkg => ({
-      id: pkg.id,
-      title: pkg.title,
-      topic: pkg.topic,
-      description: pkg.description,
-      coverUrl: pkg.coverUrl,
-      updatedAt: pkg.updatedAt,
-      lessonCount: pkg.currentVersion?.lessons.length ?? 0
-    }));
+    // 过滤出至少包含15个关卡的课程包
+    const items = packages
+      .filter(pkg => {
+        const lessonCount = pkg.currentVersion?.lessons.length ?? 0;
+        return lessonCount >= 15;
+      })
+      .map(pkg => ({
+        id: pkg.id,
+        title: pkg.title,
+        topic: pkg.topic,
+        description: pkg.description,
+        coverUrl: pkg.coverUrl,
+        updatedAt: pkg.updatedAt,
+        lessonCount: pkg.currentVersion?.lessons.length ?? 0
+      }));
 
     res.json({ courses: items });
   } catch (error) {
@@ -83,6 +89,13 @@ router.get("/:id/questions", async (req, res, next) => {
 
     if (!course || course.status !== CourseStatus.published || !course.currentVersion) {
       res.status(404).json({ error: "课程不存在或未发布" });
+      return;
+    }
+
+    // 验证课程包是否包含至少15个关卡
+    const lessonCount = course.currentVersion.lessons.length;
+    if (lessonCount < 15) {
+      res.status(404).json({ error: `课程不符合要求：必须包含至少15个关卡，当前只有${lessonCount}个关卡` });
       return;
     }
 
