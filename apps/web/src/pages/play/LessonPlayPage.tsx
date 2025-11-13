@@ -166,92 +166,136 @@ export const LessonPlayPage = () => {
     : 0;
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-sky-500 via-indigo-600 to-purple-600 text-white">
-      <header className="flex items-center justify-between px-10 pt-8">
+    <div className="flex min-h-screen bg-gradient-to-br from-pink-400 via-purple-400 to-indigo-400 text-white overflow-hidden">
+      {/* 动态背景装饰 */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-20 left-20 w-32 h-32 bg-yellow-300/20 rounded-full animate-bounce" style={{ animationDelay: '0s', animationDuration: '3s' }}></div>
+        <div className="absolute top-40 right-32 w-24 h-24 bg-blue-300/20 rounded-full animate-bounce" style={{ animationDelay: '1s', animationDuration: '4s' }}></div>
+        <div className="absolute bottom-20 left-40 w-28 h-28 bg-green-300/20 rounded-full animate-bounce" style={{ animationDelay: '2s', animationDuration: '3.5s' }}></div>
+        <div className="absolute bottom-40 right-20 w-20 h-20 bg-pink-300/20 rounded-full animate-bounce" style={{ animationDelay: '0.5s', animationDuration: '2.5s' }}></div>
+      </div>
+
+      {/* 顶部状态栏 */}
+      <header className="relative z-10 flex items-center justify-between px-6 py-4">
         <button
           type="button"
-          className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20"
+          className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-lg font-bold hover:bg-white/30 transition-all hover:scale-110 shadow-lg"
           onClick={handleBack}
         >
-          ← 返回课程
+          ←
         </button>
+
         <div className="text-center">
-          <div className="text-xs uppercase tracking-[0.3em] text-white/60">{currentStage.lessonTitle}</div>
-          <h1 className="mt-2 text-3xl font-bold drop-shadow-lg">
-            模式：{activeMode === "tiles" ? "点词成句" : "键入练习"}
-          </h1>
-          <div className="mt-3 flex items-center justify-center gap-4 text-xs text-white/70">
-            <span>关卡 #{currentStage.stageSequence}</span>
-            <span>进度 {stageIndex + 1} / {stages.length}</span>
-            <span>Combo {combo}</span>
+          <div className="text-xs font-bold text-white/80 mb-1">{currentStage.lessonTitle}</div>
+          <div className="flex items-center justify-center gap-3">
+            <div className="bg-yellow-400/30 backdrop-blur-sm px-3 py-1 rounded-full">
+              <span className="text-sm font-bold">关卡 {currentStage.stageSequence}</span>
+            </div>
+            <div className="bg-green-400/30 backdrop-blur-sm px-3 py-1 rounded-full">
+              <span className="text-sm font-bold">⚡ {combo}</span>
+            </div>
+            <div className="bg-blue-400/30 backdrop-blur-sm px-3 py-1 rounded-full">
+              <span className="text-sm font-bold">🔥 {bestCombo}</span>
+            </div>
           </div>
         </div>
-        <div className="text-right text-sm text-white/80">
-          <div>最佳连击 {bestCombo}</div>
-          <div>今日闯关 {attempts}</div>
+
+        <div className="text-center">
+          <div className="text-xs font-bold text-white/80 mb-1">进度</div>
+          <div className="text-lg font-bold">{stageIndex + 1}/{stages.length}</div>
         </div>
       </header>
 
-      <div className="px-10 pt-6">
-        <div className="h-2 w-full overflow-hidden rounded-full bg-white/20">
+      {/* 进度条 */}
+      <div className="relative z-10 px-6">
+        <div className="h-3 w-full overflow-hidden rounded-full bg-white/20 shadow-inner">
           <div
-            className="h-full rounded-full bg-white/80 transition-all"
+            className="h-full rounded-full bg-gradient-to-r from-yellow-400 to-green-400 transition-all duration-500 shadow-lg"
             style={{ width: `${Math.round(progressRatio * 100)}%` }}
           />
         </div>
       </div>
 
-      <main className="relative flex flex-1 flex-col px-10 pb-10">
-        <div className="relative flex-1 overflow-hidden rounded-3xl bg-white/10 p-10 shadow-2xl backdrop-blur-xl">
+      {/* 主要游戏区域 */}
+      <main className="relative z-10 flex-1 flex px-6 py-6">
+        <div className="flex-1 flex flex-col">
           {completed ? (
-            <div className="flex h-full flex-col items-center justify-center gap-6 text-white">
-              <div className="text-sm uppercase tracking-[0.4em] text-white/60">课程完成</div>
-              <h2 className="text-4xl font-semibold drop-shadow-lg">太棒了！你完成了全部关卡。</h2>
-              <p className="text-white/80">继续挑战其他课程或返回课程列表。</p>
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  className="rounded-full bg-white/90 px-6 py-3 text-sm font-semibold text-slate-900 shadow"
-                  onClick={handleBack}
-                >
-                  返回课程
-                </button>
+            <div className="flex-1 flex flex-col items-center justify-center">
+              <div className="text-center mb-8">
+                <div className="text-6xl mb-4 animate-bounce">🎉</div>
+                <h2 className="text-4xl font-bold mb-2 text-yellow-100">太棒啦！</h2>
+                <p className="text-xl text-white/90">你完成了所有关卡！</p>
+                <div className="flex justify-center gap-2 mt-4">
+                  {[...Array(3)].map((_, i) => (
+                    <span key={i} className="text-4xl animate-pulse" style={{ animationDelay: `${i * 0.2}s` }}>⭐</span>
+                  ))}
+                </div>
               </div>
+              <button
+                type="button"
+                className="bg-white text-purple-600 px-8 py-4 rounded-full text-xl font-bold hover:scale-110 transition-all shadow-xl"
+                onClick={handleBack}
+              >
+                继续冒险 →
+              </button>
             </div>
           ) : (
             <>
-              {activeMode === "tiles" ? (
-                <TilesLessonExperience
-                  stage={currentStage}
-                  index={stageIndex}
-                  total={stages.length}
-                  onSuccess={handleSuccess}
-                  onMistake={handleMistake}
-                />
-              ) : (
-                <TypingLessonExperience
-                  stage={currentStage}
-                  index={stageIndex}
-                  total={stages.length}
-                  onSuccess={handleSuccess}
-                  onMistake={handleMistake}
-                />
-              )}
-              {celebration && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-slate-900/60 backdrop-blur-sm">
-                  <div className="flex gap-2 text-4xl drop-shadow-lg">
-                    {[...Array(celebration.stars)].map((_, idx) => (
-                      <span key={idx}>⭐</span>
-                    ))}
-                  </div>
-                  <p className="text-lg font-semibold text-white">{celebration.message}</p>
-                  <p className="text-sm text-white/70">连击 x{celebration.combo}</p>
-                </div>
-              )}
+              <div className="flex-1 flex items-center justify-center">
+                {activeMode === "tiles" ? (
+                  <TilesLessonExperience
+                    stage={currentStage}
+                    index={stageIndex}
+                    total={stages.length}
+                    onSuccess={handleSuccess}
+                    onMistake={handleMistake}
+                  />
+                ) : (
+                  <TypingLessonExperience
+                    stage={currentStage}
+                    index={stageIndex}
+                    total={stages.length}
+                    onSuccess={handleSuccess}
+                    onMistake={handleMistake}
+                  />
+                )}
+              </div>
             </>
           )}
         </div>
       </main>
+
+      {/* 底部装饰 */}
+      <div className="relative z-10 h-16 flex items-center justify-center">
+        <div className="text-white/60 text-sm">
+          {activeMode === "tiles" ? "🎯 点词成句" : "⌨️ 键入练习"}
+        </div>
+      </div>
+
+      {/* 庆祝动画 */}
+      {celebration && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+          <div className="relative text-center">
+            <div className="flex gap-3 mb-4 justify-center">
+              {[...Array(celebration.stars)].map((_, idx) => (
+                <span
+                  key={idx}
+                  className="text-6xl animate-bounce drop-shadow-2xl"
+                  style={{ animationDelay: `${idx * 0.1}s` }}
+                >⭐</span>
+              ))}
+            </div>
+            <h3 className="text-3xl font-bold text-yellow-300 mb-2 drop-shadow-lg">{celebration.message}</h3>
+            <p className="text-xl text-white/90">连击 x{celebration.combo}</p>
+            <div className="mt-4">
+              {celebration.stars === 3 && <span className="text-4xl">🏆</span>}
+              {celebration.stars === 2 && <span className="text-4xl">🥈</span>}
+              {celebration.stars === 1 && <span className="text-4xl">🥉</span>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
