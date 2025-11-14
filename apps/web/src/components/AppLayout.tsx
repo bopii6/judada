@@ -1,5 +1,7 @@
 ﻿import { useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { User, LogOut, Menu, LogIn } from "lucide-react";
+import { useAuth } from "../hooks/useAuth";
 
 const links = [
   { to: "/", label: "Dashboard", icon: "📊" },
@@ -9,6 +11,9 @@ const links = [
 
 export const AppLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const navigate = useNavigate();
+  const { user, isAuthenticated, login, logout, getUserAvatar, getUserDisplayName } = useAuth();
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -68,19 +73,74 @@ export const AppLayout = () => {
 
       {/* 主内容区域 */}
       <div className="flex-1 lg:ml-0">
-        {/* 顶部导航栏 - 移动端显示 */}
-        <header className="lg:hidden bg-white shadow-sm border-b border-slate-200">
+        {/* 顶部导航栏 */}
+        <header className="bg-white shadow-sm border-b border-slate-200">
           <div className="flex items-center justify-between px-4 py-3">
-            <button
-              className="text-slate-600 hover:text-slate-900"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <h1 className="text-lg font-semibold text-slate-800">Jude English Lab</h1>
-            <div className="w-6"></div> {/* 占位符保持居中 */}
+            <div className="flex items-center space-x-4">
+              <button
+                className="lg:hidden text-slate-600 hover:text-slate-900"
+                onClick={() => setSidebarOpen(true)}
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+              <h1 className="text-lg font-semibold text-slate-800">Jude English Lab</h1>
+            </div>
+
+            {/* 用户区域 */}
+            <div className="flex items-center space-x-3">
+              {isAuthenticated ? (
+                <div className="relative">
+                  <button
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    className="flex items-center space-x-2 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+                  >
+                    <img
+                      src={getUserAvatar()}
+                      alt={getUserDisplayName()}
+                      className="w-8 h-8 rounded-full object-cover border-2 border-slate-200"
+                    />
+                    <span className="hidden sm:block text-sm font-medium text-slate-700">
+                      {getUserDisplayName()}
+                    </span>
+                  </button>
+
+                  {/* 用户菜单 */}
+                  {userMenuOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-10"
+                        onClick={() => setUserMenuOpen(false)}
+                      />
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-20">
+                        <div className="px-4 py-2 border-b border-slate-100">
+                          <p className="text-sm font-medium text-slate-900">
+                            {getUserDisplayName()}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            logout();
+                            setUserMenuOpen(false);
+                          }}
+                          className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          <span>退出登录</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={() => navigate('/login')}
+                  className="flex items-center space-x-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <LogIn className="h-4 w-4" />
+                  <span>登录</span>
+                </button>
+              )}
+            </div>
           </div>
         </header>
 
