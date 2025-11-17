@@ -729,7 +729,7 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
         await generationJobRepository.appendLog(
           generationJobId,
           `检测到 sequence 唯一键冲突，自动顺延并重试: ${lessonPlan.title}`,
-          "warn",
+          "warning",
           { lessonTitle: lessonPlan.title, retrySequence: sequence + 1 }
         );
         sequence += 1; // 顺延一个位置
