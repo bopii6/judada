@@ -5,6 +5,7 @@ import emailAuthRoutes from "./email-auth";
 import jobsRoutes from "./jobs";
 import coursesRoutes from "./courses";
 import userProgressRoutes from "./user-progress";
+import deviceRoutes from "./device";
 
 const router = Router();
 
@@ -14,5 +15,6 @@ router.use("/admin", adminRoutes);
 router.use("/jobs", jobsRoutes);
 router.use("/courses", coursesRoutes);
 router.use("/user", userProgressRoutes);
+router.use("/device", deviceRoutes);
 
 export default router;

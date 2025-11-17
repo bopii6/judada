@@ -21,11 +21,8 @@ function getRedis() {
   if (!redis) {
     try {
       const env = getEnv();
-      redis = new Redis(env.REDIS_URL, {
-        maxRetriesPerRequest: 1,
-        retryDelayOnFailover: 100,
-        lazyConnect: true,
-      });
+      // 使用最兼容的构造方式，避免类型不匹配
+      redis = new Redis(env.REDIS_URL);
 
       redis.on('error', (error) => {
         console.error('Redis连接错误，切换到内存存储:', error.message);
@@ -163,12 +160,13 @@ router.post('/send-code', async (req, res, next) => {
     const emailSent = await emailService.sendVerificationCode(email, code);
 
     if (!emailSent) {
-      // 清理已存储的验证码
+      // 清理已存储的验证码（保持逻辑一致）
       await Promise.all([
         deleteStorageKey(verificationKey),
         deleteStorageKey(rateLimitKey),
       ]);
 
+      // 不再兜底，直接返回失败，前端应显示错误
       return res.status(500).json({
         success: false,
         message: '邮件发送失败，请稍后重试',

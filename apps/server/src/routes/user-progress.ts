@@ -1,4 +1,4 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 import { getPrisma } from '../lib/prisma';
 import { authenticateToken } from '../middleware/auth';
 import { z } from 'zod';
@@ -37,18 +37,16 @@ router.get('/progress', authenticateToken, async (req, res) => {
   const userId = canonicalUserId(req.user!);
   try {
     const prisma = getPrisma();
-    const [userProgress, userStats, userDailyLogs, userAchievements] = await Promise.all([
+    const [userProgress, userStatsRows, userDailyLogs, userAchievements] = await Promise.all([
       prisma.$queryRaw`SELECT * FROM "UserProgress" WHERE "userId" = ${userId} ORDER BY "lastPlayedAt" DESC`,
-      prisma.$queryRawFirst`SELECT * FROM "UserStats" WHERE "userId" = ${userId}`,
+      prisma.$queryRaw`SELECT * FROM "UserStats" WHERE "userId" = ${userId} LIMIT 1`,
       prisma.$queryRaw`SELECT * FROM "UserDailyLog" WHERE "userId" = ${userId} ORDER BY "date" DESC LIMIT 30`,
       prisma.$queryRaw`SELECT * FROM "UserAchievement" WHERE "userId" = ${userId} ORDER BY "unlockedAt" DESC`,
     ]);
+    const userStats = (userStatsRows as any[])[0] ?? null;
 
-    // 如果数据库没有记录，但本地降级存储里有，优先返回本地数据，确保跨浏览器可见
-    // 若本地存在 legacy "email-user-*" 数据，尝试迁移到规范的 email-base64 id
-    if (!localStore.hasAnyData(userId)) {
-      localStore.migrateLegacyKeysTo(userId);
-    }
+    // 濡傛灉鏁版嵁搴撴病鏈夎褰曪紝浣嗘湰鍦伴檷绾у瓨鍌ㄩ噷鏈夛紝浼樺厛杩斿洖鏈湴鏁版嵁锛岀‘淇濊法娴忚鍣ㄥ彲瑙?    // 鑻ユ湰鍦板瓨鍦?legacy "email-user-*" 鏁版嵁锛屽皾璇曡縼绉诲埌瑙勮寖鐨?email-base64 id
+    
     const localData = localStore.getUserAll(userId);
     const useLocal = (!userProgress || (Array.isArray(userProgress) && userProgress.length === 0))
       && (localData.userProgress && localData.userProgress.length > 0);
@@ -60,10 +58,10 @@ router.get('/progress', authenticateToken, async (req, res) => {
     return res.json({
       success: true,
       data: {
-        userProgress: userProgress || [],
+        userProgress: (userProgress as any[]) || [],
         userStats: userStats || null,
-        userDailyLogs: userDailyLogs || [],
-        userAchievements: userAchievements || []
+        userDailyLogs: (userDailyLogs as any[]) || [],
+        userAchievements: (userAchievements as any[]) || []
       }
     });
   } catch {
@@ -80,10 +78,11 @@ router.post('/progress/stage', authenticateToken, async (req, res) => {
   try {
     const prisma = getPrisma();
 
-    const existing = await prisma.$queryRawFirst`SELECT * FROM "UserProgress" WHERE "userId" = ${userId} AND "stageId" = ${stageId}`;
-    let result;
+    const existingRows = await prisma.$queryRaw`SELECT * FROM "UserProgress" WHERE "userId" = ${userId} AND "stageId" = ${stageId} LIMIT 1`;
+    const existing = (existingRows as any[])[0];
+    let resultRows;
     if (existing) {
-      result = await prisma.$queryRaw`
+      resultRows = await prisma.$queryRaw`
         UPDATE "UserProgress"
         SET "bestStars" = GREATEST("bestStars", ${bestStars}),
             "attempts" = "attempts" + 1,
@@ -94,7 +93,7 @@ router.post('/progress/stage', authenticateToken, async (req, res) => {
         RETURNING *
       `;
     } else {
-      result = await prisma.$queryRaw`
+      resultRows = await prisma.$queryRaw`
         INSERT INTO "UserProgress"
         ("id", "userId", "stageId", "courseId", "bestStars", "attempts", "lastPlayedAt", "modes", "createdAt", "updatedAt")
         VALUES (
@@ -113,12 +112,12 @@ router.post('/progress/stage', authenticateToken, async (req, res) => {
       `;
     }
 
-    // 成功写入数据库后，也写入本地降级存储，保持两端一致
-    localStore.upsertStage(userId, { stageId, courseId, bestStars, modes });
+    // 鎴愬姛鍐欏叆鏁版嵁搴撳悗锛屼篃鍐欏叆鏈湴闄嶇骇瀛樺偍锛屼繚鎸佷袱绔竴鑷?    localStore.upsertStage(userId, { stageId, courseId, bestStars, modes });
     await updateUserStats(userId, bestStars);
     await updateDailyLog(userId, bestStars, modes.includes('type') ? 1 : 0);
     await checkAchievements(userId, bestStars);
-    return res.json({ success: true, data: result[0] || result });
+    const row = (resultRows as any[])[0] ?? null;
+    return res.json({ success: true, data: row ?? resultRows });
   } catch {
     localStore.upsertStage(userId, { stageId, courseId, bestStars, modes });
     localStore.updateDaily(userId, bestStars, modes.includes('type') ? 1 : 0);
@@ -159,9 +158,10 @@ router.post('/progress/sync', authenticateToken, async (req, res) => {
           "updatedAt" = CURRENT_TIMESTAMP
         RETURNING *
       `;
-      results.push(result[0] || result);
+      const row = (result as any[])[0] ?? null;
+      results.push(row ?? result);
     }
-    // 同步成功后，更新本地降级存储
+    // 鍚屾鎴愬姛鍚庯紝鏇存柊鏈湴闄嶇骇瀛樺偍
     localStore.batchUpsert(userId, progress.map(p => ({ stageId: p.stageId, courseId: p.courseId, bestStars: p.bestStars, modes: p.modes })));
     const totalStars = progress.reduce((s, p) => s + p.bestStars, 0);
     await updateUserStats(userId, totalStars);
@@ -173,14 +173,39 @@ router.post('/progress/sync', authenticateToken, async (req, res) => {
   }
 });
 
+// POST /progress/reset - 清理当前用户的所有进度与统计（DB + 本地兜底）
+router.post('/progress/reset', authenticateToken, async (req, res) => {
+  const userId = canonicalUserId(req.user!);
+  try {
+    const prisma = getPrisma();
+    await prisma.$transaction([
+      prisma.$executeRaw`DELETE FROM "UserProgress" WHERE "userId" = ${userId}`,
+      prisma.$executeRaw`DELETE FROM "UserDailyLog" WHERE "userId" = ${userId}`,
+      prisma.$executeRaw`DELETE FROM "UserStats" WHERE "userId" = ${userId}`,
+      prisma.$executeRaw`DELETE FROM "UserAchievement" WHERE "userId" = ${userId}`
+    ]);
+  } catch (error) {
+    console.error('Reset progress (DB) failed:', error);
+  }
+
+  try {
+    localStore.clearUser(userId);
+  } catch (error) {
+    console.error('Reset progress (local) failed:', error);
+  }
+
+  return res.json({ success: true, message: '用户进度已重置' });
+});
+
 // GET /stats
 router.get('/stats', authenticateToken, async (req, res) => {
   const userId = canonicalUserId(req.user!);
   try {
     const prisma = getPrisma();
-    let userStats = await prisma.$queryRawFirst`SELECT * FROM "UserStats" WHERE "userId" = ${userId}`;
-    if (!userStats) {
-      userStats = await prisma.$queryRaw`
+    let rows = await prisma.$queryRaw`SELECT * FROM "UserStats" WHERE "userId" = ${userId} LIMIT 1`;
+    let row = (rows as any[])[0] ?? null;
+    if (!row) {
+      rows = await prisma.$queryRaw`
         INSERT INTO "UserStats"
         ("id", "userId", "totalPlayTime", "totalStars", "completedStages", "currentStreak", "longestStreak", "lastActiveAt", "createdAt", "updatedAt")
         VALUES (
@@ -193,8 +218,9 @@ router.get('/stats', authenticateToken, async (req, res) => {
         )
         RETURNING *
       `;
+      row = (rows as any[])[0] ?? null;
     }
-    return res.json({ success: true, data: userStats[0] || userStats });
+    return res.json({ success: true, data: row ?? rows });
   } catch {
     const stats = localStore.getStats(userId);
     return res.json({ success: true, data: stats });
@@ -207,7 +233,7 @@ router.post('/stats', authenticateToken, async (req, res) => {
   const statsData = userStatsSchema.parse(req.body);
   try {
     const prisma = getPrisma();
-    const userStats = await prisma.$queryRaw`
+    const userStatsRows = await prisma.$queryRaw`
       INSERT INTO "UserStats"
       ("id", "userId", "totalPlayTime", "totalStars", "completedStages", "currentStreak", "longestStreak", "lastActiveAt", "createdAt", "updatedAt")
       VALUES (
@@ -233,7 +259,8 @@ router.post('/stats', authenticateToken, async (req, res) => {
         "updatedAt" = CURRENT_TIMESTAMP
       RETURNING *
     `;
-    return res.json({ success: true, data: userStats[0] || userStats });
+    const row = (userStatsRows as any[])[0] ?? null;
+    return res.json({ success: true, data: row ?? userStatsRows });
   } catch {
     // For local fallback, stats are recalculated from progress; just return current
     const stats = localStore.getStats(userId);
@@ -305,7 +332,8 @@ async function checkAchievements(userId: string, starsEarned: number) {
   try {
     const prisma = getPrisma();
     if (starsEarned > 0) {
-      const firstCompletion = await prisma.$queryRawFirst`SELECT * FROM "UserAchievement" WHERE "userId" = ${userId} AND "type" = 'first_completion'`;
+      const firstRows = await prisma.$queryRaw`SELECT * FROM "UserAchievement" WHERE "userId" = ${userId} AND "type" = 'first_completion' LIMIT 1`;
+      const firstCompletion = (firstRows as any[])[0];
       if (!firstCompletion) {
         await prisma.$queryRaw`
           INSERT INTO "UserAchievement" ("id", "userId", "type", "data", "unlockedAt")
@@ -320,7 +348,8 @@ async function checkAchievements(userId: string, starsEarned: number) {
       }
     }
     if (starsEarned === 3) {
-      const perfectScore = await prisma.$queryRawFirst`SELECT * FROM "UserAchievement" WHERE "userId" = ${userId} AND "type" = 'perfect_score'`;
+      const perfectRows = await prisma.$queryRaw`SELECT * FROM "UserAchievement" WHERE "userId" = ${userId} AND "type" = 'perfect_score' LIMIT 1`;
+      const perfectScore = (perfectRows as any[])[0];
       if (!perfectScore) {
         await prisma.$queryRaw`
           INSERT INTO "UserAchievement" ("id", "userId", "type", "data", "unlockedAt")
@@ -340,3 +369,5 @@ async function checkAchievements(userId: string, starsEarned: number) {
 }
 
 export default router;
+
+

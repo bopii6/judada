@@ -124,6 +124,13 @@ export function hasAnyData(userId: string) {
   return Boolean((p && p.length) || (d && d.length) || s);
 }
 
+export function clearUser(userId: string) {
+  delete store.progress[userId];
+  delete store.daily[userId];
+  delete store.stats[userId];
+  save(store);
+}
+
 export function legacyEmailUserKeys() {
   return Object.keys(store.progress).filter(k => k.startsWith('email-user-'));
 }

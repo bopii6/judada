@@ -29,6 +29,8 @@ export interface CourseStage {
   audioUrl?: string | null;
   hints?: string[];
   estimatedSeconds?: number;
+  // 后端可能返回的关卡难度（未提供时留空）
+  difficulty?: string | number;
 }
 
 export interface CourseContentResponse {

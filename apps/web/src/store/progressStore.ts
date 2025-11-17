@@ -1,8 +1,26 @@
-import React, { useSyncExternalStore } from "react";
+﻿import React, { useSyncExternalStore } from "react";
 import { useAuth } from "../hooks/useAuth";
 
-const STORAGE_KEY = "judada:progress:v1";
-const SYNC_QUEUE_KEY = "judada:sync_queue:v1";
+const STORAGE_KEY_BASE = "judada:progress:v1";
+const SYNC_QUEUE_KEY_BASE = "judada:sync_queue:v1";
+
+// 读取当前登录用户ID（用于给本地同步队列做命名空间）
+const getCurrentUserKey = () => {
+  try {
+    const raw = localStorage.getItem('user');
+    if (!raw) return 'anonymous';
+    const u = JSON.parse(raw);
+    return u?.id || u?.email || 'anonymous';
+  } catch {
+    return 'anonymous';
+  }
+};
+
+const getQueueKeyForCurrentUser = () => `${SYNC_QUEUE_KEY_BASE}:${getCurrentUserKey()}`;
+const getStateKeyForCurrentUser = () => `${STORAGE_KEY_BASE}:${getCurrentUserKey()}`;
+
+let currentQueueKey: string | null = null;
+let currentStateKey: string | null = null;
 
 type LessonMode = "tiles" | "type";
 
@@ -78,9 +96,10 @@ const apiCall = async (endpoint: string, options: RequestInit = {}) => {
 };
 
 // 从本地存储加载状态
-const loadState = (): ProgressState => {
+const loadState = (key: string = getStateKeyForCurrentUser()): ProgressState => {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    currentStateKey = key;
+    const raw = window.localStorage.getItem(key);
     if (!raw) {
       return { stages: {}, daily: {}, isOnline: navigator.onLine };
     }
@@ -101,16 +120,20 @@ const loadState = (): ProgressState => {
 // 保存状态到本地存储
 const saveState = (state: ProgressState) => {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const key = currentStateKey ?? getStateKeyForCurrentUser();
+    currentStateKey = key;
+    window.localStorage.setItem(key, JSON.stringify(state));
   } catch (error) {
     console.warn("Failed to persist progress store", error);
   }
 };
 
-// 加载同步队列
+// 加载同步队列（按用户隔离）
 const loadSyncQueue = (): SyncQueueItem[] => {
   try {
-    const raw = window.localStorage.getItem(SYNC_QUEUE_KEY);
+    const key = getQueueKeyForCurrentUser();
+    currentQueueKey = key;
+    const raw = window.localStorage.getItem(key);
     return raw ? JSON.parse(raw) : [];
   } catch (error) {
     console.warn("Failed to load sync queue", error);
@@ -118,10 +141,12 @@ const loadSyncQueue = (): SyncQueueItem[] => {
   }
 };
 
-// 保存同步队列
+// 保存同步队列（按用户隔离）
 const saveSyncQueue = (queue: SyncQueueItem[]) => {
   try {
-    window.localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue));
+    const key = currentQueueKey ?? getQueueKeyForCurrentUser();
+    currentQueueKey = key;
+    window.localStorage.setItem(key, JSON.stringify(queue));
   } catch (error) {
     console.warn("Failed to save sync queue", error);
   }
@@ -131,8 +156,22 @@ const saveSyncQueue = (queue: SyncQueueItem[]) => {
 let state: ProgressState =
   typeof window === "undefined" ? { stages: {}, daily: {}, isOnline: false } : loadState();
 
-let syncQueue: SyncQueueItem[] =
-  typeof window === "undefined" ? [] : loadSyncQueue();
+let syncQueue: SyncQueueItem[] = [];
+
+const ensureQueueLoaded = () => {
+  const expectedKey = getQueueKeyForCurrentUser();
+  if (currentQueueKey !== expectedKey) {
+    syncQueue = loadSyncQueue();
+  }
+};
+
+const ensureStateLoaded = () => {
+  const expectedKey = getStateKeyForCurrentUser();
+  if (currentStateKey !== expectedKey) {
+    state = loadState(expectedKey);
+    notify();
+  }
+};
 
 const listeners = new Set<() => void>();
 
@@ -140,7 +179,7 @@ const notify = () => {
   listeners.forEach(listener => listener());
 };
 
-// 网络状态监听
+// 网络状态监控
 const updateOnlineStatus = () => {
   const isOnline = navigator.onLine;
   if (state.isOnline !== isOnline) {
@@ -211,7 +250,7 @@ const loadFromCloud = async (): Promise<boolean> => {
       return true;
     }
   } catch (error) {
-    console.error('从云端加载进度失败:', error);
+    console.error('从云端加载进度失败', error);
   }
   return false;
 };
@@ -277,7 +316,7 @@ const processSyncQueue = async () => {
         }
       }
     } catch (error) {
-      console.error('同步队列项失败:', error);
+      console.error('同步队列项失败', error);
       item.retryCount++;
       if (item.retryCount < 3) {
         failedItems.push(item);
@@ -329,6 +368,7 @@ const mergeModes = (existing: LessonMode[], next: LessonMode) => {
 
 // 记录关卡完成
 const recordStageCompletion = ({ stageId, courseId, stars, mode }: StageCompletionPayload) => {
+  ensureStateLoaded();
   if (typeof window === "undefined") return;
 
   const current = state.stages[stageId];
@@ -385,6 +425,7 @@ const recordStageCompletion = ({ stageId, courseId, stars, mode }: StageCompleti
 
 // 手动同步
 const syncToCloud = async () => {
+  ensureStateLoaded();
   if (!state.isOnline) {
     console.warn('离线状态，无法同步');
     return false;
@@ -411,6 +452,7 @@ const syncToCloud = async () => {
 
 // 从云端刷新数据
 const refreshFromCloud = async () => {
+  ensureStateLoaded();
   if (!state.isOnline) {
     console.warn('离线状态，无法刷新');
     return false;
@@ -433,6 +475,7 @@ const getState = () => state;
 
 // 初始化函数 - 在用户登录后调用
 const initializeForUser = async () => {
+  ensureStateLoaded();
   if (!state.isOnline) {
     console.warn('离线状态，跳过云端加载');
     return;
@@ -585,3 +628,6 @@ export const useCloudSync = () => {
     };
   }, [isAuthenticated, isLoading]);
 };
+
+
+

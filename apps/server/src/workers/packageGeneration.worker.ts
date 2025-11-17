@@ -635,7 +635,13 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
   });
 
   // 2. 逐个创建课程和课时，使用小事务
-  let sequence = 1;
+  // 从数据库读取当前该课程包已存在的最大 sequence，避免任务重试时从 1 开始造成唯一键冲突
+  const lastLesson = await prisma.lesson.findFirst({
+    where: { packageId },
+    orderBy: { sequence: "desc" },
+    select: { sequence: true }
+  });
+  let sequence = (lastLesson?.sequence ?? 0) + 1;
   const lessonSummaries: Array<{ id: string; versionId: string }> = [];
 
   for (let i = 0; i < plan.lessons.length; i++) {
@@ -717,6 +723,20 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
       await generationJobRepository.appendLog(generationJobId, `课程创建成功: ${lessonPlan.title}`, "info");
 
     } catch (error) {
+      // 如果是唯一键冲突（通常发生在任务重试/并发下），自动顺延 sequence 并重试当前课程
+      const err: any = error;
+      if (err?.code === 'P2002') {
+        await generationJobRepository.appendLog(
+          generationJobId,
+          `检测到 sequence 唯一键冲突，自动顺延并重试: ${lessonPlan.title}`,
+          "warn",
+          { lessonTitle: lessonPlan.title, retrySequence: sequence + 1 }
+        );
+        sequence += 1; // 顺延一个位置
+        i -= 1; // 重试当前 lesson
+        continue;
+      }
+
       await generationJobRepository.appendLog(generationJobId, `课程创建失败: ${lessonPlan.title} - ${(error as Error).message}`, "error", {
         lessonTitle: lessonPlan.title,
         error: (error as Error).message

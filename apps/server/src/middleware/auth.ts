@@ -33,6 +33,19 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
 
     jwt.verify(token, jwtSecret, (err, decoded) => {
       if (err) {
+        // JWT 验证失败时，先尝试游客 token（base64 json）
+        try {
+          const guestToken = JSON.parse(Buffer.from(token, 'base64').toString('utf8'));
+          if (guestToken.type === 'guest' && guestToken.id) {
+            req.user = {
+              id: guestToken.id,
+              loginType: 'guest',
+            };
+            return next();
+          }
+        } catch {
+          // not a guest token, fall through
+        }
         console.error('JWT验证失败:', err);
         return res.status(403).json({
           success: false,
