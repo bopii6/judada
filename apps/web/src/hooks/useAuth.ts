@@ -3,9 +3,10 @@ import { useState, useEffect } from 'react';
 interface User {
   id: string;
   nickname?: string;
-  loginType: 'device' | 'admin';
+  loginType: 'device' | 'admin' | 'email';
   name?: string;
   role?: string;
+  email?: string;
 }
 
 interface AuthData {
@@ -35,16 +36,25 @@ export const useAuth = () => {
           setIsAuthenticated(true);
         } else {
           // 如果没有用户信息，自动创建游客用户
+          const guestId = 'guest-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
           const guestUser = {
-            id: 'guest-user',
+            id: guestId,
             nickname: '游客用户',
             loginType: 'device' as const,
             name: 'Guest User'
           };
 
+          // 生成更安全的游客token（基于时间戳和随机字符串）
+          const token = btoa(JSON.stringify({
+            id: guestId,
+            type: 'guest',
+            timestamp: Date.now(),
+            nonce: Math.random().toString(36).substr(2, 16)
+          }));
+
           const authData = {
             user: guestUser,
-            token: 'guest-token-' + Date.now()
+            token
           };
 
           // 自动保存到localStorage
@@ -129,7 +139,7 @@ export const useAuth = () => {
 
   // 获取用户显示名称
   const getUserDisplayName = () => {
-    return user?.nickname || user?.name || '未知用户';
+    return user?.nickname || user?.name || user?.email || '未知用户';
   };
 
   

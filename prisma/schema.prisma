@@ -44,6 +44,12 @@ enum LessonItemType {
   custom
 }
 
+enum VerificationStatus {
+  pending
+  verified
+  expired
+}
+
 enum JobType {
   package_generation
   lesson_generation
@@ -100,6 +106,12 @@ model User {
   jobs         GenerationJob[] @relation("JobTrigger")
   submittedReviews Review[] @relation("ReviewSubmitter")
   reviewedReviews Review[] @relation("ReviewReviewer")
+
+  // 用户进度相关关联
+  userProgress      UserProgress[]
+  userDailyLogs     UserDailyLog[]
+  userAchievements  UserAchievement[]
+  userStats          UserStats?
 }
 
 model Role {
@@ -350,3 +362,92 @@ model AuditTrail {
 
   @@index([entityType, entityId])
 }
+
+model EmailVerification {
+  id        String             @id @default(uuid())
+  email     String
+  code      String
+  status    VerificationStatus @default(pending)
+  attempts  Int                @default(0)
+  expiresAt DateTime
+  createdAt DateTime           @default(now())
+
+  @@unique([email, code])
+  @@index([email])
+  @@index([expiresAt])
+}
+
+// 用户进度相关模型
+enum LessonMode {
+  tiles
+  type
+}
+
+model UserProgress {
+  id        String   @id @default(uuid())
+  userId    String
+  stageId   String
+  courseId  String
+  bestStars Int      @default(0)
+  attempts  Int      @default(0)
+  lastPlayedAt DateTime @default(now())
+  modes     LessonMode[] // 游戏模式数组
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, stageId])
+  @@index([userId])
+  @@index([courseId])
+}
+
+model UserDailyLog {
+  id             String   @id @default(uuid())
+  userId         String
+  date           String   // 格式: YYYY-MM-DD
+  completedStages Int      @default(0)
+  starsEarned    Int      @default(0)
+  typingStages   Int      @default(0) // 键入模式完成数
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
+}
+
+// 用户成就系统
+model UserAchievement {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   // 成就类型：first_completion, perfect_score, daily_streak, etc.
+  data      Json?    // 成就相关数据
+  unlockedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@index([userId])
+}
+
+// 用户学习统计
+model UserStats {
+  id                    String   @id @default(uuid())
+  userId                String
+  totalPlayTime         Int      @default(0) // 总游戏时间（分钟）
+  totalStars           Int      @default(0) // 总星星数
+  completedStages      Int      @default(0) // 完成关卡数
+  currentStreak        Int      @default(0) // 连续学习天数
+  longestStreak        Int      @default(0) // 最长连续天数
+  lastActiveAt         DateTime @default(now())
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+}
+
+// 新增关联到现有User模型

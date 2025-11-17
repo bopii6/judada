@@ -1,0 +1,147 @@
+{
+  "progress": {
+    "email-MTMxNzcyMTc5MTJ3c0BnbWFpbC5jb20": [
+      {
+        "userId": "email-MTMxNzcyMTc5MTJ3c0BnbWFpbC5jb20",
+        "stageId": "170b1a07-6428-4794-8dce-3c98fc2778f5-48119c90-8c5a-405f-85a5-e840fb1a47bf",
+        "courseId": "4036d144-93ef-4e97-96be-8224f01beae1",
+        "bestStars": 3,
+        "attempts": 3,
+        "lastPlayedAt": "2025-11-17T01:09:16.592Z",
+        "modes": [
+          "tiles"
+        ],
+        "createdAt": "2025-11-17T01:09:16.570Z",
+        "updatedAt": "2025-11-17T01:09:16.592Z"
+      },
+      {
+        "userId": "email-MTMxNzcyMTc5MTJ3c0BnbWFpbC5jb20",
+        "stageId": "34d83086-81eb-420b-ac9d-b05bdf56e366-2be4803d-839a-47c5-9613-1c200b06d918",
+        "courseId": "77113022-110c-4641-b009-6b9480ac05ff",
+        "bestStars": 1,
+        "attempts": 3,
+        "lastPlayedAt": "2025-11-17T01:17:25.959Z",
+        "modes": [
+          "tiles"
+        ],
+        "createdAt": "2025-11-17T01:17:25.949Z",
+        "updatedAt": "2025-11-17T01:17:25.959Z"
+      },
+      {
+        "userId": "email-MTMxNzcyMTc5MTJ3c0BnbWFpbC5jb20",
+        "stageId": "ee32b266-4b2f-4f64-9210-51dfdcda05cd-a3be063c-1b72-4022-8b27-bacaafda0fa3",
+        "courseId": "4036d144-93ef-4e97-96be-8224f01beae1",
+        "bestStars": 3,
+        "attempts": 3,
+        "lastPlayedAt": "2025-11-17T01:18:09.006Z",
+        "modes": [
+          "tiles"
+        ],
+        "createdAt": "2025-11-17T01:18:08.997Z",
+        "updatedAt": "2025-11-17T01:18:09.006Z"
+      },
+      {
+        "userId": "email-MTMxNzcyMTc5MTJ3c0BnbWFpbC5jb20",
+        "stageId": "370f9289-17e5-426a-938a-18c6cf94cfff-fb90040c-1aab-4e78-b8f6-72c815a9fc11",
+        "courseId": "4036d144-93ef-4e97-96be-8224f01beae1",
+        "bestStars": 3,
+        "attempts": 3,
+        "lastPlayedAt": "2025-11-17T01:26:53.275Z",
+        "modes": [
+          "tiles"
+        ],
+        "createdAt": "2025-11-17T01:26:53.262Z",
+        "updatedAt": "2025-11-17T01:26:53.275Z"
+      },
+      {
+        "userId": "email-MTMxNzcyMTc5MTJ3c0BnbWFpbC5jb20",
+        "stageId": "78100442-ffac-49e9-bb0b-ce0aa3b83f01-b993ccb9-f9cc-48c4-86fd-f74e2fe6b240",
+        "courseId": "4036d144-93ef-4e97-96be-8224f01beae1",
+        "bestStars": 3,
+        "attempts": 3,
+        "lastPlayedAt": "2025-11-17T01:27:06.594Z",
+        "modes": [
+          "tiles"
+        ],
+        "createdAt": "2025-11-17T01:27:06.584Z",
+        "updatedAt": "2025-11-17T01:27:06.594Z"
+      }
+    ],
+    "email-user-1763297345673-trpuvnlod": [
+      {
+        "userId": "email-user-1763297345673-trpuvnlod",
+        "stageId": "170b1a07-6428-4794-8dce-3c98fc2778f5-48119c90-8c5a-405f-85a5-e840fb1a47bf",
+        "courseId": "4036d144-93ef-4e97-96be-8224f01beae1",
+        "bestStars": 1,
+        "attempts": 5,
+        "lastPlayedAt": "2025-11-17T00:55:24.710Z",
+        "modes": [
+          "tiles"
+        ],
+        "createdAt": "2025-11-17T00:54:26.475Z",
+        "updatedAt": "2025-11-17T00:55:24.710Z"
+      },
+      {
+        "userId": "email-user-1763297345673-trpuvnlod",
+        "stageId": "ee32b266-4b2f-4f64-9210-51dfdcda05cd-a3be063c-1b72-4022-8b27-bacaafda0fa3",
+        "courseId": "4036d144-93ef-4e97-96be-8224f01beae1",
+        "bestStars": 3,
+        "attempts": 3,
+        "lastPlayedAt": "2025-11-17T01:06:30.625Z",
+        "modes": [
+          "tiles"
+        ],
+        "createdAt": "2025-11-17T01:06:30.610Z",
+        "updatedAt": "2025-11-17T01:06:30.625Z"
+      }
+    ]
+  },
+  "stats": {
+    "email-MTMxNzcyMTc5MTJ3c0BnbWFpbC5jb20": {
+      "userId": "email-MTMxNzcyMTc5MTJ3c0BnbWFpbC5jb20",
+      "totalPlayTime": 0,
+      "totalStars": 13,
+      "completedStages": 5,
+      "currentStreak": 0,
+      "longestStreak": 0,
+      "lastActiveAt": "2025-11-17T01:27:06.594Z",
+      "createdAt": "2025-11-17T00:54:26.246Z",
+      "updatedAt": "2025-11-17T01:27:06.594Z"
+    },
+    "email-user-1763297345673-trpuvnlod": {
+      "userId": "email-user-1763297345673-trpuvnlod",
+      "totalPlayTime": 0,
+      "totalStars": 4,
+      "completedStages": 2,
+      "currentStreak": 0,
+      "longestStreak": 0,
+      "lastActiveAt": "2025-11-17T01:06:30.625Z",
+      "createdAt": "2025-11-17T00:54:26.362Z",
+      "updatedAt": "2025-11-17T01:06:30.625Z"
+    }
+  },
+  "daily": {
+    "email-MTMxNzcyMTc5MTJ3c0BnbWFpbC5jb20": [
+      {
+        "userId": "email-MTMxNzcyMTc5MTJ3c0BnbWFpbC5jb20",
+        "date": "2025-11-17",
+        "completedStages": 15,
+        "starsEarned": 39,
+        "typingStages": 0,
+        "createdAt": "2025-11-17T01:09:16.571Z",
+        "updatedAt": "2025-11-17T01:27:06.595Z"
+      }
+    ],
+    "email-user-1763297345673-trpuvnlod": [
+      {
+        "userId": "email-user-1763297345673-trpuvnlod",
+        "date": "2025-11-17",
+        "completedStages": 8,
+        "starsEarned": 14,
+        "typingStages": 0,
+        "createdAt": "2025-11-17T00:54:26.476Z",
+        "updatedAt": "2025-11-17T01:06:30.625Z"
+      }
+    ]
+  }
+}

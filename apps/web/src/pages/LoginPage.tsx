@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Users, Target, Star } from 'lucide-react';
+import { BookOpen, Users, Target, Star, Mail, User, ArrowLeft, CheckCircle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 const features = [
@@ -32,16 +32,25 @@ export const LoginPage: React.FC = () => {
 
   const handleGuestAccess = () => {
     // 创建一个游客用户信息
+    const guestId = 'guest-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     const guestUser = {
-      id: 'guest-user',
+      id: guestId,
       nickname: '游客用户',
       loginType: 'device' as const,
       name: 'Guest User'
     };
 
+    // 生成更安全的游客token
+    const token = btoa(JSON.stringify({
+      id: guestId,
+      type: 'guest',
+      timestamp: Date.now(),
+      nonce: Math.random().toString(36).substr(2, 16)
+    }));
+
     const authData = {
       user: guestUser,
-      token: 'guest-token-' + Date.now()
+      token
     };
 
     login(authData);
@@ -132,16 +141,35 @@ export const LoginPage: React.FC = () => {
               </button>
             </div>
 
+            {/* 邮箱登录 */}
+            <div className="border-2 border-green-300 rounded-lg p-6 bg-green-50">
+              <div className="flex items-center mb-3">
+                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                  <Mail className="h-5 w-5 text-green-600" />
+                </div>
+                <span className="font-medium text-gray-900 text-lg">邮箱验证登录</span>
+              </div>
+              <p className="text-sm text-gray-600 mb-6">
+                安全便捷的登录方式，使用邮箱验证码即可登录，无需记住密码。
+              </p>
+              <button
+                onClick={() => navigate('/email-login')}
+                className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-lg font-semibold shadow-md hover:shadow-lg"
+              >
+                使用邮箱登录
+              </button>
+            </div>
+
             {/* 提示信息 */}
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
               <div className="flex items-start space-x-2">
                 <div className="text-amber-600 text-sm">💡</div>
                 <div className="text-sm text-amber-800">
-                  <p className="font-medium mb-1">体验说明</p>
+                  <p className="font-medium mb-1">登录方式说明</p>
                   <ul className="space-y-1 text-xs">
-                    <li>• 游客模式下可以体验所有课程内容</li>
-                    <li>• 学习进度仅保存在本地浏览器</li>
-                    <li>• 后期可升级为正式账号保存云端数据</li>
+                    <li>• 游客模式：无需注册，进度保存在本地</li>
+                    <li>• 邮箱登录：安全可靠，支持云端同步</li>
+                    <li>• 验证码5分钟有效，请及时使用</li>
                   </ul>
                 </div>
               </div>

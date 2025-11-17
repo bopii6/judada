@@ -27,7 +27,13 @@ const envSchema = z.object({
   TENCENT_SECRET_ID: z.string().min(1, "TENCENT_SECRET_ID is required"),
   TENCENT_SECRET_KEY: z.string().min(1, "TENCENT_SECRET_KEY is required"),
   REDIS_URL: z.string().min(1, "REDIS_URL is required"),
-  QUEUE_PREFIX: z.string().default("course-gen")
+  QUEUE_PREFIX: z.string().default("course-gen"),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  EMAIL_FROM: z.string().email().optional(),
+  JWT_SECRET: z.string().min(1, "JWT_SECRET is required")
 });
 
 export type Env = z.infer<typeof envSchema>;
