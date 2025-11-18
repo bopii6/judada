@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import Redis from 'ioredis';
 import { emailService } from '../services/email';
 import { getEnv } from '../config/env';
+import { getPrisma } from '../lib/prisma';
 
 const router = Router();
 
@@ -106,6 +107,18 @@ function getVerificationCodeKey(email: string): string {
 
 function getRateLimitKey(email: string): string {
   return `${RATE_LIMIT_PREFIX}${email.toLowerCase()}`;
+}
+
+// 确保用户在 User 表中存在，便于后续进度写入外键
+async function ensureUser(email: string, name?: string) {
+  const prisma = getPrisma();
+  const userId = 'email-' + Buffer.from(email.toLowerCase()).toString('base64').replace(/[^a-zA-Z0-9]/g, '');
+  await prisma.user.upsert({
+    where: { id: userId },
+    create: { id: userId, email: email.toLowerCase(), name },
+    update: { email: email.toLowerCase(), name: name ?? undefined }
+  });
+  return userId;
 }
 
 // 发送验证码请求
@@ -233,7 +246,7 @@ router.post('/verify-code', async (req, res, next) => {
     const jwtSecret = env.JWT_SECRET;
 
     // 使用邮箱作为唯一标识符，确保同一邮箱总是得到相同的用户ID
-    const userId = 'email-' + Buffer.from(emailLower).toString('base64').replace(/[^a-zA-Z0-9]/g, '');
+    const userId = await ensureUser(emailLower, emailLower.split('@')[0]);
     const token = jwt.sign(
       {
         id: userId,

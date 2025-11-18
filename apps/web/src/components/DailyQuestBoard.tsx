@@ -5,7 +5,7 @@ export const DailyQuestBoard = () => {
   const today = getTodayDailyLog();
 
   return (
-    <section className="rounded-2xl bg-white p-6 shadow-sm">
+    <section className="rounded-3xl border border-slate-200/70 bg-white/85 p-6 shadow-sm backdrop-blur">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-slate-400">每日任务</p>
@@ -21,7 +21,9 @@ export const DailyQuestBoard = () => {
           return (
             <li
               key={task.id}
-              className={`rounded-2xl border px-4 py-3 ${completed ? "border-emerald-200 bg-emerald-50" : "border-slate-200"}`}
+              className={`rounded-2xl border px-4 py-3 transition ${
+                completed ? "border-emerald-200 bg-emerald-50" : "border-slate-200/80 bg-white/70"
+              }`}
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -34,7 +36,7 @@ export const DailyQuestBoard = () => {
               </div>
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
                 <div
-                  className={`h-full rounded-full ${completed ? "bg-emerald-400" : "bg-primary/70"}`}
+                  className={`h-full rounded-full ${completed ? "bg-emerald-400" : "bg-indigo-400"}`}
                   style={{ width: `${ratio * 100}%` }}
                 />
               </div>

@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 interface User {
   id: string;
   nickname?: string;
-  loginType: 'device' | 'admin' | 'email';
+  loginType: "device" | "admin" | "email";
   name?: string;
   role?: string;
   email?: string;
+  avatarUrl?: string;
 }
 
 interface AuthData {
@@ -22,12 +23,12 @@ export const useAuth = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // 初始化时从 localStorage 读取用户信息，如果没有则创建游客用户
+  // 初始化时从 localStorage 读取用户信息，若没有则创建游客
   useEffect(() => {
     const initAuth = () => {
       try {
-        const storedUser = localStorage.getItem('user');
-        const storedToken = localStorage.getItem('token');
+        const storedUser = localStorage.getItem("user");
+        const storedToken = localStorage.getItem("token");
 
         if (storedUser && storedToken) {
           const userData = JSON.parse(storedUser);
@@ -35,41 +36,31 @@ export const useAuth = () => {
           setToken(storedToken);
           setIsAuthenticated(true);
         } else {
-          // 如果没有用户信息，自动创建游客用户
-          const guestId = 'guest-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-          const guestUser = {
+          const guestId = "guest-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9);
+          const guestUser: User = {
             id: guestId,
-            nickname: '游客用户',
-            loginType: 'device' as const,
-            name: 'Guest User'
+            nickname: "游客用户",
+            loginType: "device",
+            name: "Guest User"
           };
-
-          // 生成更安全的游客token（基于时间戳和随机字符串）
-          const token = btoa(JSON.stringify({
-            id: guestId,
-            type: 'guest',
-            timestamp: Date.now(),
-            nonce: Math.random().toString(36).substr(2, 16)
-          }));
-
-          const authData = {
-            user: guestUser,
-            token
-          };
-
-          // 自动保存到localStorage
-          localStorage.setItem('user', JSON.stringify(guestUser));
-          localStorage.setItem('token', authData.token);
-
+          const guestToken = btoa(
+            JSON.stringify({
+              id: guestId,
+              type: "guest",
+              timestamp: Date.now(),
+              nonce: Math.random().toString(36).substr(2, 16)
+            })
+          );
+          localStorage.setItem("user", JSON.stringify(guestUser));
+          localStorage.setItem("token", guestToken);
           setUser(guestUser);
-          setToken(authData.token);
+          setToken(guestToken);
           setIsAuthenticated(true);
         }
       } catch (error) {
-        console.error('解析用户数据失败:', error);
-        // 清理无效数据
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
+        console.error("解析用户数据失败:", error);
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
       } finally {
         setIsLoading(false);
       }
@@ -78,45 +69,74 @@ export const useAuth = () => {
     initAuth();
   }, []);
 
-  // 登录函数
   const login = (authData: AuthData) => {
-    try {
-      localStorage.setItem('user', JSON.stringify(authData.user));
-      localStorage.setItem('token', authData.token);
-
-      if (authData.expires_in) {
-        const expiresAt = Date.now() + authData.expires_in * 1000;
-        localStorage.setItem('token_expires_at', expiresAt.toString());
-      }
-
-      setUser(authData.user);
-      setToken(authData.token);
-      setIsAuthenticated(true);
-    } catch (error) {
-      console.error('保存登录信息失败:', error);
-      throw error;
+    localStorage.setItem("user", JSON.stringify(authData.user));
+    localStorage.setItem("token", authData.token);
+    if (authData.expires_in) {
+      const expiresAt = Date.now() + authData.expires_in * 1000;
+      localStorage.setItem("token_expires_at", expiresAt.toString());
     }
+    setUser(authData.user);
+    setToken(authData.token);
+    setIsAuthenticated(true);
   };
 
-  // 退出登录
+  const persistUser = (userData: User, tokenValue: string) => {
+    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("token", tokenValue);
+    setUser(userData);
+    setToken(tokenValue);
+    setIsAuthenticated(true);
+  };
+
+  const updateProfile = (payload: Partial<Pick<User, "nickname" | "avatarUrl">>) => {
+    if (!user) return;
+    const nextUser = { ...user, ...payload };
+    persistUser(nextUser, token || localStorage.getItem("token") || "");
+  };
+
+  const setPasswordForEmail = async (email: string, password: string) => {
+    const res = await fetch("/api/auth/password/set", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token || localStorage.getItem("token") || ""}`
+      },
+      body: JSON.stringify({ password })
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body?.message || "设置密码失败");
+    }
+    return true;
+  };
+
+  const loginWithPassword = async (email: string, password: string) => {
+    const res = await fetch("/api/auth/password/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || !body?.success) {
+      throw new Error(body?.message || "邮箱或密码错误");
+    }
+    login({ user: body.user, token: body.token });
+    return true;
+  };
+
   const logout = () => {
-    try {
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
-      localStorage.removeItem('token_expires_at');
-
-      setUser(null);
-      setToken(null);
-      setIsAuthenticated(false);
-    } catch (error) {
-      console.error('退出登录失败:', error);
-    }
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    localStorage.removeItem("token_expires_at");
+    setUser(null);
+    setToken(null);
+    setIsAuthenticated(false);
   };
 
-  // 检查token是否过期
   const checkTokenExpiry = () => {
     try {
-      const expiresAt = localStorage.getItem('token_expires_at');
+      const expiresAt = localStorage.getItem("token_expires_at");
       if (expiresAt) {
         const expiryTime = parseInt(expiresAt, 10);
         if (Date.now() > expiryTime) {
@@ -126,26 +146,22 @@ export const useAuth = () => {
       }
       return true;
     } catch (error) {
-      console.error('检查token过期时间失败:', error);
+      console.error("检查token过期时间失败:", error);
       return false;
     }
   };
 
-  // 获取用户头像
   const getUserAvatar = () => {
-    // 默认头像
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nickname || 'User')}&background=10b981&color=fff`;
+    if (user?.avatarUrl) return user.avatarUrl;
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nickname || user?.email || "User")}&background=10b981&color=fff`;
   };
 
-  // 获取用户显示名称
   const getUserDisplayName = () => {
-    return user?.nickname || user?.name || user?.email || '未知用户';
+    return user?.nickname || user?.name || user?.email || "未知用户";
   };
 
-  
-  // 检查是否为管理员
   const isAdmin = () => {
-    return user?.role === 'admin' || user?.loginType === 'admin';
+    return user?.role === "admin" || user?.loginType === "admin";
   };
 
   return {
@@ -155,6 +171,9 @@ export const useAuth = () => {
     isAuthenticated,
     login,
     logout,
+    updateProfile,
+    setPasswordForEmail,
+    loginWithPassword,
     checkTokenExpiry,
     getUserAvatar,
     getUserDisplayName,

@@ -6,11 +6,13 @@ import App from "./App";
 import "./styles.css";
 
 const queryClient = new QueryClient();
+// Strip trailing slash so BrowserRouter works when the app is served from /admin
+const basename = import.meta.env.BASE_URL?.replace(/\/+$/, "") || "/";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter basename={basename === "/" ? undefined : basename}>
         <App />
       </BrowserRouter>
     </QueryClientProvider>
