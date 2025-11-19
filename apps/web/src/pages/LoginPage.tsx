@@ -1,168 +1,193 @@
-﻿import React from "react";
+﻿import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BookOpen, Users, Target, Star, Mail, LockKeyhole, ShieldCheck } from "lucide-react";
+import { BookOpen, Users, Target, Star, Mail, LockKeyhole, ArrowRight, Sparkles, Smile } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { progressStore } from "../store/progressStore";
 
 const features = [
   {
-    icon: <BookOpen className="h-8 w-8 text-blue-600" />,
-    title: "丰富的课程内容",
-    description: "涵盖听说读写的全方位英语学习材料"
+    icon: <BookOpen className="h-7 w-7 text-sky-500" />,
+    bg: "bg-sky-100",
+    title: "轻松学英语",
+    description: "像玩游戏一样有趣，涵盖听说读写全方位练习"
   },
   {
-    icon: <Users className="h-8 w-8 text-emerald-600" />,
-    title: "个性化学习路径",
-    description: "根据你的水平定制专属学习计划"
+    icon: <Users className="h-7 w-7 text-emerald-500" />,
+    bg: "bg-emerald-100",
+    title: "专属你的计划",
+    description: "AI 老师为你量身定制，每天进步一点点"
   },
   {
-    icon: <Target className="h-8 w-8 text-purple-600" />,
-    title: "游戏化闯关",
-    description: "通过趣味关卡提升学习兴趣"
+    icon: <Target className="h-7 w-7 text-violet-500" />,
+    bg: "bg-violet-100",
+    title: "闯关大冒险",
+    description: "完成挑战赢取奖励，学习不再枯燥"
   },
   {
-    icon: <Star className="h-8 w-8 text-amber-500" />,
-    title: "实时进度跟踪",
-    description: "详细记录学习成果和成长轨迹"
+    icon: <Star className="h-7 w-7 text-amber-500" />,
+    bg: "bg-amber-100",
+    title: "记录成长点滴",
+    description: "看着自己一天天变强，成就感满满"
   }
 ];
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { loginWithPassword } = useAuth();
-  const [pwdEmail, setPwdEmail] = React.useState("");
-  const [pwd, setPwd] = React.useState("");
-  const [pwdError, setPwdError] = React.useState<string | null>(null);
+  const [pwdEmail, setPwdEmail] = useState("");
+  const [pwd, setPwd] = useState("");
+  const [pwdError, setPwdError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handlePasswordLogin = async () => {
+    if (!pwdEmail || !pwd) {
+      setPwdError("别忘了填邮箱和密码哦");
+      return;
+    }
     setPwdError(null);
+    setIsLoading(true);
     try {
       await loginWithPassword(pwdEmail.trim(), pwd);
       try {
         progressStore.initializeForUser();
-      } catch {}
+      } catch { }
       navigate("/", { replace: true });
     } catch (err: any) {
-      setPwdError(err?.message || "登录失败，请检查邮箱与密码");
+      setPwdError(err?.message || "哎呀，登录失败了，检查一下邮箱和密码吧");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-slate-50 to-blue-50 flex items-center justify-center px-4 py-12">
-      <div className="max-w-6xl w-full grid lg:grid-cols-2 gap-12 items-center">
-        {/* 左侧介绍 */}
-        <div className="text-center lg:text-left space-y-6">
-          <div>
-            <p className="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-xs font-semibold text-indigo-600 shadow-sm">
-              <ShieldCheck className="h-4 w-4" />
-              数据安全 · 云端同步
-            </p>
-            <h1 className="mt-4 text-4xl lg:text-5xl font-bold text-slate-900 leading-tight">
-              欢迎来到
-              <span className="block text-indigo-600">Jude English Lab</span>
+    <div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center px-6 py-12 font-sans text-slate-700 relative overflow-hidden">
+      {/* Playful Background Blobs */}
+      <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-orange-100/60 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-sky-100/60 rounded-full blur-3xl animate-pulse delay-1000" />
+      <div className="absolute top-[40%] right-[20%] w-[300px] h-[300px] bg-emerald-100/40 rounded-full blur-3xl animate-pulse delay-2000" />
+
+      <div className="relative z-10 max-w-6xl w-full grid lg:grid-cols-2 gap-20 items-center">
+        {/* Left Side - Brand & Features */}
+        <div className="text-center lg:text-left space-y-10">
+          <div className="space-y-6">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2 text-sm font-bold text-orange-500 shadow-sm border border-orange-100 transform hover:scale-105 transition-transform cursor-default">
+              <Smile className="h-5 w-5" />
+              <span>快乐学习，天天向上</span>
+            </div>
+            <h1 className="text-5xl lg:text-7xl font-black tracking-tight text-slate-800 leading-[1.1]">
+              Hello! <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-pink-500">
+                Jude English
+              </span>
             </h1>
-            <p className="text-lg text-slate-600 mt-3">专业的英语学习平台，让学习更高效、更有趣。</p>
+            <p className="text-xl text-slate-500 max-w-lg mx-auto lg:mx-0 leading-relaxed font-medium">
+              这里没有枯燥的死记硬背。
+              <br />
+              只有轻松有趣的探索之旅，准备好出发了吗？
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {features.map((feature, index) => (
-              <div key={index} className="flex items-start space-x-4 rounded-2xl bg-white/80 px-4 py-3 shadow-sm">
-                <div className="flex-shrink-0">{feature.icon}</div>
-                <div>
-                  <h3 className="font-semibold text-slate-900 mb-1">{feature.title}</h3>
-                  <p className="text-sm text-slate-600">{feature.description}</p>
+              <div
+                key={index}
+                className="group flex items-start space-x-5 rounded-[2rem] bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 border border-slate-100"
+              >
+                <div className={`flex-shrink-0 p-3 rounded-2xl ${feature.bg} group-hover:scale-110 transition-transform duration-300`}>
+                  {feature.icon}
+                </div>
+                <div className="text-left">
+                  <h3 className="font-bold text-slate-800 text-lg mb-1">{feature.title}</h3>
+                  <p className="text-sm text-slate-500 leading-relaxed">{feature.description}</p>
                 </div>
               </div>
             ))}
           </div>
-
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-sm">
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <div className="text-2xl font-bold text-indigo-600">10,000+</div>
-                <div className="text-sm text-slate-600">活跃学员</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-emerald-600">500+</div>
-                <div className="text-sm text-slate-600">精品课程</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-purple-600">4.8</div>
-                <div className="text-sm text-slate-600">用户评分</div>
-              </div>
-            </div>
-          </div>
         </div>
 
-        {/* 右侧登录卡片 */}
-        <div className="bg-white/95 rounded-3xl shadow-xl p-8 border border-slate-100">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-50 rounded-full mb-4">
-              <BookOpen className="h-8 w-8 text-indigo-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">选择登录方式</h2>
-            <p className="text-sm text-slate-600">用邮箱登录即可同步进度，继续你的学习旅程。</p>
-          </div>
-
-          <div className="space-y-4">
-            {/* 邮箱验证码登录 */}
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-6 shadow-[0_10px_30px_-18px_rgba(16,185,129,0.4)]">
-              <div className="flex items-center mb-3">
-                <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center mr-3">
-                  <Mail className="h-5 w-5 text-emerald-600" />
-                </div>
-                <span className="font-semibold text-slate-900 text-lg">邮箱验证码登录</span>
+        {/* Right Side - Login Card */}
+        <div className="bg-white rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] p-10 lg:p-12 relative border border-slate-100">
+          <div className="relative h-full flex flex-col">
+            <div className="text-center mb-10">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-orange-400 to-pink-500 rounded-[2rem] mb-6 shadow-lg shadow-orange-500/20 transform -rotate-6 hover:rotate-0 transition-transform duration-300">
+                <BookOpen className="h-10 w-10 text-white" />
               </div>
-              <p className="text-sm text-slate-600 mb-5">安全便捷，用邮箱验证码快速登录，无需记密码。</p>
+              <h2 className="text-3xl font-black text-slate-800 mb-3">欢迎回来！</h2>
+              <p className="text-base text-slate-500 font-medium">今天也要元气满满地学习哦</p>
+            </div>
+
+            <div className="space-y-8 flex-1">
+              {/* 邮箱验证码登录 (Secondary) */}
               <button
                 onClick={() => navigate("/email-login")}
-                className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-sm font-semibold shadow hover:from-emerald-600 hover:to-emerald-700 transition"
+                className="w-full group relative flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-slate-50 border-2 border-slate-100 hover:bg-white hover:border-orange-200 text-slate-600 hover:text-orange-500 transition-all duration-300 font-bold"
               >
-                使用邮箱登录
+                <Mail className="h-5 w-5" />
+                <span>用验证码登录</span>
+                <ArrowRight className="h-5 w-5 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 absolute right-6" />
               </button>
-            </div>
 
-            {/* 邮箱 + 密码登录 */}
-            <div className="rounded-2xl border border-indigo-200 bg-indigo-50/80 p-6 shadow-[0_10px_30px_-18px_rgba(79,70,229,0.4)]">
-              <div className="flex items-center mb-3">
-                <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
-                  <LockKeyhole className="h-5 w-5 text-indigo-600" />
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t-2 border-slate-100"></div>
                 </div>
-                <span className="font-semibold text-slate-900 text-lg">邮箱 + 密码登录</span>
+                <div className="relative flex justify-center text-sm font-bold uppercase tracking-wider">
+                  <span className="bg-white px-4 text-slate-400">或者</span>
+                </div>
               </div>
-              <p className="text-sm text-slate-600 mb-4">已有密码？直接使用邮箱 + 密码登录。</p>
-              <div className="space-y-3">
-                <input
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:ring-indigo-500"
-                  placeholder="邮箱地址"
-                  value={pwdEmail}
-                  onChange={e => setPwdEmail(e.target.value)}
-                />
-                <input
-                  type="password"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:ring-indigo-500"
-                  placeholder="密码"
-                  value={pwd}
-                  onChange={e => setPwd(e.target.value)}
-                />
-                {pwdError && <div className="text-sm text-red-600">{pwdError}</div>}
+
+              {/* 邮箱 + 密码登录 (Primary) */}
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700 ml-1">邮箱</label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Mail className="h-5 w-5 text-slate-400 group-focus-within:text-orange-500 transition-colors" />
+                    </div>
+                    <input
+                      className="block w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-400 transition-all font-medium"
+                      placeholder="name@example.com"
+                      value={pwdEmail}
+                      onChange={e => setPwdEmail(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700 ml-1">密码</label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <LockKeyhole className="h-5 w-5 text-slate-400 group-focus-within:text-orange-500 transition-colors" />
+                    </div>
+                    <input
+                      type="password"
+                      className="block w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-400 transition-all font-medium"
+                      placeholder="••••••••"
+                      value={pwd}
+                      onChange={e => setPwd(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {pwdError && (
+                  <div className="p-4 rounded-2xl bg-red-50 border-2 border-red-100 text-red-500 text-sm font-bold flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                    <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                    {pwdError}
+                  </div>
+                )}
+
                 <button
                   onClick={handlePasswordLogin}
-                  className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-blue-600 text-white text-sm font-semibold shadow hover:from-indigo-600 hover:to-blue-700 transition"
+                  disabled={isLoading}
+                  className="w-full relative overflow-hidden group px-8 py-4 rounded-2xl bg-slate-900 text-white text-lg font-bold shadow-xl shadow-slate-200 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  直接登录
+                  <span className="relative flex items-center justify-center gap-3">
+                    {isLoading ? "登录中..." : "开始学习"}
+                    {!isLoading && <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />}
+                  </span>
                 </button>
               </div>
             </div>
-          </div>
-
-          <div className="mt-6 rounded-2xl bg-slate-50 border border-slate-200 p-4">
-            <h4 className="text-sm font-semibold text-slate-900 mb-2">登录小贴士</h4>
-            <ul className="text-xs text-slate-600 space-y-1">
-              <li>· 邮箱验证码有效期短，请及时使用。</li>
-              <li>· 登录后会同步学习进度和成就。</li>
-              <li>· 如有异常可随时退出或联系客服。</li>
-            </ul>
           </div>
         </div>
       </div>

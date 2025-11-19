@@ -1,19 +1,13 @@
 import type { CourseStage } from "../api/courses";
 import { useMemo } from "react";
 import { useProgressStore } from "../store/progressStore";
+import { Map, Star, Lock, ArrowRight } from "lucide-react";
 
 interface AdventureMapProps {
   courseId: string;
   stages: CourseStage[];
   onStart(stageId: string, mode?: "tiles" | "type"): void;
 }
-
-const starIcons = (count: number) =>
-  [...Array(3)].map((_, index) => (
-    <span key={index} className={index < count ? "text-yellow-400" : "text-white/50"}>
-      ★
-    </span>
-  ));
 
 export const AdventureMap = ({ courseId, stages, onStart }: AdventureMapProps) => {
   const progress = useProgressStore();
@@ -34,79 +28,99 @@ export const AdventureMap = ({ courseId, stages, onStart }: AdventureMapProps) =
     });
   }, [progress, stages]);
 
-  if (!stages.length) {
-    return (
-      <div className="rounded-3xl bg-white/70 p-6 text-sm text-slate-500">
-        当前课程还没有可玩的关卡，等老师发布后再来探索吧。
-      </div>
-    );
-  }
+  if (!stages.length) return null;
 
   return (
-    <div className="rounded-3xl bg-gradient-to-r from-sky-50 via-rose-50 to-amber-50 p-6 shadow-inner">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">冒险地图</p>
-          <h2 className="text-2xl font-semibold text-slate-900">跟着轨道依次闯关</h2>
+    <div className="rounded-[2.5rem] bg-white p-8 sm:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 relative overflow-hidden">
+      {/* Background Decoration */}
+      <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-sky-400 via-indigo-400 to-violet-400"></div>
+
+      <div className="flex items-center gap-3 mb-8">
+        <div className="p-2.5 rounded-xl bg-sky-100 text-sky-500">
+          <Map className="w-6 h-6" />
         </div>
-        <div className="text-xs text-slate-500">
-          课程 ID：<span className="font-mono text-slate-600">{courseId.slice(0, 6)}</span>
+        <div>
+          <h2 className="text-xl font-black text-slate-800">冒险地图</h2>
+          <p className="text-sm text-slate-500 font-medium">跟着路线，一步步征服英语世界！</p>
         </div>
       </div>
-      <div className="mt-6 flex flex-col gap-6 md:flex-row md:flex-wrap md:gap-4">
-        {nodeStates.map(({ stage, completed, unlocked, stars }, index) => (
-          <div
-            key={stage.id}
-            className={`relative flex flex-1 min-w-[220px] flex-col rounded-2xl border bg-white/80 p-4 shadow transition ${
-              completed
-                ? "border-emerald-200 ring-2 ring-emerald-100"
-                : unlocked
-                  ? "border-amber-200"
-                  : "border-slate-200 opacity-50"
-            }`}
-          >
-            {index < nodeStates.length - 1 && (
-              <div className="absolute -right-3 top-1/2 hidden h-0.5 w-6 -translate-y-1/2 bg-gradient-to-r from-slate-200 to-slate-400 md:block" />
-            )}
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <span>关卡 #{stage.stageSequence}</span>
-              <span className="font-medium text-slate-600">
-                {stage.type === "tiles"
-                  ? "点词"
-                  : stage.type === "type"
-                    ? "键入"
-                    : stage.type === "listenTap"
-                      ? "听力"
-                      : "练习"}
-              </span>
-            </div>
-            <h3 className="mt-2 text-lg font-semibold text-slate-900">{stage.lessonTitle}</h3>
-            <p className="mt-1 line-clamp-2 text-sm text-slate-500">{stage.promptCn}</p>
-            <div className="mt-3 flex items-center gap-1 text-lg">
-              {starIcons(stars)}
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
+
+      <div className="relative">
+        {/* Connecting Line (Desktop) */}
+        <div className="absolute top-1/2 left-0 w-full h-3 bg-slate-100 -translate-y-1/2 rounded-full hidden md:block z-0"></div>
+
+        <div className="flex flex-col gap-6 md:flex-row md:overflow-x-auto md:pb-8 md:pt-4 md:px-2 no-scrollbar relative z-10">
+          {nodeStates.map(({ stage, completed, unlocked, stars }, index) => (
+            <div
+              key={stage.id}
+              className={`relative flex-shrink-0 w-full md:w-64 flex flex-col items-center text-center group transition-all duration-300 ${unlocked ? "opacity-100" : "opacity-60 grayscale"
+                }`}
+            >
+              {/* Node Circle */}
               <button
-                type="button"
-                className="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-white shadow disabled:bg-slate-200"
+                onClick={() => unlocked && onStart(stage.id, "tiles")}
                 disabled={!unlocked}
-                onClick={() => onStart(stage.id, "tiles")}
+                className={`w-20 h-20 rounded-[2rem] flex items-center justify-center text-2xl font-black shadow-lg transition-transform duration-300 mb-4 relative z-10 ${completed
+                    ? "bg-gradient-to-br from-emerald-400 to-teal-500 text-white scale-110 shadow-emerald-200"
+                    : unlocked
+                      ? "bg-white border-4 border-indigo-100 text-indigo-500 hover:scale-110 hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-100"
+                      : "bg-slate-100 text-slate-300 cursor-not-allowed"
+                  }`}
               >
-                点词
+                {unlocked ? (
+                  completed ? (
+                    <Star className="w-8 h-8 fill-white" />
+                  ) : (
+                    stage.stageSequence
+                  )
+                ) : (
+                  <Lock className="w-8 h-8" />
+                )}
+
+                {/* Stars Badge */}
+                {stars > 0 && (
+                  <div className="absolute -bottom-2 bg-white px-2 py-0.5 rounded-full shadow-sm border border-slate-100 flex gap-0.5">
+                    {[...Array(stars)].map((_, i) => (
+                      <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" />
+                    ))}
+                  </div>
+                )}
               </button>
-              <button
-                type="button"
-                className="rounded-full border border-primary/30 px-4 py-1.5 text-xs font-semibold text-primary disabled:border-slate-200 disabled:text-slate-300"
-                disabled={!unlocked}
-                onClick={() => onStart(stage.id, "type")}
-              >
-                键入
-              </button>
+
+              {/* Content */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm w-full md:w-56 group-hover:shadow-md transition-shadow">
+                <h3 className="font-bold text-slate-800 mb-1 truncate">{stage.lessonTitle}</h3>
+                <p className="text-xs text-slate-500 font-medium line-clamp-2 h-8 mb-3">
+                  {stage.promptCn}
+                </p>
+
+                <div className="flex gap-2 justify-center">
+                  <button
+                    onClick={() => onStart(stage.id, "tiles")}
+                    disabled={!unlocked}
+                    className="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-600 text-xs font-bold hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                  >
+                    点词
+                  </button>
+                  <button
+                    onClick={() => onStart(stage.id, "type")}
+                    disabled={!unlocked}
+                    className="px-3 py-1.5 rounded-lg bg-slate-50 text-slate-600 text-xs font-bold hover:bg-slate-100 transition-colors disabled:opacity-50"
+                  >
+                    拼写
+                  </button>
+                </div>
+              </div>
+
+              {/* Arrow for mobile */}
+              {index < nodeStates.length - 1 && (
+                <div className="md:hidden my-2 text-slate-300">
+                  <ArrowRight className="w-6 h-6 rotate-90" />
+                </div>
+              )}
             </div>
-            {!unlocked && <p className="mt-2 text-xs text-slate-400">完成前一关即可解锁</p>}
-            {completed && <p className="mt-2 text-xs text-emerald-500">最佳记录：{stars} 星</p>}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import classNames from "classnames";
 import type { CourseStage } from "../../api/courses";
 import { speak } from "../../hooks/useTTS";
 import { playClickSound, playErrorSound, playSuccessSound } from "../../hooks/useFeedbackSound";
+import { Volume2, RotateCcw } from "lucide-react";
 
 export interface TilesLessonExperienceProps {
   stage: CourseStage;
@@ -154,78 +155,95 @@ export const TilesLessonExperience = ({
   };
 
   const answerBoxClass = classNames(
-    "min-h-[96px] w-full rounded-2xl border border-white/20 bg-white/10 px-6 py-5 text-xl font-semibold tracking-wide text-white shadow-inner backdrop-blur",
+    "min-h-[120px] w-full rounded-[2rem] border-2 px-8 py-6 text-2xl font-bold tracking-wide shadow-sm transition-all duration-300 flex items-center",
     {
-      "lesson-animate-shake ring-4 ring-rose-300/70 bg-rose-400/20": status === "error",
-      "lesson-animate-pop ring-4 ring-emerald-300/70 bg-emerald-400/20": status === "success"
+      "border-slate-100 bg-white": status === "idle",
+      "lesson-animate-shake border-red-200 bg-red-50 ring-4 ring-red-100": status === "error",
+      "lesson-animate-pop border-emerald-200 bg-emerald-50 ring-4 ring-emerald-100": status === "success"
     }
   );
 
   const tileButtonClass = (disabled: boolean) =>
     classNames(
-      "rounded-2xl bg-white/90 px-5 py-3 text-lg font-semibold text-slate-800 shadow transition hover:-translate-y-1 hover:shadow-lg",
+      "rounded-2xl bg-white border-b-4 border-slate-200 px-6 py-3 text-lg font-bold text-slate-700 shadow-sm transition-all active:border-b-0 active:translate-y-1 hover:-translate-y-0.5",
       {
-        "opacity-50 pointer-events-none": disabled
+        "opacity-50 pointer-events-none": disabled,
+        "hover:border-indigo-200 hover:text-indigo-600": !disabled
       }
     );
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-10">
-      <div className="text-sm uppercase tracking-[0.35em] text-white/60">点词成句 · {index + 1}/{total}</div>
-      <div className="text-4xl font-semibold text-white drop-shadow-xl">{stage.promptCn}</div>
+    <div className="flex h-full w-full flex-col items-center justify-between gap-8">
+      <div className="flex-1 flex flex-col items-center justify-center gap-8 w-full max-w-3xl">
+        <div className="text-center space-y-2">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Translate this sentence</p>
+          <h3 className="text-2xl sm:text-3xl font-black text-slate-800 leading-relaxed">
+            {stage.promptCn}
+          </h3>
+        </div>
 
-      <div className={answerBoxClass}>
-        <div className="flex flex-wrap items-center gap-3">
-          {selected.length === 0 && <span className="text-base font-medium text-white/70">点击下方词块组成句子</span>}
-          {selected.map(token => (
-            <span
+        <div className={answerBoxClass}>
+          <div className="flex flex-wrap items-center gap-3 w-full">
+            {selected.length === 0 && (
+              <span className="text-lg font-medium text-slate-300 select-none">
+                点击下方词块组成句子
+              </span>
+            )}
+            {selected.map(token => (
+              <span
+                key={token.id}
+                className="rounded-xl bg-sky-100 text-sky-700 border border-sky-200 px-4 py-2 text-lg font-bold shadow-sm animate-in zoom-in duration-200"
+              >
+                {token.text}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-center gap-3 w-full">
+          {pool.map(token => (
+            <button
               key={token.id}
-              className="rounded-xl bg-emerald-400/90 px-4 py-2 text-lg font-semibold text-emerald-950 shadow"
+              type="button"
+              className={tileButtonClass(status === "success")}
+              onClick={() => handleSelect(token)}
+              disabled={status === "success"}
             >
               {token.text}
-            </span>
+            </button>
           ))}
+          {!pool.length && selected.length !== canonicalTokens.length && (
+            <div className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-400">
+              所有词块都已使用
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-center gap-4">
-        {pool.map(token => (
-          <button
-            key={token.id}
-            type="button"
-            className={tileButtonClass(status === "success")}
-            onClick={() => handleSelect(token)}
-            disabled={status === "success"}
-          >
-            {token.text}
-          </button>
-        ))}
-        {!pool.length && selected.length !== canonicalTokens.length && (
-          <div className="rounded-xl bg-white/20 px-4 py-2 text-sm text-white/70">所有词块都已使用</div>
-        )}
-      </div>
-
-      <div className="flex items-center gap-4 text-sm text-white/80">
+      <div className="flex items-center gap-4 w-full justify-center border-t border-slate-100 pt-6">
         <button
           type="button"
-          className="rounded-full border border-white/40 px-4 py-2 transition hover:border-white hover:bg-white/10"
+          className="flex items-center gap-2 rounded-xl px-4 py-2 text-slate-500 font-bold hover:bg-slate-100 transition-colors"
           onClick={() => {
             playClickSound();
             speak(stage.answerEn, { rate: 0.95, preferredLocales: ["en-US", "en-GB"] });
           }}
         >
-          再听一遍 (Space)
+          <Volume2 className="w-5 h-5" />
+          <span className="text-sm">再听一遍 (Space)</span>
         </button>
+        <div className="h-4 w-px bg-slate-200"></div>
         <button
           type="button"
-          className="rounded-full border border-white/40 px-4 py-2 transition hover:border-white hover:bg-white/10 disabled:opacity-40"
+          className="flex items-center gap-2 rounded-xl px-4 py-2 text-slate-500 font-bold hover:bg-slate-100 transition-colors disabled:opacity-40"
           onClick={() => {
             playClickSound();
             handleUndo();
           }}
           disabled={selected.length === 0}
         >
-          撤回 (Backspace)
+          <RotateCcw className="w-4 h-4" />
+          <span className="text-sm">撤回 (Backspace)</span>
         </button>
       </div>
     </div>

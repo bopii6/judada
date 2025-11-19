@@ -4,6 +4,7 @@ import type { CourseStage } from "../../api/courses";
 import { normalizeForCompare } from "@judada/shared";
 import { speak } from "../../hooks/useTTS";
 import { playClickSound, playErrorSound, playSuccessSound } from "../../hooks/useFeedbackSound";
+import { Volume2, Trash2, ArrowRight } from "lucide-react";
 
 export interface TypingLessonExperienceProps {
   stage: CourseStage;
@@ -96,61 +97,86 @@ export const TypingLessonExperience = ({
   };
 
   const inputClass = classNames(
-    "mt-6 w-full rounded-3xl border border-white/20 bg-white/15 px-6 py-5 text-2xl font-semibold text-white shadow-inner outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/40",
+    "mt-8 w-full rounded-[2rem] border-2 px-8 py-6 text-2xl font-bold text-slate-800 shadow-sm outline-none transition-all duration-300 resize-none placeholder:text-slate-300",
     {
-      "lesson-animate-shake border-rose-400/80 bg-rose-500/20": status === "error",
-      "lesson-animate-pop border-emerald-400/70 bg-emerald-400/20": status === "success"
+      "border-slate-200 bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100": status === "idle",
+      "lesson-animate-shake border-red-300 bg-red-50 focus:ring-4 focus:ring-red-100": status === "error",
+      "lesson-animate-pop border-emerald-300 bg-emerald-50 focus:ring-4 focus:ring-emerald-100": status === "success"
     }
   );
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-10">
-      <div className="text-sm uppercase tracking-[0.35em] text-white/60">键入练习 · {index + 1}/{total}</div>
-      <div className="text-4xl font-semibold text-white drop-shadow-xl">{stage.promptCn}</div>
-      <textarea
-        ref={textareaRef}
-        value={input}
-        onChange={event => setInput(event.target.value)}
-        className={inputClass}
-        rows={3}
-        placeholder="输入对应的英文句子"
-      />
-      {status === "error" && <p className="text-sm text-rose-100">答案不太对，再试一次！</p>}
-      {status === "success" && <p className="text-sm text-emerald-100">太棒了！准备下一题。</p>}
-      <div className="flex items-center gap-4 text-sm text-white/80">
+    <div className="flex h-full w-full flex-col items-center justify-between gap-8">
+      <div className="flex-1 flex flex-col items-center justify-center w-full max-w-3xl">
+        <div className="text-center space-y-2">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Type the translation</p>
+          <h3 className="text-2xl sm:text-3xl font-black text-slate-800 leading-relaxed drop-shadow-sm">
+            {stage.promptCn}
+          </h3>
+        </div>
+
+        <div className="w-full relative">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={event => setInput(event.target.value)}
+            className={inputClass}
+            rows={3}
+            placeholder="输入对应的英文句子..."
+          />
+          <div className="absolute bottom-4 right-4 flex gap-2">
+            {status === "error" && (
+              <span className="text-sm font-bold text-red-500 bg-white px-3 py-1 rounded-full shadow-sm animate-in fade-in slide-in-from-bottom-1">
+                再试一次 💪
+              </span>
+            )}
+            {status === "success" && (
+              <span className="text-sm font-bold text-emerald-500 bg-white px-3 py-1 rounded-full shadow-sm animate-in fade-in slide-in-from-bottom-1">
+                太棒了！ ✨
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4 w-full justify-center border-t border-slate-100 pt-6">
         <button
           type="button"
-          className="rounded-full bg-primary/90 px-6 py-3 text-sm font-semibold text-white shadow transition hover:bg-primary"
+          className="group flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-white font-bold shadow-lg shadow-slate-200 hover:bg-indigo-600 hover:scale-105 transition-all active:scale-95"
           onClick={() => {
             playClickSound();
             handleSubmit();
           }}
         >
-          提交 (Enter)
+          <span>提交</span>
+          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
         </button>
+
+        <div className="h-8 w-px bg-slate-200 mx-2"></div>
+
         <button
           type="button"
-          className="rounded-full border border-white/40 px-4 py-2 transition hover:border-white hover:bg-white/10"
+          className="p-3 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+          title="重播提示 (Ctrl + Space)"
           onClick={() => {
             playClickSound();
             speak(stage.answerEn, { rate: 0.95, preferredLocales: ["en-US", "en-GB"] });
           }}
         >
-          重播提示 (Ctrl + Space)
+          <Volume2 className="w-5 h-5" />
         </button>
+
         <button
           type="button"
-          className="rounded-full border border-white/40 px-4 py-2 transition hover:border-white hover:bg-white/10"
+          className="p-3 rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+          title="清空"
           onClick={() => {
             playClickSound();
             setInput("");
           }}
         >
-          清空
+          <Trash2 className="w-5 h-5" />
         </button>
-      </div>
-      <div className="text-xs uppercase tracking-[0.3em] text-white/50">
-        尝试输入完整句子，少量拼写错误也会提示重试
       </div>
     </div>
   );
