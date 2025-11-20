@@ -8,19 +8,13 @@ import { Volume2, Trash2, ArrowRight } from "lucide-react";
 
 export interface TypingLessonExperienceProps {
   stage: CourseStage;
-  index: number;
-  total: number;
+  index?: number;
+  total?: number;
   onSuccess: () => void;
   onMistake: () => void;
 }
 
-export const TypingLessonExperience = ({
-  stage,
-  index,
-  total,
-  onSuccess,
-  onMistake
-}: TypingLessonExperienceProps) => {
+export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLessonExperienceProps) => {
   const [input, setInput] = useState("");
   const [status, setStatus] = useState<"idle" | "error" | "success">("idle");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);

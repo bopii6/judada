@@ -116,7 +116,6 @@ export const CourseOverviewPage = () => {
       {/* Adventure Map Section */}
       <section>
         <AdventureMap
-          courseId={courseId}
           stages={stages}
           onStart={(stageId, mode) => handleStart(stageId, mode ?? "tiles")}
         />
@@ -140,8 +139,8 @@ export const CourseOverviewPage = () => {
               <div
                 key={stage.id}
                 className={`group relative overflow-hidden rounded-[2rem] border-2 transition-all duration-300 ${isLocked
-                    ? "bg-slate-50 border-slate-100 opacity-80"
-                    : "bg-white border-slate-100 hover:border-indigo-100 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1"
+                  ? "bg-slate-50 border-slate-100 opacity-80"
+                  : "bg-white border-slate-100 hover:border-indigo-100 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1"
                   }`}
               >
                 <div className="p-6 sm:p-8">
@@ -182,8 +181,8 @@ export const CourseOverviewPage = () => {
                       type="button"
                       disabled={isLocked}
                       className={`flex-1 rounded-xl py-3 text-sm font-bold transition-all ${isLocked
-                          ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                          : "bg-slate-900 text-white hover:bg-indigo-600 hover:shadow-lg hover:shadow-indigo-200"
+                        ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                        : "bg-slate-900 text-white hover:bg-indigo-600 hover:shadow-lg hover:shadow-indigo-200"
                         }`}
                       onClick={() => handleStart(stage.id, "tiles")}
                     >
@@ -193,8 +192,8 @@ export const CourseOverviewPage = () => {
                       type="button"
                       disabled={isLocked}
                       className={`flex-1 rounded-xl py-3 text-sm font-bold border-2 transition-all ${isLocked
-                          ? "border-slate-200 text-slate-300 cursor-not-allowed"
-                          : "border-slate-100 text-slate-600 hover:border-indigo-100 hover:text-indigo-600 hover:bg-indigo-50"
+                        ? "border-slate-200 text-slate-300 cursor-not-allowed"
+                        : "border-slate-100 text-slate-600 hover:border-indigo-100 hover:text-indigo-600 hover:bg-indigo-50"
                         }`}
                       onClick={() => handleStart(stage.id, "type")}
                     >

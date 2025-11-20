@@ -70,7 +70,11 @@ export default function EmailLoginPage() {
       const result = await response.json();
       if (result.success && result.token && result.user) {
         login({ user: result.user, token: result.token });
-        try { progressStore.initializeForUser(); } catch { }
+        try {
+          progressStore.initializeForUser();
+        } catch (error) {
+          console.warn("progress init failed", error);
+        }
 
         setMessage({ type: "success", text: "登录成功，正在跳转..." });
         setTimeout(() => navigate("/"), 600);

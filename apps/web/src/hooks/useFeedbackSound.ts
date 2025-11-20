@@ -1,11 +1,17 @@
-﻿let audioContext: AudioContext | null = null;
+declare global {
+  interface Window {
+    webkitAudioContext?: typeof AudioContext;
+  }
+}
+
+let audioContext: AudioContext | null = null;
 
 const getContext = () => {
   if (typeof window === "undefined") {
     return null;
   }
   if (!audioContext) {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (!AudioCtx) {
       return null;
     }

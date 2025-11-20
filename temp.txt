@@ -1,0 +1,143 @@
+﻿export interface Word {
+    time: number;
+    duration: number;
+    text: string;
+    hint: string;
+    guide: string;
+}
+
+export interface Phrase {
+    start: number;
+    end: number;
+    en: string;
+    zh: string;
+    tip: string;
+}
+
+export interface Song {
+    id: string;
+    title: string;
+    artist: string;
+    audioUrl: string;
+    bpm: number;
+    duration: number;
+    words: Word[];
+    phrases: Phrase[];
+    gapOptions: Record<number, string[]>;
+}
+
+export const SONGS: Song[] = [
+    {
+        id: "baby-shark",
+        title: "Baby Shark",
+        artist: "Pinkfong",
+        audioUrl: "/baby-shark-vocals.mp3",
+        bpm: 95,
+        duration: 119000,
+        words: [
+            { time: 8200, duration: 900, text: "Baby", hint: "瀹濊礉", guide: "bay-bee" },
+            { time: 9500, duration: 900, text: "shark", hint: "椴ㄩ奔", guide: "shark" },
+            { time: 20200, duration: 900, text: "Sister", hint: "濮愬", guide: "sis-ter" },
+            { time: 21400, duration: 900, text: "shark", hint: "椴ㄩ奔", guide: "shark" },
+            { time: 32200, duration: 900, text: "Brother", hint: "鍝ュ摜", guide: "bruh-ther" },
+            { time: 33400, duration: 900, text: "shark", hint: "椴ㄩ奔", guide: "shark" },
+            { time: 44200, duration: 900, text: "Mommy", hint: "濡堝", guide: "mah-mee" },
+            { time: 45400, duration: 900, text: "shark", hint: "椴ㄩ奔", guide: "shark" },
+            { time: 56200, duration: 900, text: "Daddy", hint: "鐖哥埜", guide: "da-dee" },
+            { time: 57400, duration: 900, text: "shark", hint: "椴ㄩ奔", guide: "shark" },
+            { time: 68200, duration: 900, text: "Grandma", hint: "濂跺ザ", guide: "gran-ma" },
+            { time: 79400, duration: 900, text: "Grandpa", hint: "鐖风埛", guide: "gran-pa" },
+            { time: 90400, duration: 900, text: "Let's", hint: "鎴戜滑", guide: "lets" },
+            { time: 91600, duration: 900, text: "hunt", hint: "鎵撶寧", guide: "hunt" },
+            { time: 102400, duration: 900, text: "Run", hint: "璧剁揣璺?, guide: "run" },
+            { time: 103800, duration: 900, text: "away", hint: "绂诲紑", guide: "uh-way" },
+            { time: 112400, duration: 900, text: "Safe", hint: "瀹夊叏", guide: "safe" },
+            { time: 113800, duration: 900, text: "last", hint: "缁堜簬", guide: "last" },
+            { time: 118200, duration: 900, text: "end", hint: "缁撴潫", guide: "end" }
+        ],
+        phrases: [
+            {
+                start: 8000,
+                end: 20000,
+                en: "Baby shark, doo doo doo doo doo doo",
+                zh: "瀹濊礉灏忛波楸硷紝鍢熷槦鍢熷槦鍢熷槦",
+                tip: "baby 鐨?/b/ 瑕侀€佹皵锛宻hark 璁板緱鍗疯垖"
+            },
+            {
+                start: 20000,
+                end: 32000,
+                en: "Sister shark, doo doo doo doo doo doo",
+                zh: "濮愬椴ㄩ奔锛屽槦鍢熷槦鍢熷槦鍢?,
+                tip: "sister 寮€澶?/s/ 鍜綇锛屾湯灏?/蓹r/ 瑕佽交璇?
+            },
+            {
+                start: 32000,
+                end: 44000,
+                en: "Brother shark, doo doo doo doo doo doo",
+                zh: "鍝ュ摜椴ㄩ奔锛屽槦鍢熷槦鍢熷槦鍢?,
+                tip: "brother 涓棿鐨?th 鍙?/冒/锛岃垖灏栬交瑙︿笂榻?
+            },
+            {
+                start: 44000,
+                end: 56000,
+                en: "Mommy shark, doo doo doo doo doo doo",
+                zh: "濡堝椴ㄩ奔锛屽槦鍢熷槦鍢熷槦鍢?,
+                tip: "mommy 鐨?o 瑕佸渾鍞囷紝缁撳熬 y 杞荤偣涓€涓?
+            },
+            {
+                start: 56000,
+                end: 68000,
+                en: "Daddy shark, doo doo doo doo doo doo",
+                zh: "鐖哥埜椴ㄩ奔锛屽槦鍢熷槦鍢熷槦鍢?,
+                tip: "daddy 鐨勪袱涓?/d/ 瑕佸共鍑€鍒╄惤"
+            },
+            {
+                start: 68000,
+                end: 80000,
+                en: "Grandma shark, doo doo doo doo doo doo",
+                zh: "濂跺ザ椴ㄩ奔锛屽槦鍢熷槦鍢熷槦鍢?,
+                tip: "grandma 鍙鎴?/gr忙ndm蓹/锛屽熬闊宠交鍖?
+            },
+            {
+                start: 80000,
+                end: 92000,
+                en: "Grandpa shark, doo doo doo doo doo doo",
+                zh: "鐖风埛椴ㄩ奔锛屽槦鍢熷槦鍢熷槦鍢?,
+                tip: "grandpa 鐨?/p/ 瑕佺垎鐮存竻鏅?
+            },
+            {
+                start: 92000,
+                end: 104000,
+                en: "Let's go hunt, doo doo doo doo doo doo",
+                zh: "涓€璧峰幓鎵撶寧锛屽槦鍢熷槦鍢熷槦鍢?,
+                tip: "let's go 杩炶 /letsgo蕣/"
+            },
+            {
+                start: 104000,
+                end: 112000,
+                en: "Run away, doo doo doo doo doo doo",
+                zh: "璧剁揣閫冭窇锛屽槦鍢熷槦鍢熷槦鍢?,
+                tip: "run away 杩炶 /r蕦n蓹藞we瑟/"
+            },
+            {
+                start: 112000,
+                end: 118000,
+                en: "Safe at last, doo doo doo doo doo doo",
+                zh: "缁堜簬瀹夊叏鍟︼紝鍢熷槦鍢熷槦鍢熷槦",
+                tip: "safe at 杩炶捣鏉ヨ /se瑟f忙t/"
+            },
+            {
+                start: 118000,
+                end: 119000,
+                en: "It's the end, doo doo doo doo doo doo",
+                zh: "鏁呬簨缁撴潫鍟︼紝鍢熷槦鍢熷槦鍢熷槦",
+                tip: "the 鍦ㄥ彞棣栬 /冒蓹/"
+            }
+        ],
+        gapOptions: {
+            1: ["shark", "shell", "ship"],
+            10: ["fast", "last", "fact"]
+        }
+    }
+];
+

@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LogOut, Menu, LogIn, LayoutDashboard, BookOpen, UserRound, Sparkles, Sun } from "lucide-react";
+import { LogOut, Menu, LogIn, LayoutDashboard, BookOpen, UserRound, Sparkles, Sun, Music3 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 
 const links = [
   { to: "/", label: "总览", icon: <LayoutDashboard className="h-5 w-5" /> },
   { to: "/courses", label: "课程", icon: <BookOpen className="h-5 w-5" /> },
+  { to: "/lab/music", label: "音乐闯关", icon: <Music3 className="h-5 w-5" /> },
   { to: "/profile", label: "我的", icon: <UserRound className="h-5 w-5" /> }
 ];
 

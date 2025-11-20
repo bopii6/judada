@@ -7,8 +7,8 @@ import { Volume2, RotateCcw } from "lucide-react";
 
 export interface TilesLessonExperienceProps {
   stage: CourseStage;
-  index: number;
-  total: number;
+  index?: number;
+  total?: number;
   onSuccess: () => void;
   onMistake: () => void;
 }
@@ -48,13 +48,7 @@ const restoreTokenIntoPool = (pool: TokenChip[], token: TokenChip) => {
   return [...withoutToken, token].sort((a, b) => a.slot - b.slot);
 };
 
-export const TilesLessonExperience = ({
-  stage,
-  index,
-  total,
-  onSuccess,
-  onMistake
-}: TilesLessonExperienceProps) => {
+export const TilesLessonExperience = ({ stage, onSuccess, onMistake }: TilesLessonExperienceProps) => {
   const canonicalTokens = useMemo(() => createTokenChips(stage), [stage]);
   const [pool, setPool] = useState<TokenChip[]>(() => initializePool(canonicalTokens));
   const [selected, setSelected] = useState<TokenChip[]>([]);

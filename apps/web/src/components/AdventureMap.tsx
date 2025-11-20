@@ -4,12 +4,11 @@ import { useProgressStore } from "../store/progressStore";
 import { Map, Star, Lock, ArrowRight } from "lucide-react";
 
 interface AdventureMapProps {
-  courseId: string;
   stages: CourseStage[];
   onStart(stageId: string, mode?: "tiles" | "type"): void;
 }
 
-export const AdventureMap = ({ courseId, stages, onStart }: AdventureMapProps) => {
+export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
   const progress = useProgressStore();
 
   const nodeStates = useMemo(() => {

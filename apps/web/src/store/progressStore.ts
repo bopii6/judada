@@ -43,6 +43,17 @@ interface StageCompletionPayload {
   mode: LessonMode;
 }
 
+interface CloudStageProgress {
+  stageId: string;
+  courseId: string;
+  bestStars: number;
+  attempts: number;
+  lastPlayedAt: string;
+  modes?: LessonMode[];
+}
+
+type CloudDailyLog = DailyLog;
+
 interface SyncQueueItem {
   id: string;
   type: "stage_completion";
@@ -203,8 +214,9 @@ const loadFromCloud = async (): Promise<boolean> => {
     if (response.success) {
       const { userProgress, userStats, userDailyLogs } = response.data;
 
+      const remoteStageList: CloudStageProgress[] = Array.isArray(userProgress) ? userProgress : [];
       const stages: Record<string, StageRecord> = {};
-      userProgress.forEach((progress: any) => {
+      remoteStageList.forEach(progress => {
         stages[progress.stageId] = {
           stageId: progress.stageId,
           courseId: progress.courseId,
@@ -234,8 +246,9 @@ const loadFromCloud = async (): Promise<boolean> => {
         };
       });
 
+      const remoteDailyLogs: CloudDailyLog[] = Array.isArray(userDailyLogs) ? userDailyLogs : [];
       const daily: Record<string, DailyLog> = {};
-      userDailyLogs.forEach((log: any) => {
+      remoteDailyLogs.forEach(log => {
         daily[log.date] = {
           date: log.date,
           completedStages: log.completedStages,

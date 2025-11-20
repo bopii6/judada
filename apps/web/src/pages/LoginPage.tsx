@@ -1,6 +1,6 @@
 ﻿import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BookOpen, Users, Target, Star, Mail, LockKeyhole, ArrowRight, Sparkles, Smile } from "lucide-react";
+import { BookOpen, Users, Target, Star, Mail, LockKeyhole, ArrowRight, Smile } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { progressStore } from "../store/progressStore";
 
@@ -50,10 +50,17 @@ export const LoginPage: React.FC = () => {
       await loginWithPassword(pwdEmail.trim(), pwd);
       try {
         progressStore.initializeForUser();
-      } catch { }
+      } catch (error) {
+        console.warn("progress init failed", error);
+      }
       navigate("/", { replace: true });
-    } catch (err: any) {
-      setPwdError(err?.message || "哎呀，登录失败了，检查一下邮箱和密码吧");
+    } catch (err: unknown) {
+      const fallbackMessage = "??????????????????????????????";
+      if (err instanceof Error) {
+        setPwdError(err.message || fallbackMessage);
+      } else {
+        setPwdError(fallbackMessage);
+      }
     } finally {
       setIsLoading(false);
     }

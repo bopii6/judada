@@ -1,11 +1,12 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
+import type { SVGProps } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchCourseContent, type CourseStage } from "../../api/courses";
 import { TilesLessonExperience } from "../../components/play/TilesLessonExperience";
 import { TypingLessonExperience } from "../../components/play/TypingLessonExperience";
 import { progressStore } from "../../store/progressStore";
-import { ArrowLeft, Star, Sparkles, Keyboard, MousePointer2 } from "lucide-react";
+import { ArrowLeft, Star, Keyboard, MousePointer2 } from "lucide-react";
 
 const MODES = ["tiles", "type"] as const;
 
@@ -42,8 +43,6 @@ export const LessonPlayPage = () => {
   const activeMode: LessonMode = isValidMode(mode) ? (mode as LessonMode) : "tiles";
 
   const [combo, setCombo] = useState(0);
-  const [bestCombo, setBestCombo] = useState(0);
-  const [attempts, setAttempts] = useState(0);
   const [completed, setCompleted] = useState(false);
   const [celebration, setCelebration] = useState<CelebrationState | null>(null);
   const [stageMistakes, setStageMistakes] = useState(0);
@@ -69,7 +68,6 @@ export const LessonPlayPage = () => {
   };
 
   const handleSuccess = () => {
-    setAttempts(prev => prev + 1);
     if (courseId && stageId) {
       const starsEarned = calculateStars(stageMistakes);
       progressStore.recordStageCompletion({
@@ -85,11 +83,7 @@ export const LessonPlayPage = () => {
         message: starsEarned === 3 ? "完美连击！" : starsEarned === 2 ? "越来越棒！" : "继续加油！"
       });
     }
-    setCombo(prevCombo => {
-      const nextCombo = prevCombo + 1;
-      setBestCombo(prevBest => (nextCombo > prevBest ? nextCombo : prevBest));
-      return nextCombo;
-    });
+    setCombo(prevCombo => prevCombo + 1);
 
     celebrationTimeoutRef.current = window.setTimeout(() => {
       setCelebration(null);
@@ -102,7 +96,6 @@ export const LessonPlayPage = () => {
   };
 
   const handleMistake = () => {
-    setAttempts(prev => prev + 1);
     setCombo(0);
     setStageMistakes(prev => prev + 1);
   };
@@ -303,7 +296,9 @@ export const LessonPlayPage = () => {
   );
 };
 
-function Trophy(props: any) {
+type TrophyProps = SVGProps<SVGSVGElement>;
+
+function Trophy(props: TrophyProps) {
   return (
     <svg
       {...props}

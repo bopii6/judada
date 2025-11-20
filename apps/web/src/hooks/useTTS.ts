@@ -19,6 +19,16 @@ const resolvePreferredVoice = (preferredLocales?: string[]) => {
     return cachedPreferredVoice;
   }
 
+  if (preferredLocales && preferredLocales.length) {
+    for (const locale of preferredLocales) {
+      const match = voices.find(voice => voice.lang?.toLowerCase().includes(locale.toLowerCase()));
+      if (match) {
+        cachedPreferredVoice = match;
+        return match;
+      }
+    }
+  }
+
   // 专门为小朋友选择友好的男声，按优先级排序
   const kidFriendlyVoices = [
     "Google US English Male",        // Google男声，清晰友好

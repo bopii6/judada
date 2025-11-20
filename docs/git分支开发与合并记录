@@ -1,0 +1,39 @@
+---
+description: 标准 Git 分支开发与合并流程
+---
+这是一个标准的 Git 开发流程，用于在独立分支开发新功能并合并回主分支。
+### 1. 开始新工作 (Start)
+首先，确保你的主分支是最新的，然后切出一个新分支。
+```bash
+# 1. 切换回主分支
+git checkout main
+# 2.以此为基础创建新分支 (例如: feature-login-ui)
+git checkout -b feature-login-ui
+
+2. 开发与保存 (Work & Save)
+在这个分支上进行代码修改。当你完成一部分工作后，必须提交。
+
+# 1. 把修改的文件加入暂存区
+git add .
+# 2. 提交并附带说明 (这一步非常重要，不能漏！)
+git commit -m "完成登录页UI设计"
+
+CAUTION
+
+切记： 在切换回主分支之前，必须先在当前分支完成提交 (Commit)！ 如果你没提交就切回主分支，你的修改就会“跟着”你跑到主分支去，这就白开分支了。
+
+3. 合并回主分支 (Merge)
+开发完成后，把成果合并回主分支。
+
+# 1. 先切回主分支
+git checkout main
+# 2. 拉取远程最新代码 (防止别人更新了你不知道)
+git pull origin main
+# 3. 合并你的功能分支
+git merge feature-login-ui
+# 4. 推送到远程仓库
+git push origin main
+4. 清理 (Cleanup)
+合并成功后，可以删除那个已经没用的功能分支。
+
+git branch -d feature-login-ui

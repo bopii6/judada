@@ -35,8 +35,13 @@ export const Profile: React.FC = () => {
     }
     try {
       await setPasswordForEmail(user.email, password);
-    } catch (err: any) {
-      setError(err?.message || "设置密码失败");
+    } catch (err: unknown) {
+      const fallbackMessage = "???????????";
+      if (err instanceof Error) {
+        setError(err.message || fallbackMessage);
+      } else {
+        setError(fallbackMessage);
+      }
       return;
     }
     setPassword("");

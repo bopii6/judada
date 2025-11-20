@@ -1,4 +1,4 @@
-﻿export interface Word {
+export interface Word {
     time: number;
     duration: number;
     text: string;
@@ -45,15 +45,13 @@ export const SONGS: Song[] = [
             { time: 45400, duration: 900, text: "shark", hint: "鲨鱼", guide: "shark" },
             { time: 56200, duration: 900, text: "Daddy", hint: "爸爸", guide: "da-dee" },
             { time: 57400, duration: 900, text: "shark", hint: "鲨鱼", guide: "shark" },
-            { time: 68200, duration: 900, text: "Grandma", hint: "奶奶", guide: "gran-ma" },
-            { time: 79400, duration: 900, text: "Grandpa", hint: "爷爷", guide: "gran-pa" },
-            { time: 90400, duration: 900, text: "Let's", hint: "我们", guide: "lets" },
-            { time: 91600, duration: 900, text: "hunt", hint: "打猎", guide: "hunt" },
-            { time: 102400, duration: 900, text: "Run", hint: "赶紧跑", guide: "run" },
-            { time: 103800, duration: 900, text: "away", hint: "离开", guide: "uh-way" },
-            { time: 112400, duration: 900, text: "Safe", hint: "安全", guide: "safe" },
-            { time: 113800, duration: 900, text: "last", hint: "终于", guide: "last" },
-            { time: 118200, duration: 900, text: "end", hint: "结束", guide: "end" }
+            { time: 70000, duration: 900, text: "Let's", hint: "我们", guide: "lets" },
+            { time: 71200, duration: 900, text: "hunt", hint: "打猎", guide: "hunt" },
+            { time: 82000, duration: 900, text: "Run", hint: "赶紧跑", guide: "run" },
+            { time: 83200, duration: 900, text: "away", hint: "离开", guide: "uh-way" },
+            { time: 93000, duration: 900, text: "Safe", hint: "安全", guide: "safe" },
+            { time: 94200, duration: 900, text: "last", hint: "终于", guide: "last" },
+            { time: 103000, duration: 900, text: "end", hint: "结束", guide: "end" }
         ],
         phrases: [
             {
@@ -65,69 +63,55 @@ export const SONGS: Song[] = [
             },
             {
                 start: 20000,
-                end: 32000,
+                end: 33000,
                 en: "Sister shark, doo doo doo doo doo doo",
                 zh: "姐姐鲨鱼，嘟嘟嘟嘟嘟嘟",
                 tip: "sister 开头 /s/ 咬住，末尾 /ər/ 要轻读"
             },
             {
-                start: 32000,
-                end: 44000,
+                start: 33000,
+                end: 46000,
                 en: "Brother shark, doo doo doo doo doo doo",
                 zh: "哥哥鲨鱼，嘟嘟嘟嘟嘟嘟",
                 tip: "brother 中间的 th 发 /ð/，舌尖轻触上齿"
             },
             {
-                start: 44000,
-                end: 56000,
+                start: 46000,
+                end: 59000,
                 en: "Mommy shark, doo doo doo doo doo doo",
                 zh: "妈妈鲨鱼，嘟嘟嘟嘟嘟嘟",
                 tip: "mommy 的 o 要圆唇，结尾 y 轻点一下"
             },
             {
-                start: 56000,
+                start: 59000,
                 end: 68000,
                 en: "Daddy shark, doo doo doo doo doo doo",
                 zh: "爸爸鲨鱼，嘟嘟嘟嘟嘟嘟",
                 tip: "daddy 的两个 /d/ 要干净利落"
             },
             {
-                start: 68000,
+                start: 70000,
                 end: 80000,
-                en: "Grandma shark, doo doo doo doo doo doo",
-                zh: "奶奶鲨鱼，嘟嘟嘟嘟嘟嘟",
-                tip: "grandma 可读成 /grændmə/，尾音轻化"
-            },
-            {
-                start: 80000,
-                end: 92000,
-                en: "Grandpa shark, doo doo doo doo doo doo",
-                zh: "爷爷鲨鱼，嘟嘟嘟嘟嘟嘟",
-                tip: "grandpa 的 /p/ 要爆破清晰"
-            },
-            {
-                start: 92000,
-                end: 104000,
                 en: "Let's go hunt, doo doo doo doo doo doo",
                 zh: "一起去打猎，嘟嘟嘟嘟嘟嘟",
                 tip: "let's go 连读 /letsgoʊ/"
             },
             {
-                start: 104000,
-                end: 112000,
+                start: 82000,
+                end: 92000,
                 en: "Run away, doo doo doo doo doo doo",
                 zh: "赶紧逃跑，嘟嘟嘟嘟嘟嘟",
                 tip: "run away 连读 /rʌnəˈweɪ/"
             },
             {
-                start: 112000,
-                end: 118000,
+                start: 96000,
+                end: 104000,
                 en: "Safe at last, doo doo doo doo doo doo",
                 zh: "终于安全啦，嘟嘟嘟嘟嘟嘟",
                 tip: "safe at 连起来读 /seɪfæt/"
             },
             {
-                start: 118000,
+                start: 108000,
                 end: 119000,
                 en: "It's the end, doo doo doo doo doo doo",
                 zh: "故事结束啦，嘟嘟嘟嘟嘟嘟",
