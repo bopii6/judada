@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { DailyQuestBoard } from "../components/DailyQuestBoard";
 import { useProgressStore } from "../store/progressStore";
 import { SyncStatus } from "../components/SyncStatus";
-import { Sparkles, Star, Flag, Zap } from "lucide-react";
+import { Sparkles, Star, Zap } from "lucide-react";
 
 export const Dashboard: React.FC = () => {
   const progress = useProgressStore();
@@ -30,11 +30,9 @@ export const Dashboard: React.FC = () => {
               <span>Welcome Back</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-black tracking-tight">
-              准备好开始今天的<br />英语探险了吗？
-            </h1>
+              准备好开始今天的<br />英语探险了吗�?            </h1>
             <p className="text-white/90 font-medium max-w-md">
-              每一次练习都是一次成长。保持节奏，享受过程！
-            </p>
+              每一次练习都是一次成长。保持节奏，享受过程�?            </p>
           </div>
 
           <div className="flex items-center gap-4 rounded-3xl bg-white/15 px-6 py-4 backdrop-blur-md border border-white/10">
@@ -78,7 +76,8 @@ export const Dashboard: React.FC = () => {
             <p className="text-4xl font-black text-slate-800 mb-1">3</p>
             <p className="text-sm text-slate-500 font-medium">连续打卡天数</p>
           </div>
-        </div>
+
+          </div>
 
         {/* Main Content Column */}
         <div className="lg:col-span-2">
@@ -88,3 +87,4 @@ export const Dashboard: React.FC = () => {
     </div>
   );
 };
+
