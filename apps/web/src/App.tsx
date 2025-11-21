@@ -9,6 +9,7 @@ import { LessonPlayPage } from "./pages/play/LessonPlayPage";
 import { LoginPage } from "./pages/LoginPage";
 import EmailLoginPage from "./pages/EmailLoginPage";
 import { MusicDemoPage } from "./pages/lab/MusicDemoPage";
+import { MusicLevelSelectionPage } from "./pages/lab/MusicLevelSelectionPage";
 import { useAuth } from "./hooks/useAuth";
 import { useCloudSync, progressStore } from "./store/progressStore";
 
@@ -46,7 +47,8 @@ const App = () => {
       </Route>
 
       <Route path="/play/:courseId/stages/:stageId/:mode" element={<LessonPlayPage />} />
-      <Route path="/lab/music" element={<MusicDemoPage />} />
+      <Route path="/lab/music" element={<MusicLevelSelectionPage />} />
+      <Route path="/lab/music/:slug" element={<MusicDemoPage />} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

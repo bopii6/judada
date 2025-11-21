@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Play, RefreshCw, Music, CheckCircle2, XCircle, ArrowRight } from "lucide-react";
+import { Play, RefreshCw, Music, CheckCircle2, XCircle, ArrowRight, ArrowLeft } from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
 import classNames from "classnames";
 import type { MusicTrackDetail } from "@judada/shared";
 import { SAMPLE_TRACK } from "../../data/songs";
@@ -82,24 +83,26 @@ const formatTrackDuration = (durationMs?: number | null) => {
 
 export const MusicDemoPage = () => {
     const { playClick, playSuccess, playError, playPop } = useSoundEffects();
-    const [activeSlug, setActiveSlug] = useState<string | null>(null);
+    const { slug } = useParams();
+    const navigate = useNavigate();
 
-    const { data: publishedTracks = [], isLoading, error } = useQuery({
+    const { data: publishedTracks = [], isLoading } = useQuery({
         queryKey: ["lab-music-tracks"],
         queryFn: fetchMusicTracks
     });
 
-    useEffect(() => {
-        if (!activeSlug && publishedTracks.length > 0) {
-            setActiveSlug(publishedTracks[0].slug);
-        }
-    }, [activeSlug, publishedTracks]);
-
     const activeTrack = useMemo<MusicTrackDetail | null>(() => {
-        if (!publishedTracks.length) return null;
-        const found = publishedTracks.find(track => track.slug === activeSlug);
-        return found ?? publishedTracks[0];
-    }, [activeSlug, publishedTracks]);
+        if (!publishedTracks.length || !slug) return null;
+        return publishedTracks.find(track => track.slug === slug) ?? null;
+    }, [slug, publishedTracks]);
+
+    useEffect(() => {
+        if (!isLoading && publishedTracks.length > 0 && !activeTrack) {
+            // If loaded but track not found, maybe redirect or show error?
+            // For now, let's just stay here, it will show "Demo" or empty state if we handle it.
+            // But actually the original code fell back to SAMPLE_TRACK.
+        }
+    }, [isLoading, publishedTracks, activeTrack]);
 
     const song = activeTrack ?? SAMPLE_TRACK;
     const usingSample = !activeTrack;
@@ -111,6 +114,19 @@ export const MusicDemoPage = () => {
     const [feedback, setFeedback] = useState<{ type: "correct" | "incorrect" | null; message?: string }>({ type: null });
 
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const waitForAudioReady = useCallback(async (audio: HTMLAudioElement) => {
+        if (audio.readyState >= HTMLMediaElement.HAVE_METADATA) {
+            return;
+        }
+        await new Promise<void>(resolve => {
+            const handleLoadedMetadata = () => {
+                audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+                resolve();
+            };
+            audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+            audio.load();
+        });
+    }, []);
     const blockRefs = useRef<Array<HTMLInputElement | null>>([]);
 
     useEffect(() => {
@@ -121,7 +137,7 @@ export const MusicDemoPage = () => {
         setFeedback({ type: null });
     }, [song.id]);
 
-    const trackList = publishedTracks;
+
 
     const currentPhrase = song.phrases[currentPhraseIndex];
     const phraseCount = song.phrases.length;
@@ -169,18 +185,21 @@ export const MusicDemoPage = () => {
         }
     }, [focusBlock, wordSlots]);
 
-    const playPhraseAtIndex = (phraseIndex: number) => {
-        if (!audioRef.current || !song.phrases[phraseIndex]) return;
+    const playPhraseAtIndex = async (phraseIndex: number) => {
+        const audio = audioRef.current;
+        const targetPhrase = song.phrases[phraseIndex];
+        if (!audio || !targetPhrase) return;
 
         playClick();
-        audioRef.current.currentTime = song.phrases[phraseIndex].start / 1000;
-        audioRef.current.play().catch(console.error);
+        await waitForAudioReady(audio);
+        audio.currentTime = targetPhrase.start / 1000;
+        audio.play().catch(console.error);
         setGameState("playing");
         setFeedback({ type: null });
     };
 
     const playPhrase = () => {
-        playPhraseAtIndex(currentPhraseIndex);
+        void playPhraseAtIndex(currentPhraseIndex);
     };
 
     const handleTimeUpdate = () => {
@@ -195,7 +214,14 @@ export const MusicDemoPage = () => {
         }
     };
 
-    const normalizeText = (text: string) => text.toLowerCase().replace(/[.,!?]/g, "").trim();
+    const normalizeText = (text: string) =>
+        text
+            .toLowerCase()
+            .normalize("NFKD")
+            .replace(/['"`“”‘’]/g, "")
+            .replace(/[^a-z0-9\s]/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
 
     const checkAnswer = () => {
         if (!currentPhrase || !wordSlots.length) return;
@@ -216,7 +242,9 @@ export const MusicDemoPage = () => {
                     setCurrentPhraseIndex(nextIndex);
                     setWordInputs([]);
                     setFeedback({ type: null });
-                    setTimeout(() => playPhraseAtIndex(nextIndex), 50);
+                    setTimeout(() => {
+                        void playPhraseAtIndex(nextIndex);
+                    }, 50);
                 }
             }, 1000);
         } else {
@@ -317,6 +345,7 @@ export const MusicDemoPage = () => {
             <audio
                 ref={audioRef}
                 src={song.audioUrl ?? ""}
+                preload="auto"
                 onTimeUpdate={handleTimeUpdate}
                 className="hidden"
             />
@@ -325,6 +354,12 @@ export const MusicDemoPage = () => {
                 {/* Header */}
                 <header className="flex items-center justify-between mb-12">
                     <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => navigate("/lab/music")}
+                            className="p-2 -ml-2 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                        >
+                            <ArrowLeft className="w-5 h-5" />
+                        </button>
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm border border-slate-100 text-slate-900">
                             <Music className="w-5 h-5" />
                         </div>
@@ -349,44 +384,7 @@ export const MusicDemoPage = () => {
                     </button>
                 </header>
 
-                <div className="mb-10 w-full">
-                    {trackList.length > 0 ? (
-                        <>
-                            <div className="flex items-center justify-between">
-                                <span className="text-[11px] font-bold uppercase tracking-[0.3em] text-slate-400">Song Library</span>
-                                {error && (
-                                    <span className="text-xs text-rose-500">
-                                        {(error as Error).message}
-                                    </span>
-                                )}
-                            </div>
-                            <div className="mt-4 flex gap-4 overflow-x-auto pb-2">
-                                {trackList.map(track => (
-                                    <button
-                                        key={track.id}
-                                        type="button"
-                                        onClick={() => setActiveSlug(track.slug)}
-                                        className={classNames(
-                                            "min-w-[220px] rounded-[1.5rem] border px-4 py-3 text-left transition-all duration-300",
-                                            track.slug === song.slug
-                                                ? "border-indigo-400 bg-white shadow-lg shadow-indigo-100/50"
-                                                : "border-transparent bg-white/60 hover:border-indigo-100"
-                                        )}
-                                    >
-                                        <span className="block text-sm font-bold text-slate-900">{track.title}</span>
-                                        <span className="text-xs text-slate-500">
-                                            {(track.artist ?? "Unknown")} - {formatTrackDuration(track.durationMs)}
-                                        </span>
-                                    </button>
-                                ))}
-                            </div>
-                        </>
-                    ) : (
-                        <div className="rounded-[1.5rem] border border-dashed border-indigo-200 bg-white/70 px-6 py-5 text-sm text-slate-500">
-                            {isLoading ? "Loading tracks..." : "We are showing a demo track. Upload a MP3 in the admin portal to unlock real challenges here."}
-                        </div>
-                    )}
-                </div>
+
 
                 {/* Main Game Area */}
                 <main className="flex-1 flex flex-col items-center justify-center w-full max-w-2xl mx-auto">
@@ -568,4 +566,3 @@ export const MusicDemoPage = () => {
 };
 
 export default MusicDemoPage;
-
