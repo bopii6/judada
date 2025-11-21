@@ -201,12 +201,14 @@ model MusicTrack {
   description      String?
   coverUrl         String?
   status           MusicTrackStatus @default(draft)
+  bpm              Int?
   durationMs       Int?
   audioStoragePath String
   audioMimeType    String?
   audioFileSize    Int?
   words            Json?
   phrases          Json?
+  gapOptions       Json?
   metadata         Json?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt

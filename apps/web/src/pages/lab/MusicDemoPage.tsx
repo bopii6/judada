@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Play, RefreshCw, Music, CheckCircle2, XCircle, ArrowRight, Pause } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Play, RefreshCw, Music, CheckCircle2, XCircle, ArrowRight } from "lucide-react";
 import classNames from "classnames";
-import { SONGS } from "../../data/songs";
+import type { MusicTrackDetail } from "@judada/shared";
+import { SAMPLE_TRACK } from "../../data/songs";
+import { fetchMusicTracks } from "../../api/music";
 import { useSoundEffects } from "../../hooks/useSoundEffects";
 
 type GameState = "idle" | "playing" | "waiting" | "completed";
@@ -67,9 +70,39 @@ const assembleWordInputs = (slots: WordSlot[], inputs: string[]) =>
         .filter(Boolean)
         .join(" ");
 
+const formatTrackDuration = (durationMs?: number | null) => {
+    if (!durationMs) return "--";
+    const totalSeconds = Math.max(0, Math.round(durationMs / 1000));
+    const minutes = Math.floor(totalSeconds / 60)
+        .toString()
+        .padStart(2, "0");
+    const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+    return `${minutes}:${seconds}`;
+};
+
 export const MusicDemoPage = () => {
-    const song = SONGS[0];
     const { playClick, playSuccess, playError, playPop } = useSoundEffects();
+    const [activeSlug, setActiveSlug] = useState<string | null>(null);
+
+    const { data: publishedTracks = [], isLoading, error } = useQuery({
+        queryKey: ["lab-music-tracks"],
+        queryFn: fetchMusicTracks
+    });
+
+    useEffect(() => {
+        if (!activeSlug && publishedTracks.length > 0) {
+            setActiveSlug(publishedTracks[0].slug);
+        }
+    }, [activeSlug, publishedTracks]);
+
+    const activeTrack = useMemo<MusicTrackDetail | null>(() => {
+        if (!publishedTracks.length) return null;
+        const found = publishedTracks.find(track => track.slug === activeSlug);
+        return found ?? publishedTracks[0];
+    }, [activeSlug, publishedTracks]);
+
+    const song = activeTrack ?? SAMPLE_TRACK;
+    const usingSample = !activeTrack;
 
     const [gameState, setGameState] = useState<GameState>("idle");
     const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
@@ -80,7 +113,19 @@ export const MusicDemoPage = () => {
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const blockRefs = useRef<Array<HTMLInputElement | null>>([]);
 
+    useEffect(() => {
+        setGameState("idle");
+        setCurrentPhraseIndex(0);
+        setWordInputs([]);
+        setWordErrors({});
+        setFeedback({ type: null });
+    }, [song.id]);
+
+    const trackList = publishedTracks;
+
     const currentPhrase = song.phrases[currentPhraseIndex];
+    const phraseCount = song.phrases.length;
+    const displayPhraseIndex = phraseCount > 0 ? currentPhraseIndex + 1 : 0;
     const isLastPhrase = currentPhraseIndex === song.phrases.length - 1;
     // Allow input while playing or waiting, lock only if correct
     const isInputLocked = feedback.type === "correct";
@@ -91,11 +136,11 @@ export const MusicDemoPage = () => {
         setWordInputs(wordSlots.map(() => ""));
         setWordErrors({});
         blockRefs.current = [];
-        // Auto-focus the first input when a new phrase loads
-        setTimeout(() => focusFirstWritableBlock(), 100);
+        const timer = window.setTimeout(() => focusFirstWritableBlock(), 100);
+        return () => window.clearTimeout(timer);
     }, [wordSlots]);
 
-    const focusBlock = (index: number) => {
+    const focusBlock = useCallback((index: number) => {
         if (index < 0 || index >= wordSlots.length) return;
         if (wordSlots[index]?.fillableLength === 0) return;
         const input = blockRefs.current[index];
@@ -104,25 +149,25 @@ export const MusicDemoPage = () => {
             input.focus();
             input.setSelectionRange(position, position);
         }
-    };
+    }, [wordSlots]);
 
-    const focusFirstWritableBlock = () => {
+    const focusFirstWritableBlock = useCallback(() => {
         for (let i = 0; i < wordSlots.length; i += 1) {
             if (wordSlots[i]?.fillableLength > 0) {
                 focusBlock(i);
                 break;
             }
         }
-    };
+    }, [focusBlock, wordSlots]);
 
-    const focusNextBlock = (currentIndex: number) => {
+    const focusNextBlock = useCallback((currentIndex: number) => {
         for (let i = currentIndex + 1; i < wordSlots.length; i += 1) {
             if (wordSlots[i]?.fillableLength > 0) {
                 focusBlock(i);
                 break;
             }
         }
-    };
+    }, [focusBlock, wordSlots]);
 
     const playPhraseAtIndex = (phraseIndex: number) => {
         if (!audioRef.current || !song.phrases[phraseIndex]) return;
@@ -271,7 +316,7 @@ export const MusicDemoPage = () => {
 
             <audio
                 ref={audioRef}
-                src={song.audioUrl}
+                src={song.audioUrl ?? ""}
                 onTimeUpdate={handleTimeUpdate}
                 className="hidden"
             />
@@ -284,8 +329,15 @@ export const MusicDemoPage = () => {
                             <Music className="w-5 h-5" />
                         </div>
                         <div>
-                            <h1 className="text-lg font-bold text-slate-900 leading-tight">{song.title}</h1>
-                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{song.artist}</p>
+                            <div className="flex items-center gap-2">
+                                <h1 className="text-lg font-bold text-slate-900 leading-tight">{song.title}</h1>
+                                {usingSample && (
+                                    <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-amber-500">
+                                        Demo
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{song.artist ?? "Unknown Artist"}</p>
                         </div>
                     </div>
                     <button
@@ -297,6 +349,45 @@ export const MusicDemoPage = () => {
                     </button>
                 </header>
 
+                <div className="mb-10 w-full">
+                    {trackList.length > 0 ? (
+                        <>
+                            <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-bold uppercase tracking-[0.3em] text-slate-400">Song Library</span>
+                                {error && (
+                                    <span className="text-xs text-rose-500">
+                                        {(error as Error).message}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="mt-4 flex gap-4 overflow-x-auto pb-2">
+                                {trackList.map(track => (
+                                    <button
+                                        key={track.id}
+                                        type="button"
+                                        onClick={() => setActiveSlug(track.slug)}
+                                        className={classNames(
+                                            "min-w-[220px] rounded-[1.5rem] border px-4 py-3 text-left transition-all duration-300",
+                                            track.slug === song.slug
+                                                ? "border-indigo-400 bg-white shadow-lg shadow-indigo-100/50"
+                                                : "border-transparent bg-white/60 hover:border-indigo-100"
+                                        )}
+                                    >
+                                        <span className="block text-sm font-bold text-slate-900">{track.title}</span>
+                                        <span className="text-xs text-slate-500">
+                                            {(track.artist ?? "Unknown")} - {formatTrackDuration(track.durationMs)}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="rounded-[1.5rem] border border-dashed border-indigo-200 bg-white/70 px-6 py-5 text-sm text-slate-500">
+                            {isLoading ? "Loading tracks..." : "We are showing a demo track. Upload a MP3 in the admin portal to unlock real challenges here."}
+                        </div>
+                    )}
+                </div>
+
                 {/* Main Game Area */}
                 <main className="flex-1 flex flex-col items-center justify-center w-full max-w-2xl mx-auto">
                     {gameState === "completed" ? (
@@ -306,7 +397,7 @@ export const MusicDemoPage = () => {
                             </div>
                             <h2 className="text-4xl font-black text-slate-900 tracking-tight">Lesson Complete!</h2>
                             <p className="text-lg text-slate-600 max-w-md mx-auto">
-                                You've successfully transcribed all the clips. Great ear!
+                                You&apos;ve successfully transcribed all the clips. Great ear!
                             </p>
                             <button
                                 onClick={resetGame}
@@ -321,7 +412,7 @@ export const MusicDemoPage = () => {
                             {/* Progress Indicator */}
                             <div className="flex items-center justify-between px-2">
                                 <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                                    Phrase {currentPhraseIndex + 1} / {song.phrases.length}
+                                    Phrase {displayPhraseIndex} / {phraseCount}
                                 </span>
                                 <div className="flex gap-1">
                                     {song.phrases.map((_, idx) => (
@@ -345,7 +436,7 @@ export const MusicDemoPage = () => {
                                     <div className="absolute -top-6 left-1/2 -translate-x-1/2">
                                         <button
                                             onClick={playPhrase}
-                                            disabled={gameState === "playing"}
+                                            disabled={gameState === "playing" || !song.phrases.length}
                                             className={classNames(
                                                 "flex h-14 w-14 items-center justify-center rounded-full shadow-lg shadow-indigo-500/30 transition-all duration-300",
                                                 gameState === "playing"
@@ -380,7 +471,6 @@ export const MusicDemoPage = () => {
                             <div className="space-y-8">
                                 <div className="flex flex-wrap justify-center gap-x-4 gap-y-5">
                                     {wordSlots.map((slot, index) => {
-                                        const isActive = !isInputLocked && slot.fillableLength > 0 && wordInputs[index]?.length === slot.fillableLength;
 
                                         return (
                                             <div key={slot.id} className="flex flex-col items-center">
@@ -478,3 +568,4 @@ export const MusicDemoPage = () => {
 };
 
 export default MusicDemoPage;
+

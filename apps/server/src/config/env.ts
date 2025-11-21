@@ -26,6 +26,8 @@ const envSchema = z.object({
   OPENAI_MODEL_NAME: z.string().default("gpt-4.1-mini"),
   TENCENT_SECRET_ID: z.string().min(1, "TENCENT_SECRET_ID is required"),
   TENCENT_SECRET_KEY: z.string().min(1, "TENCENT_SECRET_KEY is required"),
+  TENCENT_ASR_REGION: z.string().default("ap-guangzhou"),
+  TENCENT_ASR_ENGINE: z.string().default("16k_en"),
   REDIS_URL: z.string().min(1, "REDIS_URL is required"),
   QUEUE_PREFIX: z.string().default("course-gen"),
   SMTP_HOST: z.string().optional(),

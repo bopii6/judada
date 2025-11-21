@@ -1,8 +1,9 @@
 import { Router } from "express";
 import multer from "multer";
 import { z } from "zod";
+import { MusicTrackStatus } from "@prisma/client";
 import { requireAdmin } from "../middleware/adminAuth";
-import { coursePackageService } from "../services";
+import { coursePackageService, musicTrackService } from "../services";
 
 const router = Router();
 
@@ -10,6 +11,13 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 15 * 1024 * 1024 // 15MB
+  }
+});
+
+const audioUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 30 * 1024 * 1024 // 30MB
   }
 });
 
@@ -24,6 +32,54 @@ const createPackageSchema = z.object({
 
 const generateRequestSchema = z.object({
   triggeredById: z.string().uuid().optional()
+});
+
+const numericString = z.preprocess(
+  value => {
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) return undefined;
+      const parsed = Number(trimmed);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    }
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+    return undefined;
+  },
+  z.number().int().positive().optional()
+);
+
+const createTrackMetadataSchema = z.object({
+  title: z.string().trim().optional(),
+  artist: z.string().trim().optional(),
+  description: z.string().optional()
+});
+
+const musicWordSchema = z.object({
+  time: z.number().nonnegative(),
+  duration: z.number().positive(),
+  text: z.string().min(1),
+  hint: z.string().optional(),
+  guide: z.string().optional()
+});
+
+const musicPhraseSchema = z.object({
+  start: z.number().nonnegative(),
+  end: z.number().positive(),
+  en: z.string().min(1),
+  zh: z.string().optional(),
+  tip: z.string().optional()
+});
+
+const updateTrackSchema = z.object({
+  title: z.string().min(1).optional(),
+  artist: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+  coverUrl: z.string().url().optional().nullable(),
+  status: z.nativeEnum(MusicTrackStatus).optional(),
+  words: z.array(musicWordSchema).optional(),
+  phrases: z.array(musicPhraseSchema).optional()
 });
 
 router.use(requireAdmin);
@@ -147,6 +203,126 @@ router.delete("/course-packages", async (req, res, next) => {
       message: `成功删除 ${result.deletedCount} 个课程包`,
       failedPackages: result.failedPackages
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/music-tracks", async (_req, res, next) => {
+  try {
+    const tracks = await musicTrackService.listForAdmin();
+    res.json({ tracks });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/music-tracks/:id", async (req, res, next) => {
+  try {
+    const track = await musicTrackService.getForAdmin(req.params.id);
+    res.json({ track });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/music-tracks", audioUpload.single("file"), async (req, res, next) => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ error: "请先上传音频文件" });
+      return;
+    }
+    const metadata = createTrackMetadataSchema.parse(req.body ?? {});
+    const track = await musicTrackService.createFromUpload({
+      file: req.file,
+      title: metadata.title,
+      artist: metadata.artist,
+      description: metadata.description
+    });
+    res.status(201).json({ track });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put("/music-tracks/:id", async (req, res, next) => {
+  try {
+    const payload = updateTrackSchema.parse(req.body);
+    const track = await musicTrackService.updateTrack(req.params.id, {
+      title: payload.title,
+      artist: payload.artist ?? null,
+      description: payload.description ?? null,
+      coverUrl: payload.coverUrl ?? null,
+      status: payload.status,
+      words: payload.words,
+      phrases: payload.phrases
+    });
+    res.json({ track });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete("/music-tracks/:id", async (req, res, next) => {
+  try {
+    await musicTrackService.deleteTrack(req.params.id);
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// LRC歌词解析路由
+const lrcUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 1 * 1024 * 1024 // 1MB，LRC文件很小
+  },
+  fileFilter: (req, file, cb) => {
+    // 检查文件扩展名
+    const allowedExtensions = ['.lrc', '.txt'];
+    const fileExtension = file.originalname.toLowerCase().substring(file.originalname.lastIndexOf('.'));
+
+    if (allowedExtensions.includes(fileExtension)) {
+      cb(null, true);
+    } else {
+      cb(new Error('只支持 .lrc 和 .txt 文件格式'));
+    }
+  }
+});
+
+router.post("/parse-lrc", lrcUpload.single("file"), async (req, res, next) => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ error: "请先上传LRC歌词文件" });
+      return;
+    }
+
+    // 导入LRC解析器
+    const { parseLrcToJson, validateLrcFormat } = await import("../utils/lrcParser");
+
+    // 将文件buffer转换为字符串
+    const lrcContent = req.file.buffer.toString('utf-8');
+
+    // 验证LRC格式
+    const validation = validateLrcFormat(lrcContent);
+    if (!validation.isValid) {
+      res.status(400).json({
+        error: "LRC格式不正确",
+        details: validation.errors
+      });
+      return;
+    }
+
+    // 解析LRC并转换为JSON
+    const phrases = parseLrcToJson(lrcContent);
+
+    res.json({
+      success: true,
+      phrases: phrases,
+      total: phrases.length
+    });
+
   } catch (error) {
     next(error);
   }

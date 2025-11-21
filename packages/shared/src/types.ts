@@ -42,3 +42,43 @@ export interface PlacementScoreResult {
   recommendedTier: number;
 }
 
+export interface MusicWord {
+  time: number;
+  duration: number;
+  text: string;
+  hint?: string;
+  guide?: string;
+}
+
+export interface MusicPhrase {
+  start: number;
+  end: number;
+  en: string;
+  zh?: string;
+  tip?: string;
+}
+
+
+export type MusicTrackStatus = "draft" | "processing" | "published" | "archived";
+
+export interface MusicTrackSummary {
+  id: string;
+  slug: string;
+  title: string;
+  artist?: string | null;
+  coverUrl?: string | null;
+  description?: string | null;
+  durationMs?: number | null;
+  status: MusicTrackStatus;
+  audioUrl?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MusicTrackDetail extends MusicTrackSummary {
+  words: MusicWord[];
+  phrases: MusicPhrase[];
+  metadata?: Record<string, unknown> | null;
+  publishedAt?: string | null;
+}
+

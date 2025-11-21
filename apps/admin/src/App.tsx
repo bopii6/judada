@@ -6,6 +6,10 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { CoursePackagesPage } from "./pages/CoursePackagesPage";
 import { CourseDetailPage } from "./pages/CourseDetailPage";
 import { GenerationJobsPage } from "./pages/GenerationJobsPage";
+import { MusicTracksPage } from "./pages/MusicTracksPage";
+import { MusicListPage } from "./pages/MusicListPage";
+import { MusicUploadPage } from "./pages/MusicUploadPage";
+import { MusicEditPage } from "./pages/MusicEditPage";
 
 /**
  * App 组件负责描述整个后台的页面结构。
@@ -31,6 +35,10 @@ const AppRoutes = () => {
         <Route path="/packages" element={<CoursePackagesPage />} />
         <Route path="/packages/:id" element={<CourseDetailPage />} />
         <Route path="/jobs" element={<GenerationJobsPage />} />
+        <Route path="/music" element={<MusicListPage />} />
+        <Route path="/music/upload" element={<MusicUploadPage />} />
+        <Route path="/music/edit/:id" element={<MusicEditPage />} />
+        <Route path="/music/old" element={<MusicTracksPage />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </AdminLayout>

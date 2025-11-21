@@ -1,126 +1,88 @@
-export interface Word {
-    time: number;
-    duration: number;
-    text: string;
-    hint: string;
-    guide: string;
-}
+import type { MusicTrackDetail } from "@judada/shared";
 
-export interface Phrase {
-    start: number;
-    end: number;
-    en: string;
-    zh: string;
-    tip: string;
-}
-
-export interface Song {
-    id: string;
-    title: string;
-    artist: string;
-    audioUrl: string;
-    bpm: number;
-    duration: number;
-    words: Word[];
-    phrases: Phrase[];
-    gapOptions: Record<number, string[]>;
-}
-
-export const SONGS: Song[] = [
+export const SAMPLE_TRACK: MusicTrackDetail = {
+  id: "sample-baby-shark",
+  slug: "baby-shark",
+  title: "Baby Shark",
+  artist: "Pinkfong",
+  coverUrl: null,
+  description: "示例歌曲，用于在后台没有音频时展示体验效果。",
+  bpm: 95,
+  durationMs: 119000,
+  status: "published",
+  audioUrl: "/baby-shark-vocals.mp3",
+  createdAt: "2024-01-01T00:00:00.000Z",
+  updatedAt: "2024-01-01T00:00:00.000Z",
+  publishedAt: "2024-01-01T00:00:00.000Z",
+  metadata: null,
+  words: [],
+  phrases: [
     {
-        id: "baby-shark",
-        title: "Baby Shark",
-        artist: "Pinkfong",
-        audioUrl: "/baby-shark-vocals.mp3",
-        bpm: 95,
-        duration: 119000,
-        words: [
-            { time: 8200, duration: 900, text: "Baby", hint: "宝贝", guide: "bay-bee" },
-            { time: 9500, duration: 900, text: "shark", hint: "鲨鱼", guide: "shark" },
-            { time: 20200, duration: 900, text: "Sister", hint: "姐姐", guide: "sis-ter" },
-            { time: 21400, duration: 900, text: "shark", hint: "鲨鱼", guide: "shark" },
-            { time: 32200, duration: 900, text: "Brother", hint: "哥哥", guide: "bruh-ther" },
-            { time: 33400, duration: 900, text: "shark", hint: "鲨鱼", guide: "shark" },
-            { time: 44200, duration: 900, text: "Mommy", hint: "妈妈", guide: "mah-mee" },
-            { time: 45400, duration: 900, text: "shark", hint: "鲨鱼", guide: "shark" },
-            { time: 56200, duration: 900, text: "Daddy", hint: "爸爸", guide: "da-dee" },
-            { time: 57400, duration: 900, text: "shark", hint: "鲨鱼", guide: "shark" },
-            { time: 70000, duration: 900, text: "Let's", hint: "我们", guide: "lets" },
-            { time: 71200, duration: 900, text: "hunt", hint: "打猎", guide: "hunt" },
-            { time: 82000, duration: 900, text: "Run", hint: "赶紧跑", guide: "run" },
-            { time: 83200, duration: 900, text: "away", hint: "离开", guide: "uh-way" },
-            { time: 93000, duration: 900, text: "Safe", hint: "安全", guide: "safe" },
-            { time: 94200, duration: 900, text: "last", hint: "终于", guide: "last" },
-            { time: 103000, duration: 900, text: "end", hint: "结束", guide: "end" }
-        ],
-        phrases: [
-            {
-                start: 8000,
-                end: 20000,
-                en: "Baby shark, doo doo doo doo doo doo",
-                zh: "宝贝小鲨鱼，嘟嘟嘟嘟嘟嘟",
-                tip: "baby 的 /b/ 要送气，shark 记得卷舌"
-            },
-            {
-                start: 20000,
-                end: 33000,
-                en: "Sister shark, doo doo doo doo doo doo",
-                zh: "姐姐鲨鱼，嘟嘟嘟嘟嘟嘟",
-                tip: "sister 开头 /s/ 咬住，末尾 /ər/ 要轻读"
-            },
-            {
-                start: 33000,
-                end: 46000,
-                en: "Brother shark, doo doo doo doo doo doo",
-                zh: "哥哥鲨鱼，嘟嘟嘟嘟嘟嘟",
-                tip: "brother 中间的 th 发 /ð/，舌尖轻触上齿"
-            },
-            {
-                start: 46000,
-                end: 59000,
-                en: "Mommy shark, doo doo doo doo doo doo",
-                zh: "妈妈鲨鱼，嘟嘟嘟嘟嘟嘟",
-                tip: "mommy 的 o 要圆唇，结尾 y 轻点一下"
-            },
-            {
-                start: 59000,
-                end: 68000,
-                en: "Daddy shark, doo doo doo doo doo doo",
-                zh: "爸爸鲨鱼，嘟嘟嘟嘟嘟嘟",
-                tip: "daddy 的两个 /d/ 要干净利落"
-            },
-            {
-                start: 70000,
-                end: 80000,
-                en: "Let's go hunt, doo doo doo doo doo doo",
-                zh: "一起去打猎，嘟嘟嘟嘟嘟嘟",
-                tip: "let's go 连读 /letsgoʊ/"
-            },
-            {
-                start: 82000,
-                end: 92000,
-                en: "Run away, doo doo doo doo doo doo",
-                zh: "赶紧逃跑，嘟嘟嘟嘟嘟嘟",
-                tip: "run away 连读 /rʌnəˈweɪ/"
-            },
-            {
-                start: 96000,
-                end: 104000,
-                en: "Safe at last, doo doo doo doo doo doo",
-                zh: "终于安全啦，嘟嘟嘟嘟嘟嘟",
-                tip: "safe at 连起来读 /seɪfæt/"
-            },
-            {
-                start: 108000,
-                end: 119000,
-                en: "It's the end, doo doo doo doo doo doo",
-                zh: "故事结束啦，嘟嘟嘟嘟嘟嘟",
-                tip: "the 在句首读 /ðə/"
-            }
-        ],
-        gapOptions: {
-            1: ["shark", "shell", "ship"],
-            10: ["fast", "last", "fact"]
-        }
+      start: 8000,
+      end: 20000,
+      en: "Baby shark, doo doo doo doo doo doo",
+      zh: "宝贝小鲨鱼，嘟嘟嘟嘟嘟嘟",
+      tip: "baby 的 /b/ 要送气，shark 记得卷舌"
+    },
+    {
+      start: 20000,
+      end: 33000,
+      en: "Sister shark, doo doo doo doo doo doo",
+      zh: "姐姐鲨鱼，嘟嘟嘟嘟嘟嘟",
+      tip: "sister 开头 /s/ 咬住，结尾 /ər/ 要轻读"
+    },
+    {
+      start: 33000,
+      end: 46000,
+      en: "Brother shark, doo doo doo doo doo doo",
+      zh: "哥哥鲨鱼，嘟嘟嘟嘟嘟嘟",
+      tip: "brother 中间的 th 发 /ð/，舌尖轻触上齿"
+    },
+    {
+      start: 46000,
+      end: 59000,
+      en: "Mommy shark, doo doo doo doo doo doo",
+      zh: "妈妈鲨鱼，嘟嘟嘟嘟嘟嘟",
+      tip: "mommy 的 o 要圆唇，结尾 y 轻点一下"
+    },
+    {
+      start: 59000,
+      end: 68000,
+      en: "Daddy shark, doo doo doo doo doo doo",
+      zh: "爸爸鲨鱼，嘟嘟嘟嘟嘟嘟",
+      tip: "daddy 的两个 /d/ 要干净利落"
+    },
+    {
+      start: 70000,
+      end: 80000,
+      en: "Let's go hunt, doo doo doo doo doo doo",
+      zh: "一起去打猎，嘟嘟嘟嘟嘟嘟",
+      tip: "let's go 连读成 /letsgoʊ/"
+    },
+    {
+      start: 82000,
+      end: 92000,
+      en: "Run away, doo doo doo doo doo doo",
+      zh: "赶紧逃跑，嘟嘟嘟嘟嘟嘟",
+      tip: "run away 连读 /rʌnəˈweɪ/"
+    },
+    {
+      start: 96000,
+      end: 104000,
+      en: "Safe at last, doo doo doo doo doo doo",
+      zh: "终于安全啦，嘟嘟嘟嘟嘟嘟",
+      tip: "safe at 连起来读 /seɪfæt/"
+    },
+    {
+      start: 108000,
+      end: 119000,
+      en: "It's the end, doo doo doo doo doo doo",
+      zh: "故事结束啦，嘟嘟嘟嘟嘟嘟",
+      tip: "the 在句首读 /ðə/"
     }
-];
+  ],
+  gapOptions: {
+    "1": ["shark", "shell", "ship"],
+    "10": ["fast", "last", "fact"]
+  }
+};

@@ -1,0 +1,285 @@
+.music-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.music-header h1 {
+  margin: 4px 0;
+  font-size: 26px;
+  color: #1f2937;
+}
+
+.music-breadcrumb {
+  color: #9ca3af;
+  font-size: 13px;
+  margin: 0;
+}
+
+.music-subtitle {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.music-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.music-column {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.music-card {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #eef2ff;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+}
+
+.music-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.music-card-header h2 {
+  margin: 0;
+  font-size: 18px;
+  color: #111827;
+}
+
+.music-card-header p {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.music-count-badge {
+  background: #eef2ff;
+  color: #4338ca;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.music-upload-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.music-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.music-field span {
+  font-size: 13px;
+  color: #374151;
+  font-weight: 600;
+}
+
+.music-field input,
+.music-field select,
+.music-field textarea {
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.music-field textarea {
+  resize: vertical;
+}
+
+.music-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.music-primary-btn {
+  background: linear-gradient(135deg, #4f46e5, #9333ea);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.music-primary-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.music-primary-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(79, 70, 229, 0.22);
+}
+
+.music-table-container {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #f3f4f6;
+  border-radius: 8px;
+}
+
+.music-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.music-table th {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
+  text-align: left;
+  font-weight: 600;
+  color: #6b7280;
+  padding: 12px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.music-table td {
+  padding: 12px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #1f2937;
+}
+
+.music-table tr {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.music-table tr.selected {
+  background: #f8fafc;
+}
+
+.music-status {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.music-status.draft {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.music-status.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.music-status.published {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.music-status.archived {
+  background: #e5e7eb;
+  color: #6b7280;
+}
+
+.music-hint {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.music-error {
+  color: #dc2626;
+  font-size: 14px;
+  margin: 4px 0 0;
+}
+
+.music-json-textarea {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 13px;
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid #1e293b;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.music-audio {
+  width: 100%;
+  margin: 8px 0 16px;
+}
+
+.music-field-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.music-field-label small {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.music-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.music-title-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.music-title-cell small {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+@media (max-width: 960px) {
+  .music-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.view-toggle {
+  display: flex;
+  background: #f1f5f9;
+  padding: 2px;
+  border-radius: 6px;
+}
+
+.view-toggle button {
+  border: none;
+  background: transparent;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: #64748b;
+  cursor: pointer;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.view-toggle button.active {
+  background: white;
+  color: #0f172a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}

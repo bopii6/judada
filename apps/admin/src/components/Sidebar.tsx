@@ -10,6 +10,7 @@ interface SidebarProps {
 const links = [
   { to: "/dashboard", label: "工作台总览" },
   { to: "/packages", label: "课程包管理" },
+  { to: "/music", label: "音乐包管理" },
   { to: "/jobs", label: "生成任务监控" }
 ];
 
