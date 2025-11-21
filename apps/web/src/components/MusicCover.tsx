@@ -31,41 +31,59 @@ export const MusicCover = ({ url, title, className, size = "md" }: MusicCoverPro
     }, [title]);
 
     const sizeClasses = {
-        sm: "w-12 h-12 rounded-lg",
-        md: "w-32 h-32 rounded-2xl",
-        lg: "w-48 h-48 rounded-3xl",
-        xl: "w-full aspect-square rounded-[2rem]",
+        sm: "w-12 h-12 rounded-xl border-2 border-white shadow-md",
+        md: "w-32 h-32 rounded-3xl border-4 border-white shadow-xl",
+        lg: "w-48 h-48 rounded-[2rem] border-[6px] border-white shadow-2xl",
+        xl: "w-full aspect-square rounded-[2.5rem] border-[8px] border-white shadow-[0_20px_50px_rgba(0,0,0,0.1)]",
     };
+
+    // Sticker shadow color based on gradient
+    const shadowColorClass = useMemo(() => {
+        if (gradient.includes("rose") || gradient.includes("pink")) return "shadow-rose-200";
+        if (gradient.includes("violet") || gradient.includes("indigo")) return "shadow-indigo-200";
+        if (gradient.includes("cyan") || gradient.includes("blue")) return "shadow-blue-200";
+        if (gradient.includes("emerald") || gradient.includes("teal")) return "shadow-emerald-200";
+        if (gradient.includes("amber") || gradient.includes("yellow")) return "shadow-amber-200";
+        return "shadow-slate-200";
+    }, [gradient]);
 
     if (url) {
         return (
-            <div className={classNames("relative overflow-hidden bg-slate-100", sizeClasses[size], className)}>
+            <div className={classNames(
+                "relative overflow-hidden bg-white transition-transform duration-300 hover:scale-105 hover:rotate-2",
+                sizeClasses[size],
+                className
+            )}>
                 <img
                     src={url}
                     alt={title}
-                    className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                    className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 ring-1 ring-inset ring-black/5 rounded-[inherit]" />
+                {/* Glossy overlay */}
+                <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent pointer-events-none" />
             </div>
         );
     }
 
     return (
         <div className={classNames(
-            "relative overflow-hidden flex items-center justify-center bg-gradient-to-br shadow-inner",
+            "relative overflow-hidden flex items-center justify-center bg-gradient-to-br transition-transform duration-300 hover:scale-105 hover:rotate-2",
             gradient,
             sizeClasses[size],
+            shadowColorClass,
             className
         )}>
             <div className="absolute inset-0 bg-white/10 backdrop-blur-[1px]" />
-            <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-white/20 blur-2xl rounded-full" />
-            <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-black/5 blur-2xl rounded-full" />
+
+            {/* Cute patterns */}
+            <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-white/20 blur-xl rounded-full animate-blob" />
+            <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-white/20 blur-xl rounded-full animate-blob animation-delay-2000" />
 
             <Music className={classNames(
-                "relative z-10 text-white/90 drop-shadow-md",
-                size === "sm" ? "w-5 h-5" :
-                    size === "md" ? "w-12 h-12" :
-                        size === "lg" ? "w-16 h-16" : "w-24 h-24"
+                "relative z-10 text-white drop-shadow-lg transform -rotate-12",
+                size === "sm" ? "w-6 h-6" :
+                    size === "md" ? "w-14 h-14" :
+                        size === "lg" ? "w-20 h-20" : "w-28 h-28"
             )} />
         </div>
     );

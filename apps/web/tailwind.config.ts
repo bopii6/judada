@@ -8,7 +8,16 @@ export default {
         primary: {
           DEFAULT: "#2563eb",
           foreground: "#ffffff"
-        }
+        },
+        // New "Cute & Playful" Palette
+        bubblegum: "#FF8BA7",
+        sunshine: "#FFC75F",
+        mint: "#C7F9CC",
+        sky: "#4D96FF",
+        cream: "#FFFDF9",
+      },
+      fontFamily: {
+        sans: ['Nunito', 'sans-serif'],
       },
       animation: {
         blob: "blob 7s infinite",
