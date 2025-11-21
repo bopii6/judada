@@ -447,7 +447,7 @@ export const MusicDemoPage = () => {
     const isSubmitDisabled = isInputLocked || !requiredWordCount || completedWordCount !== requiredWordCount;
 
     return (
-        <div className="min-h-screen w-full bg-[#F8F9FA] text-slate-900 font-sans selection:bg-indigo-500/20 selection:text-indigo-900 overflow-hidden">
+        <div className="min-h-screen w-full bg-cream text-slate-800 font-sans selection:bg-bubblegum/30 selection:text-slate-900 overflow-hidden">
             {/* Sidebar */}
             <WordDetailSidebar
                 word={selectedWord}
@@ -464,13 +464,11 @@ export const MusicDemoPage = () => {
                     onClick={() => setIsSidebarOpen(false)}
                 />
             )}
-            {/* Ambient Background - Restored Light Theme */}
+            {/* Cute Background Blobs */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-orange-100/40 blur-[120px] mix-blend-multiply animate-pulse" />
-                <div className="absolute top-[10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-100/40 blur-[120px] mix-blend-multiply animate-pulse delay-1000" />
-                <div className="absolute bottom-[-10%] left-[20%] w-[60%] h-[60%] rounded-full bg-pink-100/40 blur-[120px] mix-blend-multiply animate-pulse delay-2000" />
-                {/* Subtle Noise */}
-                <div className="absolute inset-0 opacity-[0.02] bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
+                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-bubblegum/20 blur-[100px] animate-blob" />
+                <div className="absolute top-[20%] right-[-10%] w-[40%] h-[40%] rounded-full bg-sunshine/20 blur-[100px] animate-blob animation-delay-2000" />
+                <div className="absolute bottom-[-10%] left-[20%] w-[60%] h-[60%] rounded-full bg-sky/20 blur-[100px] animate-blob animation-delay-4000" />
             </div>
 
             <audio
@@ -595,16 +593,16 @@ export const MusicDemoPage = () => {
                                 <div className="absolute -inset-4 bg-white/50 rounded-[2.5rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                                 <div className="relative bg-white/80 backdrop-blur-xl rounded-[2.5rem] border border-white/60 p-10 md:p-16 text-center transition-transform duration-300 hover:scale-[1.01] shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
 
-                                    {/* Play Button */}
+                                    {/* Play Button - Jelly Style */}
                                     <div className="absolute -top-8 left-1/2 -translate-x-1/2">
                                         <button
                                             onClick={playPhrase}
                                             disabled={gameState === "playing" || isLoadingAudio || !song.phrases.length}
                                             className={classNames(
-                                                "flex h-16 w-16 items-center justify-center rounded-full shadow-xl shadow-indigo-500/20 transition-all duration-300 border border-white",
+                                                "flex h-16 w-16 items-center justify-center rounded-full shadow-xl transition-all duration-300 border-4 border-white",
                                                 gameState === "playing" || isLoadingAudio
-                                                    ? "bg-white text-indigo-500 scale-95 ring-4 ring-indigo-50"
-                                                    : "bg-indigo-600 text-white hover:scale-110 hover:bg-indigo-700"
+                                                    ? "bg-white text-bubblegum scale-95 shadow-bubblegum/30"
+                                                    : "bg-bubblegum text-white hover:scale-110 hover:shadow-2xl shadow-bubblegum/40 active:scale-95"
                                             )}
                                         >
                                             {isLoadingAudio ? (
@@ -714,9 +712,9 @@ export const MusicDemoPage = () => {
                                                         onClick={() => handleSlotClick(index)}
                                                         disabled={isInputLocked || !hasInput}
                                                         className={classNames(
-                                                            "px-6 py-3 rounded-2xl text-2xl font-bold transition-all duration-300 border-2",
+                                                            "px-6 py-3 rounded-2xl text-2xl font-bold transition-all duration-300 border-3",
                                                             hasInput
-                                                                ? "bg-indigo-500 text-white border-indigo-600 shadow-lg hover:scale-105 hover:shadow-xl active:scale-95"
+                                                                ? "bg-bubblegum text-white border-white shadow-lg shadow-bubblegum/30 hover:scale-110 hover:shadow-xl active:scale-95"
                                                                 : "bg-white border-dashed border-slate-300 text-slate-300 cursor-default"
                                                         )}
                                                     >
@@ -748,10 +746,10 @@ export const MusicDemoPage = () => {
                                                         onClick={() => handleBankWordClick(bankIndex)}
                                                         disabled={isUsed || isInputLocked}
                                                         className={classNames(
-                                                            "px-6 py-3 rounded-2xl text-2xl font-bold transition-all duration-300 border-2",
+                                                            "px-6 py-3 rounded-2xl text-2xl font-bold transition-all duration-300 border-3 border-white",
                                                             isUsed
-                                                                ? "bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed opacity-40"
-                                                                : "bg-white text-slate-700 border-slate-200 shadow-md hover:scale-110 hover:shadow-xl hover:border-indigo-300 hover:text-indigo-600 active:scale-95"
+                                                                ? "bg-slate-100 text-slate-300 cursor-not-allowed opacity-40"
+                                                                : "bg-white text-slate-700 shadow-lg shadow-sky/20 hover:scale-110 hover:shadow-xl hover:shadow-bubblegum/30 hover:bg-sunshine hover:text-white active:scale-95"
                                                         )}
                                                     >
                                                         {word}
@@ -780,10 +778,10 @@ export const MusicDemoPage = () => {
                                         onClick={checkAnswer}
                                         disabled={isSubmitDisabled}
                                         className={classNames(
-                                            "group flex items-center gap-3 px-10 py-5 rounded-full text-sm font-bold uppercase tracking-widest transition-all duration-300",
+                                            "group flex items-center gap-3 px-10 py-5 rounded-full text-sm font-bold uppercase tracking-widest transition-all duration-300 border-4 border-white",
                                             isSubmitDisabled
                                                 ? "bg-slate-100 text-slate-300 cursor-not-allowed"
-                                                : "bg-slate-900 text-white shadow-lg shadow-slate-900/20 hover:scale-105 hover:shadow-xl hover:bg-slate-800"
+                                                : "bg-sky text-white shadow-xl shadow-sky/40 hover:scale-110 hover:shadow-2xl active:scale-95"
                                         )}
                                     >
                                         <span>Check Answer</span>
