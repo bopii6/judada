@@ -4,6 +4,7 @@ import { z } from "zod";
 import { MusicTrackStatus } from "@prisma/client";
 import { requireAdmin } from "../middleware/adminAuth";
 import { coursePackageService, musicTrackService } from "../services";
+import type { MusicWord, MusicPhrase } from "../services/musicTrack.service";
 
 const router = Router();
 

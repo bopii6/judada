@@ -1,4 +1,4 @@
-import { MusicPhrase, MusicGapOptions } from "@judada/shared";
+import { MusicPhrase } from "./musicTrack.service";
 import * as tencentcloud from "tencentcloud-sdk-nodejs";
 import { getEnv } from "../config/env";
 
@@ -47,7 +47,6 @@ const isTransientError = (error: unknown) => {
 
 export interface TranscriptionResult {
   phrases: MusicPhrase[];
-  gapOptions: MusicGapOptions;
   raw?: unknown;
 }
 
@@ -216,33 +215,7 @@ const normalizeTranscription = (data: any): TranscriptionResult => {
 
   return {
     phrases,
-    gapOptions: {},
     raw: data
   };
 };
 
-const buildGapOptions = (phrases: MusicPhrase[]): MusicGapOptions => {
-  const fallback = ["baby", "shark", "family", "run", "safe", "hunt", "away", "love", "sing", "play"];
-  const options: MusicGapOptions = {};
-
-  let index = 1;
-  for (const phrase of phrases) {
-    if (index > 5) break;
-    const tokens = phrase.en
-      .split(/\s+/)
-      .map(token => token.replace(/[^a-zA-Z]/g, "").toLowerCase())
-      .filter(Boolean);
-    if (!tokens.length) continue;
-    const keyword = tokens[Math.min(tokens.length - 1, Math.floor(tokens.length / 2))];
-    const variantSet = new Set<string>([keyword]);
-    let fallbackIndex = index;
-    while (variantSet.size < 3) {
-      variantSet.add(fallback[fallbackIndex % fallback.length]);
-      fallbackIndex += 1;
-    }
-    options[index.toString()] = Array.from(variantSet);
-    index += 1;
-  }
-
-  return options;
-};

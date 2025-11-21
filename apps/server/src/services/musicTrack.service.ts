@@ -1,8 +1,24 @@
 import type { Express } from "express";
 import path from "node:path";
 import type { IAudioMetadata } from "music-metadata";
-import { MusicTrackStatus, Prisma } from "@prisma/client";
-import type { MusicPhrase, MusicWord } from "@judada/shared";
+import { Prisma, MusicTrackStatus } from "@prisma/client";
+
+// 本地类型定义，避免共享包导入问题
+export interface MusicWord {
+  time: number;
+  duration: number;
+  text: string;
+  hint?: string;
+  guide?: string;
+}
+
+export interface MusicPhrase {
+  start: number;
+  end: number;
+  en: string;
+  zh?: string;
+  tip?: string;
+}
 import { getPrisma } from "../lib/prisma";
 import { getSupabase } from "../lib/supabase";
 import { getEnv } from "../config/env";
