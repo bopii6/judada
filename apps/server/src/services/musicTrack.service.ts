@@ -47,8 +47,8 @@ interface UpdateTrackInput {
   phrases?: MusicPhrase[];
 }
 
-const sanitizeJson = (value: unknown): Prisma.InputJsonValue | null =>
-  value === undefined ? null : (value as Prisma.InputJsonValue);
+const sanitizeJson = (value: unknown): Prisma.InputJsonValue | Prisma.NullTypes.DbNull =>
+  value === undefined || value === null ? Prisma.DbNull : (value as Prisma.InputJsonValue);
 
 const toWordArray = (value: Prisma.JsonValue | null): MusicWord[] => {
   if (Array.isArray(value)) {
@@ -231,9 +231,9 @@ export const musicTrackService = {
         audioStoragePath: storagePath,
         audioMimeType: mimeType,
         audioFileSize: file.size,
-        metadata: metadataValue ? sanitizeJson(metadataValue) : null,
+        metadata: sanitizeJson(metadataValue),
         words: [],
-        phrases: autoPhrases ? sanitizeJson(autoPhrases) : null
+        phrases: sanitizeJson(autoPhrases)
       }
     });
 
@@ -259,8 +259,8 @@ export const musicTrackService = {
         description: payload.description ?? null,
         coverUrl: payload.coverUrl ?? null,
         status: nextStatus,
-        words: payload.words ? sanitizeJson(payload.words) : null,
-        phrases: payload.phrases ? sanitizeJson(payload.phrases) : null,
+        words: payload.words === undefined ? undefined : sanitizeJson(payload.words),
+        phrases: payload.phrases === undefined ? undefined : sanitizeJson(payload.phrases),
         publishedAt: shouldPublish ? new Date() : shouldUnpublish ? null : existing.publishedAt
       }
     });
