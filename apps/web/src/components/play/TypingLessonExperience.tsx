@@ -1,7 +1,6 @@
 ﻿import { useEffect, useRef, useState } from "react";
 import classNames from "classnames";
 import type { CourseStage } from "../../api/courses";
-import { normalizeForCompare } from "@judada/shared/text";
 import { speak } from "../../hooks/useTTS";
 import { playClickSound, playErrorSound, playSuccessSound } from "../../hooks/useFeedbackSound";
 import { Volume2, Trash2, ArrowRight } from "lucide-react";
@@ -175,3 +174,9 @@ export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLe
     </div>
   );
 };
+const normalizeForCompare = (value: string) =>
+  value
+    .trim()
+    .replace(/[.!?]/g, "")
+    .replace(/\s+/g, " ")
+    .toLowerCase();

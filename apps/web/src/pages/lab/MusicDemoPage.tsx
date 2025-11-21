@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Play, RefreshCw, Music, CheckCircle2, XCircle, ArrowRight, ArrowLeft } from "lucide-react";
+import { Play, RefreshCw, Music, CheckCircle2, XCircle, ArrowRight, ArrowLeft, Pause, Volume2 } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import classNames from "classnames";
 import type { MusicTrackDetail } from "@judada/shared";
 import { SAMPLE_TRACK } from "../../data/songs";
 import { fetchMusicTracks } from "../../api/music";
 import { useSoundEffects } from "../../hooks/useSoundEffects";
+import { MusicCover } from "../../components/MusicCover";
 
 type GameState = "idle" | "playing" | "waiting" | "completed";
 
@@ -71,16 +72,6 @@ const assembleWordInputs = (slots: WordSlot[], inputs: string[]) =>
         .filter(Boolean)
         .join(" ");
 
-const formatTrackDuration = (durationMs?: number | null) => {
-    if (!durationMs) return "--";
-    const totalSeconds = Math.max(0, Math.round(durationMs / 1000));
-    const minutes = Math.floor(totalSeconds / 60)
-        .toString()
-        .padStart(2, "0");
-    const seconds = (totalSeconds % 60).toString().padStart(2, "0");
-    return `${minutes}:${seconds}`;
-};
-
 export const MusicDemoPage = () => {
     const { playClick, playSuccess, playError, playPop } = useSoundEffects();
     const { slug } = useParams();
@@ -99,8 +90,6 @@ export const MusicDemoPage = () => {
     useEffect(() => {
         if (!isLoading && publishedTracks.length > 0 && !activeTrack) {
             // If loaded but track not found, maybe redirect or show error?
-            // For now, let's just stay here, it will show "Demo" or empty state if we handle it.
-            // But actually the original code fell back to SAMPLE_TRACK.
         }
     }, [isLoading, publishedTracks, activeTrack]);
 
@@ -113,20 +102,29 @@ export const MusicDemoPage = () => {
     const [wordErrors, setWordErrors] = useState<Record<number, boolean>>({});
     const [feedback, setFeedback] = useState<{ type: "correct" | "incorrect" | null; message?: string }>({ type: null });
 
+    const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+
     const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    // Optimized audio ready check - doesn't force reload unless necessary
     const waitForAudioReady = useCallback(async (audio: HTMLAudioElement) => {
-        if (audio.readyState >= HTMLMediaElement.HAVE_METADATA) {
+        if (audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
             return;
         }
-        await new Promise<void>(resolve => {
-            const handleLoadedMetadata = () => {
-                audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+
+        return new Promise<void>((resolve) => {
+            const onCanPlay = () => {
+                audio.removeEventListener("canplay", onCanPlay);
                 resolve();
             };
-            audio.addEventListener("loadedmetadata", handleLoadedMetadata);
-            audio.load();
+            audio.addEventListener("canplay", onCanPlay);
+            // Only call load if we have no data at all and network state is idle/empty
+            if (audio.networkState === HTMLMediaElement.NETWORK_EMPTY || audio.networkState === HTMLMediaElement.NETWORK_NO_SOURCE) {
+                audio.load();
+            }
         });
     }, []);
+
     const blockRefs = useRef<Array<HTMLInputElement | null>>([]);
 
     useEffect(() => {
@@ -135,8 +133,8 @@ export const MusicDemoPage = () => {
         setWordInputs([]);
         setWordErrors({});
         setFeedback({ type: null });
+        setIsLoadingAudio(false);
     }, [song.id]);
-
 
 
     const currentPhrase = song.phrases[currentPhraseIndex];
@@ -190,12 +188,24 @@ export const MusicDemoPage = () => {
         const targetPhrase = song.phrases[phraseIndex];
         if (!audio || !targetPhrase) return;
 
-        playClick();
-        await waitForAudioReady(audio);
-        audio.currentTime = targetPhrase.start / 1000;
-        audio.play().catch(console.error);
-        setGameState("playing");
-        setFeedback({ type: null });
+        try {
+            setIsLoadingAudio(true);
+            playClick();
+
+            // Set time first, this might trigger buffering
+            audio.currentTime = targetPhrase.start / 1000;
+
+            await waitForAudioReady(audio);
+
+            await audio.play();
+            setGameState("playing");
+            setFeedback({ type: null });
+        } catch (err) {
+            console.error("Playback failed:", err);
+            // Optionally show error feedback
+        } finally {
+            setIsLoadingAudio(false);
+        }
     };
 
     const playPhrase = () => {
@@ -335,11 +345,13 @@ export const MusicDemoPage = () => {
 
     return (
         <div className="relative min-h-screen w-full overflow-hidden bg-[#FDFBF9] text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900">
-            {/* Ambient Background */}
+            {/* Ambient Background - Restored Light Theme */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-orange-100/40 blur-[120px] mix-blend-multiply animate-pulse" />
                 <div className="absolute top-[10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-100/40 blur-[120px] mix-blend-multiply animate-pulse delay-1000" />
                 <div className="absolute bottom-[-10%] left-[20%] w-[60%] h-[60%] rounded-full bg-pink-100/40 blur-[120px] mix-blend-multiply animate-pulse delay-2000" />
+                {/* Subtle Noise */}
+                <div className="absolute inset-0 opacity-[0.02] bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
             </div>
 
             <audio
@@ -350,139 +362,137 @@ export const MusicDemoPage = () => {
                 className="hidden"
             />
 
-            <div className="relative z-10 mx-auto flex min-h-screen max-w-3xl flex-col px-6 py-8">
+            <div className="relative z-10 mx-auto flex min-h-screen max-w-5xl flex-col px-6 py-8">
                 {/* Header */}
                 <header className="flex items-center justify-between mb-12">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-6">
                         <button
                             onClick={() => navigate("/lab/music")}
-                            className="p-2 -ml-2 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                            className="group flex items-center justify-center w-12 h-12 rounded-full bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300"
                         >
-                            <ArrowLeft className="w-5 h-5" />
+                            <ArrowLeft className="w-5 h-5 text-slate-400 group-hover:text-slate-600" />
                         </button>
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm border border-slate-100 text-slate-900">
-                            <Music className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <h1 className="text-lg font-bold text-slate-900 leading-tight">{song.title}</h1>
-                                {usingSample && (
-                                    <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-amber-500">
-                                        Demo
-                                    </span>
-                                )}
+
+                        <div className="flex items-center gap-4">
+                            <MusicCover
+                                url={song.coverUrl}
+                                title={song.title}
+                                size="sm"
+                                className="shadow-md shadow-indigo-100"
+                            />
+                            <div>
+                                <h1 className="text-xl font-bold text-slate-900 leading-tight">{song.title}</h1>
+                                <p className="text-sm font-medium text-slate-500">{song.artist ?? "Unknown Artist"}</p>
                             </div>
-                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{song.artist ?? "Unknown Artist"}</p>
                         </div>
                     </div>
-                    <button
-                        onClick={resetGame}
-                        className="p-2 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                        title="Restart"
-                    >
-                        <RefreshCw className="w-5 h-5" />
-                    </button>
+
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={resetGame}
+                            className="p-3 rounded-full text-slate-400 hover:bg-white hover:shadow-sm hover:text-slate-600 transition-all"
+                            title="Restart"
+                        >
+                            <RefreshCw className="w-5 h-5" />
+                        </button>
+                    </div>
                 </header>
 
-
-
                 {/* Main Game Area */}
-                <main className="flex-1 flex flex-col items-center justify-center w-full max-w-2xl mx-auto">
+                <main className="flex-1 flex flex-col items-center justify-center w-full max-w-3xl mx-auto">
                     {gameState === "completed" ? (
-                        <div className="text-center space-y-6 animate-in fade-in zoom-in duration-500">
-                            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-emerald-100 text-emerald-600 mb-4">
-                                <CheckCircle2 className="w-10 h-10" />
+                        <div className="text-center space-y-8 animate-in fade-in zoom-in duration-500">
+                            <div className="relative inline-flex items-center justify-center w-24 h-24 rounded-full bg-emerald-100 text-emerald-600 mb-4 shadow-lg shadow-emerald-100">
+                                <CheckCircle2 className="w-12 h-12" />
                             </div>
-                            <h2 className="text-4xl font-black text-slate-900 tracking-tight">Lesson Complete!</h2>
-                            <p className="text-lg text-slate-600 max-w-md mx-auto">
-                                You&apos;ve successfully transcribed all the clips. Great ear!
-                            </p>
+                            <div className="space-y-2">
+                                <h2 className="text-5xl font-black text-slate-900 tracking-tight">Lesson Complete!</h2>
+                                <p className="text-xl text-slate-600 max-w-md mx-auto">
+                                    You&apos;ve successfully transcribed all the clips. Great ear!
+                                </p>
+                            </div>
                             <button
                                 onClick={resetGame}
-                                className="mt-8 inline-flex items-center gap-2 rounded-full bg-slate-900 px-8 py-4 text-sm font-bold uppercase tracking-widest text-white shadow-xl shadow-slate-900/20 transition-transform hover:scale-105 active:scale-95"
+                                className="mt-8 inline-flex items-center gap-3 rounded-full bg-slate-900 text-white px-10 py-5 text-sm font-bold uppercase tracking-widest shadow-xl shadow-slate-900/20 transition-transform hover:scale-105 active:scale-95"
                             >
                                 <RefreshCw className="w-4 h-4" />
                                 Play Again
                             </button>
                         </div>
                     ) : (
-                        <div className="w-full flex flex-col gap-12">
-                            {/* Progress Indicator */}
-                            <div className="flex items-center justify-between px-2">
-                                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                                    Phrase {displayPhraseIndex} / {phraseCount}
-                                </span>
-                                <div className="flex gap-1">
-                                    {song.phrases.map((_, idx) => (
-                                        <div
-                                            key={idx}
-                                            className={classNames(
-                                                "h-1.5 w-6 rounded-full transition-colors duration-300",
-                                                idx === currentPhraseIndex ? "bg-indigo-500" : idx < currentPhraseIndex ? "bg-indigo-200" : "bg-slate-200"
-                                            )}
-                                        />
-                                    ))}
+                        <div className="w-full flex flex-col gap-16">
+                            {/* Progress & Visualizer */}
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between px-2 text-xs font-bold uppercase tracking-widest text-slate-400">
+                                    <span>Phrase {displayPhraseIndex} / {phraseCount}</span>
+                                    <span>{Math.round((currentPhraseIndex / phraseCount) * 100)}% Complete</span>
+                                </div>
+                                <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-indigo-500 transition-all duration-500 ease-out"
+                                        style={{ width: `${((currentPhraseIndex) / phraseCount) * 100}%` }}
+                                    />
                                 </div>
                             </div>
 
                             {/* Lyric Display Card */}
-                            <div className="relative group">
+                            <div className="relative group perspective-1000">
                                 <div className="absolute -inset-4 bg-white/50 rounded-[2.5rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                                <div className="relative bg-white/80 backdrop-blur-xl rounded-[2rem] border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8 md:p-12 text-center transition-transform duration-300 hover:scale-[1.01]">
+                                <div className="relative bg-white/80 backdrop-blur-xl rounded-[2.5rem] border border-white/60 p-10 md:p-16 text-center transition-transform duration-300 hover:scale-[1.01] shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
 
                                     {/* Play Button */}
-                                    <div className="absolute -top-6 left-1/2 -translate-x-1/2">
+                                    <div className="absolute -top-8 left-1/2 -translate-x-1/2">
                                         <button
                                             onClick={playPhrase}
-                                            disabled={gameState === "playing" || !song.phrases.length}
+                                            disabled={gameState === "playing" || isLoadingAudio || !song.phrases.length}
                                             className={classNames(
-                                                "flex h-14 w-14 items-center justify-center rounded-full shadow-lg shadow-indigo-500/30 transition-all duration-300",
-                                                gameState === "playing"
-                                                    ? "bg-white text-indigo-500 scale-95 ring-4 ring-indigo-100"
+                                                "flex h-16 w-16 items-center justify-center rounded-full shadow-xl shadow-indigo-500/20 transition-all duration-300 border border-white",
+                                                gameState === "playing" || isLoadingAudio
+                                                    ? "bg-white text-indigo-500 scale-95 ring-4 ring-indigo-50"
                                                     : "bg-indigo-600 text-white hover:scale-110 hover:bg-indigo-700"
                                             )}
                                         >
-                                            {gameState === "playing" ? (
+                                            {isLoadingAudio ? (
+                                                <div className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                            ) : gameState === "playing" ? (
                                                 <span className="flex gap-1">
-                                                    <span className="w-1 h-4 bg-current rounded-full animate-[bounce_1s_infinite]" />
-                                                    <span className="w-1 h-4 bg-current rounded-full animate-[bounce_1s_infinite_0.2s]" />
-                                                    <span className="w-1 h-4 bg-current rounded-full animate-[bounce_1s_infinite_0.4s]" />
+                                                    <span className="w-1.5 h-5 bg-current rounded-full animate-[bounce_1s_infinite]" />
+                                                    <span className="w-1.5 h-5 bg-current rounded-full animate-[bounce_1s_infinite_0.2s]" />
+                                                    <span className="w-1.5 h-5 bg-current rounded-full animate-[bounce_1s_infinite_0.4s]" />
                                                 </span>
                                             ) : (
-                                                <Play className="w-6 h-6 ml-1" />
+                                                <Play className="w-7 h-7 ml-1 fill-current" />
                                             )}
                                         </button>
                                     </div>
 
-                                    <div className="mt-8 space-y-2">
-                                        <h3 className="text-2xl md:text-3xl font-bold text-slate-900 leading-tight">
+                                    <div className="mt-6 space-y-4">
+                                        <h3 className="text-3xl md:text-4xl font-bold text-slate-900 leading-tight">
                                             {currentPhrase?.en}
                                         </h3>
-                                        <p className="text-2xl text-indigo-600 font-bold mt-2">
-                                            {currentPhrase?.zh}
-                                        </p>
+                                        {currentPhrase?.zh && (
+                                            <p className="text-xl text-indigo-600 font-medium">
+                                                {currentPhrase.zh}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             </div>
 
                             {/* Input Area */}
-                            <div className="space-y-8">
-                                <div className="flex flex-wrap justify-center gap-x-4 gap-y-5">
+                            <div className="space-y-12">
+                                <div className="flex flex-wrap justify-center gap-x-6 gap-y-8">
                                     {wordSlots.map((slot, index) => {
-
                                         return (
                                             <div key={slot.id} className="flex flex-col items-center">
                                                 <div className="flex items-end gap-1">
-                                                    {/* No separate prefill display anymore */}
-
-                                                    {/* Input */}
                                                     <div className={classNames(
                                                         "relative group/input",
                                                         wordErrors[index] && "lesson-animate-shake"
                                                     )}>
                                                         {/* Hint Overlay */}
                                                         {!wordInputs[index] && slot.prefill && (
-                                                            <span className="absolute inset-0 flex items-center justify-center text-3xl font-bold tracking-[0.2em] text-slate-300 pointer-events-none select-none opacity-40">
+                                                            <span className="absolute inset-0 flex items-center justify-center text-4xl font-bold tracking-[0.2em] text-slate-200 pointer-events-none select-none">
                                                                 {slot.prefill}
                                                             </span>
                                                         )}
@@ -498,7 +508,7 @@ export const MusicDemoPage = () => {
                                                             disabled={isInputLocked || slot.fillableLength === 0}
                                                             style={{ width: `${Math.max(slot.fillableLength || slot.length || 1, 1.5) * 1.2}em` }}
                                                             className={classNames(
-                                                                "bg-transparent text-3xl font-bold tracking-[0.2em] text-center outline-none transition-colors relative z-10",
+                                                                "bg-transparent text-4xl font-bold tracking-[0.2em] text-center outline-none transition-colors relative z-10",
                                                                 slot.fillableLength === 0 ? "text-slate-300 cursor-default" :
                                                                     wordErrors[index] ? "text-rose-500" : "text-slate-900",
                                                                 "placeholder-transparent"
@@ -506,7 +516,7 @@ export const MusicDemoPage = () => {
                                                         />
                                                         {/* Animated Underline */}
                                                         <div className={classNames(
-                                                            "absolute bottom-0 left-0 right-0 h-0.5 transition-all duration-300",
+                                                            "absolute bottom-0 left-0 right-0 h-0.5 transition-all duration-300 rounded-full",
                                                             slot.fillableLength === 0
                                                                 ? "bg-slate-200"
                                                                 : wordErrors[index]
@@ -517,7 +527,7 @@ export const MusicDemoPage = () => {
 
                                                     {/* Suffix */}
                                                     {slot.suffix && (
-                                                        <span className="text-3xl font-bold text-slate-300 mb-1">{slot.suffix}</span>
+                                                        <span className="text-4xl font-bold text-slate-300 mb-1">{slot.suffix}</span>
                                                     )}
                                                 </div>
                                             </div>
@@ -526,15 +536,15 @@ export const MusicDemoPage = () => {
                                 </div>
 
                                 {/* Feedback & Action */}
-                                <div className="h-20 flex items-center justify-center">
+                                <div className="h-24 flex items-center justify-center">
                                     {feedback.type ? (
                                         <div className={classNames(
-                                            "flex items-center gap-3 px-6 py-3 rounded-full text-sm font-bold uppercase tracking-wider shadow-sm animate-in slide-in-from-bottom-2",
+                                            "flex items-center gap-4 px-8 py-4 rounded-full text-base font-bold uppercase tracking-wider shadow-lg animate-in slide-in-from-bottom-4 border",
                                             feedback.type === "correct"
-                                                ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                                                : "bg-rose-100 text-rose-700 border border-rose-200"
+                                                ? "bg-emerald-50 text-emerald-600 border-emerald-100 shadow-emerald-100"
+                                                : "bg-rose-50 text-rose-600 border-rose-100 shadow-rose-100"
                                         )}>
-                                            {feedback.type === "correct" ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
+                                            {feedback.type === "correct" ? <CheckCircle2 className="w-6 h-6" /> : <XCircle className="w-6 h-6" />}
                                             {feedback.message}
                                         </div>
                                     ) : (
@@ -542,7 +552,7 @@ export const MusicDemoPage = () => {
                                             onClick={checkAnswer}
                                             disabled={isSubmitDisabled}
                                             className={classNames(
-                                                "group flex items-center gap-2 px-8 py-4 rounded-full text-sm font-bold uppercase tracking-widest transition-all duration-300",
+                                                "group flex items-center gap-3 px-10 py-5 rounded-full text-sm font-bold uppercase tracking-widest transition-all duration-300",
                                                 isSubmitDisabled
                                                     ? "bg-slate-100 text-slate-300 cursor-not-allowed"
                                                     : "bg-slate-900 text-white shadow-lg shadow-slate-900/20 hover:scale-105 hover:shadow-xl hover:bg-slate-800"
@@ -564,5 +574,3 @@ export const MusicDemoPage = () => {
         </div>
     );
 };
-
-export default MusicDemoPage;
