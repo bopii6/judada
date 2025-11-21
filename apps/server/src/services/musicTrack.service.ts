@@ -47,8 +47,8 @@ interface UpdateTrackInput {
   phrases?: MusicPhrase[];
 }
 
-const sanitizeJson = (value: unknown): Prisma.JsonValue | undefined =>
-  value === undefined ? undefined : (value as Prisma.JsonValue);
+const sanitizeJson = (value: unknown): Prisma.InputJsonValue | null =>
+  value === undefined ? null : (value as Prisma.InputJsonValue);
 
 const toWordArray = (value: Prisma.JsonValue | null): MusicWord[] => {
   if (Array.isArray(value)) {
