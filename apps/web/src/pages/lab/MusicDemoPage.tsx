@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Play, RefreshCw, Music, CheckCircle2, XCircle, ArrowRight, ArrowLeft, Pause, Volume2 } from "lucide-react";
+import { Play, RefreshCw, Music, CheckCircle2, XCircle, ArrowRight, ArrowLeft, Pause, Volume2, Keyboard, MousePointerClick } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import classNames from "classnames";
 import type { MusicTrackDetail } from "@judada/shared";
@@ -8,6 +8,8 @@ import { SAMPLE_TRACK } from "../../data/songs";
 import { fetchMusicTracks } from "../../api/music";
 import { useSoundEffects } from "../../hooks/useSoundEffects";
 import { MusicCover } from "../../components/MusicCover";
+import { WordDetailSidebar } from "../../components/WordDetailSidebar";
+import { fetchWordDefinition } from "../../api/dictionary";
 
 type GameState = "idle" | "playing" | "waiting" | "completed";
 
@@ -104,7 +106,40 @@ export const MusicDemoPage = () => {
 
     const [isLoadingAudio, setIsLoadingAudio] = useState(false);
 
+    // Interaction Mode
+    const [interactionMode, setInteractionMode] = useState<"typing" | "wordBank">("typing");
+
+    // Word Bank states
+    const [wordBank, setWordBank] = useState<string[]>([]);
+    const [usedBankIndices, setUsedBankIndices] = useState<Set<number>>(new Set());
+
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const blockRefs = useRef<Array<HTMLInputElement | null>>([]);
+
+    // Sidebar State
+    const [selectedWord, setSelectedWord] = useState<string | null>(null);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+    const handleWordClick = (word: string) => {
+        const cleanWord = word.toLowerCase().replace(/[^a-z]/g, "");
+        setSelectedWord(cleanWord);
+        setIsSidebarOpen(true);
+
+        // Optional: Pause audio when learning
+        if (audioRef.current && !audioRef.current.paused) {
+            audioRef.current.pause();
+            setGameState("waiting");
+        }
+    };
+
+    // Fetch word definition dynamically
+    const { data: wordDefinition, isLoading: isLoadingDefinition } = useQuery({
+        queryKey: ["word-definition", selectedWord],
+        queryFn: () => selectedWord ? fetchWordDefinition(selectedWord) : null,
+        enabled: !!selectedWord && isSidebarOpen,
+        retry: false,
+        staleTime: 1000 * 60 * 60 // Cache for 1 hour
+    });
 
     // Optimized audio ready check - doesn't force reload unless necessary
     const waitForAudioReady = useCallback(async (audio: HTMLAudioElement) => {
@@ -125,8 +160,6 @@ export const MusicDemoPage = () => {
         });
     }, []);
 
-    const blockRefs = useRef<Array<HTMLInputElement | null>>([]);
-
     useEffect(() => {
         setGameState("idle");
         setCurrentPhraseIndex(0);
@@ -146,42 +179,73 @@ export const MusicDemoPage = () => {
     const phraseText = currentPhrase?.en ?? "";
     const wordSlots = useMemo(() => buildWordSlots(phraseText), [phraseText]);
 
+    // Initialize word bank when phrase changes
     useEffect(() => {
         setWordInputs(wordSlots.map(() => ""));
         setWordErrors({});
-        blockRefs.current = [];
-        const timer = window.setTimeout(() => focusFirstWritableBlock(), 100);
-        return () => window.clearTimeout(timer);
+
+        // Extract fillable words and shuffle them
+        const fillableWords = wordSlots
+            .filter(slot => slot.fillableLength > 0)
+            .map(slot => slot.core);
+
+        // Shuffle array
+        const shuffled = [...fillableWords].sort(() => Math.random() - 0.5);
+        setWordBank(shuffled);
+        setUsedBankIndices(new Set());
     }, [wordSlots]);
 
-    const focusBlock = useCallback((index: number) => {
-        if (index < 0 || index >= wordSlots.length) return;
-        if (wordSlots[index]?.fillableLength === 0) return;
-        const input = blockRefs.current[index];
-        if (input) {
-            const position = input.value.length;
-            input.focus();
-            input.setSelectionRange(position, position);
-        }
-    }, [wordSlots]);
+    // Handle word bank click - fill first empty slot
+    const handleBankWordClick = useCallback((bankIndex: number) => {
+        if (usedBankIndices.has(bankIndex) || isInputLocked) return;
 
-    const focusFirstWritableBlock = useCallback(() => {
-        for (let i = 0; i < wordSlots.length; i += 1) {
-            if (wordSlots[i]?.fillableLength > 0) {
-                focusBlock(i);
-                break;
-            }
-        }
-    }, [focusBlock, wordSlots]);
+        const word = wordBank[bankIndex];
 
-    const focusNextBlock = useCallback((currentIndex: number) => {
-        for (let i = currentIndex + 1; i < wordSlots.length; i += 1) {
-            if (wordSlots[i]?.fillableLength > 0) {
-                focusBlock(i);
-                break;
-            }
-        }
-    }, [focusBlock, wordSlots]);
+        // Find first empty fillable slot
+        const emptySlotIndex = wordSlots.findIndex((slot, idx) =>
+            slot.fillableLength > 0 && !wordInputs[idx]
+        );
+
+        if (emptySlotIndex === -1) return;
+
+        // Fill the slot
+        const newInputs = [...wordInputs];
+        newInputs[emptySlotIndex] = word;
+        setWordInputs(newInputs);
+
+        // Mark bank word as used
+        setUsedBankIndices(prev => new Set([...prev, bankIndex]));
+
+        playClick();
+    }, [wordBank, wordSlots, wordInputs, usedBankIndices, isInputLocked]);
+
+    // Handle slot click - remove word and return to bank
+    const handleSlotClick = useCallback((slotIndex: number) => {
+        if (isInputLocked || !wordInputs[slotIndex]) return;
+
+        const word = wordInputs[slotIndex];
+
+        // Find the bank index for this word
+        const bankIndex = wordBank.findIndex((w, idx) =>
+            w === word && usedBankIndices.has(idx)
+        );
+
+        if (bankIndex === -1) return;
+
+        // Clear the slot
+        const newInputs = [...wordInputs];
+        newInputs[slotIndex] = "";
+        setWordInputs(newInputs);
+
+        // Mark bank word as available
+        setUsedBankIndices(prev => {
+            const next = new Set(prev);
+            next.delete(bankIndex);
+            return next;
+        });
+
+        playClick();
+    }, [wordInputs, wordBank, usedBankIndices, isInputLocked]);
 
     const playPhraseAtIndex = async (phraseIndex: number) => {
         const audio = audioRef.current;
@@ -263,6 +327,37 @@ export const MusicDemoPage = () => {
         }
     };
 
+
+    // Typing Mode Logic
+    const focusBlock = useCallback((index: number) => {
+        if (index < 0 || index >= wordSlots.length) return;
+        if (wordSlots[index]?.fillableLength === 0) return;
+        const input = blockRefs.current[index];
+        if (input) {
+            const position = input.value.length;
+            input.focus();
+            input.setSelectionRange(position, position);
+        }
+    }, [wordSlots]);
+
+    const focusFirstWritableBlock = useCallback(() => {
+        for (let i = 0; i < wordSlots.length; i += 1) {
+            if (wordSlots[i]?.fillableLength > 0) {
+                focusBlock(i);
+                break;
+            }
+        }
+    }, [focusBlock, wordSlots]);
+
+    const focusNextBlock = useCallback((currentIndex: number) => {
+        for (let i = currentIndex + 1; i < wordSlots.length; i += 1) {
+            if (wordSlots[i]?.fillableLength > 0) {
+                focusBlock(i);
+                break;
+            }
+        }
+    }, [focusBlock, wordSlots]);
+
     const handleWordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
         if (e.key === "Enter" && !isInputLocked) {
             checkAnswer();
@@ -323,6 +418,14 @@ export const MusicDemoPage = () => {
         }
     };
 
+    // Auto-focus when switching to typing mode
+    useEffect(() => {
+        if (interactionMode === "typing" && !isInputLocked) {
+            const timer = window.setTimeout(() => focusFirstWritableBlock(), 100);
+            return () => window.clearTimeout(timer);
+        }
+    }, [interactionMode, isInputLocked, focusFirstWritableBlock]);
+
     const resetGame = () => {
         playClick();
         if (audioRef.current) {
@@ -344,7 +447,23 @@ export const MusicDemoPage = () => {
     const isSubmitDisabled = isInputLocked || !requiredWordCount || completedWordCount !== requiredWordCount;
 
     return (
-        <div className="relative min-h-screen w-full overflow-hidden bg-[#FDFBF9] text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900">
+        <div className="min-h-screen w-full bg-[#F8F9FA] text-slate-900 font-sans selection:bg-indigo-500/20 selection:text-indigo-900 overflow-hidden">
+            {/* Sidebar */}
+            <WordDetailSidebar
+                word={selectedWord}
+                definition={wordDefinition || null}
+                isOpen={isSidebarOpen}
+                isLoading={isLoadingDefinition}
+                onClose={() => setIsSidebarOpen(false)}
+            />
+
+            {/* Main Content Overlay when Sidebar is open (Mobile) */}
+            {isSidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/20 backdrop-blur-[1px] z-40 sm:hidden"
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+            )}
             {/* Ambient Background - Restored Light Theme */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-orange-100/40 blur-[120px] mix-blend-multiply animate-pulse" />
@@ -388,6 +507,42 @@ export const MusicDemoPage = () => {
                     </div>
 
                     <div className="flex items-center gap-3">
+                        {/* Mode Toggle */}
+                        <div className="bg-slate-100 p-1 rounded-full flex items-center border border-slate-200 mr-2">
+                            <button
+                                onClick={() => {
+                                    setInteractionMode("wordBank");
+                                    playClick();
+                                    setWordInputs(wordSlots.map(() => ""));
+                                }}
+                                className={classNames(
+                                    "flex items-center justify-center w-8 h-8 rounded-full transition-all duration-300",
+                                    interactionMode === "wordBank"
+                                        ? "bg-white text-indigo-600 shadow-sm"
+                                        : "text-slate-400 hover:text-slate-600"
+                                )}
+                                title="Tap to Fill"
+                            >
+                                <MousePointerClick className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setInteractionMode("typing");
+                                    playClick();
+                                    setWordInputs(wordSlots.map(() => ""));
+                                }}
+                                className={classNames(
+                                    "flex items-center justify-center w-8 h-8 rounded-full transition-all duration-300",
+                                    interactionMode === "typing"
+                                        ? "bg-white text-indigo-600 shadow-sm"
+                                        : "text-slate-400 hover:text-slate-600"
+                                )}
+                                title="Type"
+                            >
+                                <Keyboard className="w-4 h-4" />
+                            </button>
+                        </div>
+
                         <button
                             onClick={resetGame}
                             className="p-3 rounded-full text-slate-400 hover:bg-white hover:shadow-sm hover:text-slate-600 transition-all"
@@ -467,8 +622,16 @@ export const MusicDemoPage = () => {
                                     </div>
 
                                     <div className="mt-6 space-y-4">
-                                        <h3 className="text-3xl md:text-4xl font-bold text-slate-900 leading-tight">
-                                            {currentPhrase?.en}
+                                        <h3 className="text-3xl md:text-4xl font-bold text-slate-900 leading-tight flex flex-wrap justify-center gap-x-3">
+                                            {currentPhrase?.en.split(" ").map((word, i) => (
+                                                <span
+                                                    key={i}
+                                                    onClick={() => handleWordClick(word)}
+                                                    className="cursor-pointer hover:text-indigo-600 hover:scale-105 transition-all duration-200 active:scale-95"
+                                                >
+                                                    {word}
+                                                </span>
+                                            ))}
                                         </h3>
                                         {currentPhrase?.zh && (
                                             <p className="text-xl text-indigo-600 font-medium">
@@ -479,93 +642,157 @@ export const MusicDemoPage = () => {
                                 </div>
                             </div>
 
+
+
                             {/* Input Area */}
-                            <div className="space-y-12">
-                                <div className="flex flex-wrap justify-center gap-x-6 gap-y-8">
+                            <div className="space-y-8">
+                                {/* Word Slots / Inputs */}
+                                <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-4 px-8 min-h-[120px]">
                                     {wordSlots.map((slot, index) => {
-                                        return (
-                                            <div key={slot.id} className="flex flex-col items-center">
-                                                <div className="flex items-end gap-1">
-                                                    <div className={classNames(
-                                                        "relative group/input",
-                                                        wordErrors[index] && "lesson-animate-shake"
-                                                    )}>
-                                                        {/* Hint Overlay */}
-                                                        {!wordInputs[index] && slot.prefill && (
-                                                            <span className="absolute inset-0 flex items-center justify-center text-4xl font-bold tracking-[0.2em] text-slate-200 pointer-events-none select-none">
-                                                                {slot.prefill}
-                                                            </span>
-                                                        )}
+                                        const hasInput = !!wordInputs[index];
 
-                                                        <input
-                                                            ref={element => {
-                                                                blockRefs.current[index] = element;
-                                                            }}
-                                                            value={wordInputs[index] ?? ""}
-                                                            onChange={event => handleWordInputChange(index, event.target.value)}
-                                                            onKeyDown={(e) => handleWordKeyDown(e, index)}
-                                                            maxLength={slot.fillableLength || undefined}
-                                                            disabled={isInputLocked || slot.fillableLength === 0}
-                                                            style={{ width: `${Math.max(slot.fillableLength || slot.length || 1, 1.5) * 1.2}em` }}
+                                        if (interactionMode === "typing") {
+                                            return (
+                                                <div key={slot.id} className="flex flex-col items-center">
+                                                    <div className="flex items-end gap-0.5">
+                                                        <div
+                                                            onClick={() => wordInputs[index] && handleWordClick(wordInputs[index])}
                                                             className={classNames(
-                                                                "bg-transparent text-4xl font-bold tracking-[0.2em] text-center outline-none transition-colors relative z-10",
-                                                                slot.fillableLength === 0 ? "text-slate-300 cursor-default" :
-                                                                    wordErrors[index] ? "text-rose-500" : "text-slate-900",
-                                                                "placeholder-transparent"
+                                                                "relative group/input",
+                                                                wordErrors[index] && "lesson-animate-shake",
+                                                                wordInputs[index] && "cursor-pointer"
+                                                            )}>
+                                                            {/* Hint Overlay - Moved to left */}
+                                                            {!wordInputs[index] && slot.prefill && (
+                                                                <span className="absolute -left-3 bottom-1 text-lg font-bold text-slate-300 pointer-events-none select-none">
+                                                                    {slot.prefill}
+                                                                </span>
                                                             )}
-                                                        />
-                                                        {/* Animated Underline */}
-                                                        <div className={classNames(
-                                                            "absolute bottom-0 left-0 right-0 h-0.5 transition-all duration-300 rounded-full",
-                                                            slot.fillableLength === 0
-                                                                ? "bg-slate-200"
-                                                                : wordErrors[index]
-                                                                    ? "bg-rose-400 h-1"
-                                                                    : "bg-slate-300 group-focus-within/input:bg-indigo-500 group-focus-within/input:h-1"
-                                                        )} />
-                                                    </div>
 
-                                                    {/* Suffix */}
-                                                    {slot.suffix && (
-                                                        <span className="text-4xl font-bold text-slate-300 mb-1">{slot.suffix}</span>
-                                                    )}
+                                                            <input
+                                                                ref={element => {
+                                                                    blockRefs.current[index] = element;
+                                                                }}
+                                                                value={wordInputs[index] ?? ""}
+                                                                onChange={event => handleWordInputChange(index, event.target.value)}
+                                                                onKeyDown={(e) => handleWordKeyDown(e, index)}
+                                                                maxLength={slot.fillableLength || undefined}
+                                                                disabled={isInputLocked || slot.fillableLength === 0}
+                                                                style={{ width: `${Math.max(slot.fillableLength || slot.length || 1, 1.5) * 0.7}em` }}
+                                                                className={classNames(
+                                                                    "bg-transparent text-3xl font-bold tracking-wide text-center outline-none transition-colors relative z-10",
+                                                                    slot.fillableLength === 0 ? "text-slate-300 cursor-default" :
+                                                                        wordErrors[index] ? "text-rose-500" : "text-slate-900",
+                                                                    "placeholder-transparent"
+                                                                )}
+                                                            />
+                                                            {/* Animated Underline */}
+                                                            <div className={classNames(
+                                                                "absolute bottom-0 left-0 right-0 h-0.5 transition-all duration-300 rounded-full",
+                                                                slot.fillableLength === 0
+                                                                    ? "bg-slate-200"
+                                                                    : wordErrors[index]
+                                                                        ? "bg-rose-400 h-1"
+                                                                        : "bg-slate-300 group-focus-within/input:bg-indigo-500 group-focus-within/input:h-1"
+                                                            )} />
+                                                        </div>
+
+                                                        {/* Suffix */}
+                                                        {slot.suffix && (
+                                                            <span className="text-4xl font-bold text-slate-300 mb-1">{slot.suffix}</span>
+                                                        )}
+                                                    </div>
                                                 </div>
+                                            );
+                                        }
+
+                                        // Word Bank Mode
+                                        return (
+                                            <div key={slot.id} className="flex items-center gap-1">
+                                                {slot.fillableLength > 0 ? (
+                                                    <button
+                                                        onClick={() => handleSlotClick(index)}
+                                                        disabled={isInputLocked || !hasInput}
+                                                        className={classNames(
+                                                            "px-6 py-3 rounded-2xl text-2xl font-bold transition-all duration-300 border-2",
+                                                            hasInput
+                                                                ? "bg-indigo-500 text-white border-indigo-600 shadow-lg hover:scale-105 hover:shadow-xl active:scale-95"
+                                                                : "bg-white border-dashed border-slate-300 text-slate-300 cursor-default"
+                                                        )}
+                                                    >
+                                                        {hasInput ? wordInputs[index] : "___"}
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-2xl font-bold text-slate-400">{slot.core}</span>
+                                                )}
+
+                                                {/* Suffix */}
+                                                {slot.suffix && (
+                                                    <span className="text-2xl font-bold text-slate-400">{slot.suffix}</span>
+                                                )}
                                             </div>
                                         );
                                     })}
                                 </div>
 
-                                {/* Feedback & Action */}
-                                <div className="h-24 flex items-center justify-center">
-                                    {feedback.type ? (
-                                        <div className={classNames(
-                                            "flex items-center gap-4 px-8 py-4 rounded-full text-base font-bold uppercase tracking-wider shadow-lg animate-in slide-in-from-bottom-4 border",
-                                            feedback.type === "correct"
-                                                ? "bg-emerald-50 text-emerald-600 border-emerald-100 shadow-emerald-100"
-                                                : "bg-rose-50 text-rose-600 border-rose-100 shadow-rose-100"
-                                        )}>
-                                            {feedback.type === "correct" ? <CheckCircle2 className="w-6 h-6" /> : <XCircle className="w-6 h-6" />}
-                                            {feedback.message}
+                                {/* Word Bank - Only show in Word Bank mode */}
+                                {interactionMode === "wordBank" && (
+                                    <div className="px-8">
+                                        <div className="flex flex-wrap items-center justify-center gap-3 p-6 bg-slate-50 rounded-3xl border-2 border-slate-100 min-h-[100px]">
+                                            {wordBank.map((word, bankIndex) => {
+                                                const isUsed = usedBankIndices.has(bankIndex);
+
+                                                return (
+                                                    <button
+                                                        key={`bank-${bankIndex}-${word}`}
+                                                        onClick={() => handleBankWordClick(bankIndex)}
+                                                        disabled={isUsed || isInputLocked}
+                                                        className={classNames(
+                                                            "px-6 py-3 rounded-2xl text-2xl font-bold transition-all duration-300 border-2",
+                                                            isUsed
+                                                                ? "bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed opacity-40"
+                                                                : "bg-white text-slate-700 border-slate-200 shadow-md hover:scale-110 hover:shadow-xl hover:border-indigo-300 hover:text-indigo-600 active:scale-95"
+                                                        )}
+                                                    >
+                                                        {word}
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
-                                    ) : (
-                                        <button
-                                            onClick={checkAnswer}
-                                            disabled={isSubmitDisabled}
-                                            className={classNames(
-                                                "group flex items-center gap-3 px-10 py-5 rounded-full text-sm font-bold uppercase tracking-widest transition-all duration-300",
-                                                isSubmitDisabled
-                                                    ? "bg-slate-100 text-slate-300 cursor-not-allowed"
-                                                    : "bg-slate-900 text-white shadow-lg shadow-slate-900/20 hover:scale-105 hover:shadow-xl hover:bg-slate-800"
-                                            )}
-                                        >
-                                            <span>Check Answer</span>
-                                            <ArrowRight className={classNames(
-                                                "w-4 h-4 transition-transform duration-300",
-                                                !isSubmitDisabled && "group-hover:translate-x-1"
-                                            )} />
-                                        </button>
-                                    )}
-                                </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Feedback & Action */}
+                            <div className="h-24 flex items-center justify-center">
+                                {feedback.type ? (
+                                    <div className={classNames(
+                                        "flex items-center gap-4 px-8 py-4 rounded-full text-base font-bold uppercase tracking-wider shadow-lg animate-in slide-in-from-bottom-4 border",
+                                        feedback.type === "correct"
+                                            ? "bg-emerald-50 text-emerald-600 border-emerald-100 shadow-emerald-100"
+                                            : "bg-rose-50 text-rose-600 border-rose-100 shadow-rose-100"
+                                    )}>
+                                        {feedback.type === "correct" ? <CheckCircle2 className="w-6 h-6" /> : <XCircle className="w-6 h-6" />}
+                                        {feedback.message}
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={checkAnswer}
+                                        disabled={isSubmitDisabled}
+                                        className={classNames(
+                                            "group flex items-center gap-3 px-10 py-5 rounded-full text-sm font-bold uppercase tracking-widest transition-all duration-300",
+                                            isSubmitDisabled
+                                                ? "bg-slate-100 text-slate-300 cursor-not-allowed"
+                                                : "bg-slate-900 text-white shadow-lg shadow-slate-900/20 hover:scale-105 hover:shadow-xl hover:bg-slate-800"
+                                        )}
+                                    >
+                                        <span>Check Answer</span>
+                                        <ArrowRight className={classNames(
+                                            "w-4 h-4 transition-transform duration-300",
+                                            !isSubmitDisabled && "group-hover:translate-x-1"
+                                        )} />
+                                    </button>
+                                )}
                             </div>
                         </div>
                     )}

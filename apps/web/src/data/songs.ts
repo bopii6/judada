@@ -5,9 +5,9 @@ export const SAMPLE_TRACK: MusicTrackDetail = {
   slug: "baby-shark",
   title: "Baby Shark",
   artist: "Pinkfong",
-  coverUrl: null,
+  coverUrl: "https://images.unsplash.com/photo-1551244072-5d12893278ab?q=80&w=1000&auto=format&fit=crop",
   description: "示例歌曲，用于在后台没有音频时展示体验效果。",
-  bpm: 95,
+
   durationMs: 119000,
   status: "published",
   audioUrl: "/baby-shark-vocals.mp3",
@@ -81,8 +81,5 @@ export const SAMPLE_TRACK: MusicTrackDetail = {
       tip: "the 在句首读 /ðə/"
     }
   ],
-  gapOptions: {
-    "1": ["shark", "shell", "ship"],
-    "10": ["fast", "last", "fact"]
-  }
+
 };

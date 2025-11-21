@@ -7,6 +7,7 @@ import coursesRoutes from "./courses";
 import userProgressRoutes from "./user-progress";
 import deviceRoutes from "./device";
 import musicRoutes from "./music";
+import dictionaryRoutes from "./dictionary";
 
 const router = Router();
 
@@ -18,5 +19,6 @@ router.use("/courses", coursesRoutes);
 router.use("/user", userProgressRoutes);
 router.use("/device", deviceRoutes);
 router.use("/music", musicRoutes);
+router.use("/dictionary", dictionaryRoutes);
 
 export default router;

@@ -16,6 +16,30 @@ const formatTrackDuration = (durationMs?: number | null) => {
     return `${minutes}:${seconds}`;
 };
 
+const getSmartCoverUrl = (track: { title: string; coverUrl?: string | null; slug: string }) => {
+    if (track.coverUrl) return track.coverUrl;
+
+    const title = track.title.toLowerCase();
+
+    // Baby Shark / Shark Family
+    if (title.includes("shark") || title.includes("鲨鱼")) {
+        return "https://images.unsplash.com/photo-1551244072-5d12893278ab?q=80&w=1000&auto=format&fit=crop";
+    }
+
+    // Twinkle Twinkle Little Star
+    if (title.includes("star") || title.includes("twinkle") || title.includes("星星")) {
+        return "https://images.unsplash.com/photo-1516339901601-2e1b62dc0c45?q=80&w=1000&auto=format&fit=crop";
+    }
+
+    // Alphabet Song / ABC
+    if (title.includes("alphabet") || title.includes("abc") || title.includes("字母")) {
+        return "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1000&auto=format&fit=crop";
+    }
+
+    // Default Music / Happy theme
+    return "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=1000&auto=format&fit=crop";
+};
+
 export const MusicLevelSelectionPage = () => {
     const { data: tracks = [], isLoading, error } = useQuery({
         queryKey: ["lab-music-tracks"],
@@ -73,7 +97,7 @@ export const MusicLevelSelectionPage = () => {
                                 {/* Cover Art Area */}
                                 <div className="relative aspect-square rounded-[2rem] overflow-hidden mb-6 shadow-md group-hover:shadow-xl transition-all duration-500">
                                     <MusicCover
-                                        url={track.coverUrl}
+                                        url={getSmartCoverUrl(track)}
                                         title={track.title}
                                         size="xl"
                                         className="w-full h-full"
