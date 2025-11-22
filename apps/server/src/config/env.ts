@@ -10,7 +10,7 @@ const dotenvPaths = [
 
 for (const dotenvPath of dotenvPaths) {
   if (fs.existsSync(dotenvPath)) {
-    dotenv.config({ path: dotenvPath });
+    dotenv.config({ path: dotenvPath, override: true });
     if (process.env.NODE_ENV !== "production") {
       console.log(`[env] Loaded .env from ${dotenvPath}`);
     }
