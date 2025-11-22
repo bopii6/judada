@@ -29,8 +29,20 @@ export const Admin = () => {
   useEffect(() => {
     if (adminKey) {
       api.defaults.headers.common["x-admin-key"] = adminKey;
+      // 页面初始化时验证已保存的ADMIN_KEY
+      const validateSavedKey = async () => {
+        try {
+          await api.get("/admin/overview");
+          setIsAuthenticated(true);
+        } catch (error) {
+          setIsAuthenticated(false);
+          localStorage.removeItem(ADMIN_KEY_STORAGE);
+        }
+      };
+      validateSavedKey();
     } else {
       delete api.defaults.headers.common["x-admin-key"];
+      setIsAuthenticated(false);
     }
   }, [adminKey]);
 
@@ -62,11 +74,40 @@ export const Admin = () => {
     }
   });
 
-  const handleSubmitKey = (event: FormEvent) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  const handleSubmitKey = async (event: FormEvent) => {
     event.preventDefault();
-    localStorage.setItem(ADMIN_KEY_STORAGE, adminKey.trim());
-    setMessage("已保存 ADMIN_KEY");
-    queryClient.invalidateQueries({ queryKey: ["admin-banks"] });
+    const trimmedKey = adminKey.trim();
+
+    if (!trimmedKey) {
+      setMessage("请输入 ADMIN_KEY");
+      return;
+    }
+
+    setIsVerifying(true);
+    setMessage("🔍 验证中...");
+
+    try {
+      // 验证ADMIN_KEY是否正确
+      api.defaults.headers.common["x-admin-key"] = trimmedKey;
+      const response = await api.get("/admin/overview");
+
+      // 验证成功
+      localStorage.setItem(ADMIN_KEY_STORAGE, trimmedKey);
+      setIsAuthenticated(true);
+      setMessage("✅ 登录成功！已验证 ADMIN_KEY");
+      queryClient.invalidateQueries({ queryKey: ["admin-banks"] });
+    } catch (error) {
+      // 验证失败
+      delete api.defaults.headers.common["x-admin-key"];
+      setIsAuthenticated(false);
+      setMessage("❌ ADMIN_KEY 错误，请检查后重试");
+      console.error("ADMIN_KEY验证失败:", error);
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   const handleImportJson = async () => {
@@ -113,15 +154,19 @@ export const Admin = () => {
             onChange={event => setAdminKey(event.target.value)}
             placeholder="ADMIN_KEY"
           />
-          <button type="submit" className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white">
-            保存
+          <button
+            type="submit"
+            disabled={isVerifying || !adminKey.trim()}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300 disabled:cursor-not-allowed"
+          >
+            {isVerifying ? "验证中..." : "验证并登录"}
           </button>
         </form>
       </section>
 
       {message && <div className="rounded-lg bg-amber-100 px-4 py-2 text-sm text-amber-800">{message}</div>}
 
-      {adminKey ? (
+      {isAuthenticated && (banks !== undefined) ? (
         <>
           <section className="rounded-2xl bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-800">新建题库</h2>
@@ -244,7 +289,7 @@ export const Admin = () => {
           )}
         </>
       ) : (
-        <p className="text-sm text-slate-500">请输入 ADMIN_KEY 后继续。</p>
+        <p className="text-sm text-slate-500">请输入正确的 ADMIN_KEY 后继续。输入错误将无法访问管理功能。</p>
       )}
     </div>
   );

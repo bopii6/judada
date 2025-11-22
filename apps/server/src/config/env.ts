@@ -42,11 +42,7 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
-let cachedEnv: Env | null = null;
-
 export const getEnv = (): Env => {
-  if (!cachedEnv) {
-    cachedEnv = envSchema.parse(process.env);
-  }
-  return cachedEnv;
+  // 每次都重新解析环境变量，确保配置变更能立即生效
+  return envSchema.parse(process.env);
 };
