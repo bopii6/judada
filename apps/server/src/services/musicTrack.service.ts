@@ -122,6 +122,8 @@ const normalizeMimeType = (file: Express.Multer.File) => {
   return "application/octet-stream";
 };
 
+type TrackSummaryInput = Pick<Prisma.MusicTrack, "id" | "slug" | "title" | "artist" | "description" | "coverUrl" | "status" | "durationMs" | "createdAt" | "updatedAt" | "publishedAt">;
+
 const resolveCoverUrl = (track: { slug: string; title: string; coverUrl?: string | null }) => {
   if (track.coverUrl) return track.coverUrl;
   if (track.slug === "baby-shark" || track.title.includes("Shark") || track.title.includes("鲨鱼")) {
@@ -130,7 +132,7 @@ const resolveCoverUrl = (track: { slug: string; title: string; coverUrl?: string
   return null;
 };
 
-const formatTrackSummary = (track: Prisma.MusicTrackGetPayload<Record<string, never>>) => ({
+const formatTrackSummary = (track: TrackSummaryInput) => ({
   id: track.id,
   slug: track.slug,
   title: track.title,
