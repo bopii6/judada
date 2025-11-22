@@ -179,7 +179,7 @@ export const MusicLevelSelectionPage = () => {
                             return (
                                 <div
                                     key={track.id}
-                                    className="absolute left-1/2 -translate-x-1/2 w-64 md:w-72 z-10"
+                                    className="absolute left-1/2 -translate-x-1/2 w-52 md:w-64 z-10"
                                     style={{
                                         top: topPos,
                                         transform: `translateX(calc(-50% + ${xOffset}px))`
@@ -216,6 +216,11 @@ export const MusicLevelSelectionPage = () => {
                                             <h3 className="text-lg font-black text-slate-800 line-clamp-1 group-hover:text-bubblegum transition-colors">
                                                 {track.title}
                                             </h3>
+                                            {track.description && (
+                                                <p className="mt-2 text-sm text-slate-500 line-clamp-2">
+                                                    {track.description}
+                                                </p>
+                                            )}
                                             <div className="flex justify-center gap-1 mt-1 text-sunshine">
                                                 <Star className="w-3 h-3 fill-current" />
                                                 <Star className="w-3 h-3 fill-current" />

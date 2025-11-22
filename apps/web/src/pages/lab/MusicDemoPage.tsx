@@ -186,16 +186,14 @@ export const MusicDemoPage = () => {
         setWordInputs(wordSlots.map(() => ""));
         setWordErrors({});
 
-        // Extract fillable words and shuffle them
         const fillableWords = wordSlots
             .filter(slot => slot.fillableLength > 0)
             .map(slot => slot.core);
 
-        // Shuffle array
         const shuffled = [...fillableWords].sort(() => Math.random() - 0.5);
         setWordBank(shuffled);
         setUsedBankIndices(new Set());
-    }, [wordSlots]);
+    }, [wordSlots, phraseText, currentPhraseIndex]);
 
     // Handle word bank click - fill first empty slot
     const handleBankWordClick = useCallback((bankIndex: number) => {
@@ -208,7 +206,10 @@ export const MusicDemoPage = () => {
             slot.fillableLength > 0 && !wordInputs[idx]
         );
 
-        if (emptySlotIndex === -1) return;
+        if (emptySlotIndex === -1) {
+            // Optional: Shake the bank word to indicate no slots available?
+            return;
+        }
 
         // Fill the slot
         const newInputs = [...wordInputs];
@@ -219,7 +220,7 @@ export const MusicDemoPage = () => {
         setUsedBankIndices(prev => new Set([...prev, bankIndex]));
 
         playClick();
-    }, [wordBank, wordSlots, wordInputs, usedBankIndices, isInputLocked]);
+    }, [wordBank, wordSlots, wordInputs, usedBankIndices, isInputLocked, playClick]);
 
     // Handle slot click - remove word and return to bank
     const handleSlotClick = useCallback((slotIndex: number) => {
@@ -508,7 +509,7 @@ export const MusicDemoPage = () => {
 
                     <div className="flex items-center gap-3">
                         {/* Mode Toggle */}
-                        <div className="bg-slate-100 p-1 rounded-full flex items-center border border-slate-200 mr-2">
+                        <div className="relative bg-slate-100 p-1 rounded-full flex items-center border-2 border-slate-200 mr-2 shadow-sm">
                             <button
                                 onClick={() => {
                                     setInteractionMode("wordBank");
@@ -516,14 +517,14 @@ export const MusicDemoPage = () => {
                                     setWordInputs(wordSlots.map(() => ""));
                                 }}
                                 className={classNames(
-                                    "flex items-center justify-center w-8 h-8 rounded-full transition-all duration-300",
+                                    "flex items-center justify-center w-10 h-10 rounded-full text-xl transition-all duration-300",
                                     interactionMode === "wordBank"
-                                        ? "bg-white text-indigo-600 shadow-sm"
+                                        ? "bg-white text-indigo-600 shadow-md scale-105"
                                         : "text-slate-400 hover:text-slate-600"
                                 )}
                                 title="Tap to Fill"
                             >
-                                <MousePointerClick className="w-4 h-4" />
+                                <MousePointerClick className="w-5 h-5" />
                             </button>
                             <button
                                 onClick={() => {
@@ -532,14 +533,14 @@ export const MusicDemoPage = () => {
                                     setWordInputs(wordSlots.map(() => ""));
                                 }}
                                 className={classNames(
-                                    "flex items-center justify-center w-8 h-8 rounded-full transition-all duration-300",
+                                    "flex items-center justify-center w-10 h-10 rounded-full text-xl transition-all duration-300",
                                     interactionMode === "typing"
-                                        ? "bg-white text-indigo-600 shadow-sm"
+                                        ? "bg-white text-indigo-600 shadow-md scale-105"
                                         : "text-slate-400 hover:text-slate-600"
                                 )}
                                 title="Type"
                             >
-                                <Keyboard className="w-4 h-4" />
+                                <Keyboard className="w-5 h-5" />
                             </button>
                         </div>
 
@@ -552,40 +553,6 @@ export const MusicDemoPage = () => {
                         </button>
                     </div>
                 </header>
-
-                {/* Action Panel */}
-                <div className="sticky top-4 z-30 mb-8 w-full max-w-3xl mx-auto">
-                    <div className="flex justify-center sm:justify-end">
-                        {feedback.type ? (
-                            <div className={classNames(
-                                "flex items-center gap-3 px-6 py-3 rounded-full text-sm font-bold uppercase tracking-wider shadow-lg border",
-                                feedback.type === "correct"
-                                    ? "bg-emerald-50 text-emerald-600 border-emerald-100 shadow-emerald-100"
-                                    : "bg-rose-50 text-rose-600 border-rose-100 shadow-rose-100"
-                            )}>
-                                {feedback.type === "correct" ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
-                                {feedback.message}
-                            </div>
-                        ) : (
-                            <button
-                                onClick={checkAnswer}
-                                disabled={isSubmitDisabled}
-                                className={classNames(
-                                    "group flex items-center gap-3 px-8 py-4 rounded-full text-xs font-bold uppercase tracking-[0.3em] transition-all duration-300 border-4 border-white shadow-lg",
-                                    isSubmitDisabled
-                                        ? "bg-slate-100 text-slate-300 cursor-not-allowed"
-                                        : "bg-sky text-white shadow-sky/40 hover:scale-105 hover:shadow-2xl active:scale-95"
-                                )}
-                            >
-                                <span>Check Answer</span>
-                                <ArrowRight className={classNames(
-                                    "w-4 h-4 transition-transform duration-300",
-                                    !isSubmitDisabled && "group-hover:translate-x-1"
-                                )} />
-                            </button>
-                        )}
-                    </div>
-                </div>
 
                 {/* Main Game Area */}
                 <main className="flex-1 flex flex-col items-center justify-center w-full max-w-3xl mx-auto">
@@ -772,29 +739,66 @@ export const MusicDemoPage = () => {
                                 {/* Word Bank - Only show in Word Bank mode */}
                                 {interactionMode === "wordBank" && (
                                     <div className="px-8">
-                                        <div className="flex flex-wrap items-center justify-center gap-3 p-6 bg-slate-50 rounded-3xl border-2 border-slate-100 min-h-[100px]">
-                                            {wordBank.map((word, bankIndex) => {
-                                                const isUsed = usedBankIndices.has(bankIndex);
+                                        {wordBank.length > 0 ? (
+                                            <div className="flex flex-wrap items-center justify-center gap-3 p-6 bg-slate-50 rounded-3xl border-2 border-slate-100 min-h-[100px]">
+                                                {wordBank.map((word, bankIndex) => {
+                                                    const isUsed = usedBankIndices.has(bankIndex);
 
-                                                return (
-                                                    <button
-                                                        key={`bank-${bankIndex}-${word}`}
-                                                        onClick={() => handleBankWordClick(bankIndex)}
-                                                        disabled={isUsed || isInputLocked}
-                                                        className={classNames(
-                                                            "px-6 py-3 rounded-2xl text-2xl font-bold transition-all duration-300 border-3 border-white",
-                                                            isUsed
-                                                                ? "bg-slate-100 text-slate-300 cursor-not-allowed opacity-40"
-                                                                : "bg-white text-slate-700 shadow-lg shadow-sky/20 hover:scale-110 hover:shadow-xl hover:shadow-bubblegum/30 hover:bg-sunshine hover:text-white active:scale-95"
-                                                        )}
-                                                    >
-                                                        {word}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
+                                                    return (
+                                                        <button
+                                                            key={`bank-${bankIndex}-${word}`}
+                                                            onClick={() => handleBankWordClick(bankIndex)}
+                                                            disabled={isUsed || isInputLocked}
+                                                            className={classNames(
+                                                                "px-6 py-3 rounded-2xl text-2xl font-bold transition-all duration-300 border-3 border-white",
+                                                                isUsed
+                                                                    ? "bg-slate-100 text-slate-300 cursor-not-allowed opacity-40"
+                                                                    : "bg-white text-slate-700 shadow-lg shadow-sky/20 hover:scale-110 hover:shadow-xl hover:shadow-bubblegum/30 hover:bg-sunshine hover:text-white active:scale-95"
+                                                            )}
+                                                        >
+                                                            {word}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center justify-center p-8 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 text-slate-400 font-bold min-h-[100px]">
+                                                No words available / 暂无单词
+                                            </div>
+                                        )}
                                     </div>
                                 )}
+
+                                <div className="mt-6 flex justify-center">
+                                    {feedback.type ? (
+                                        <div className={classNames(
+                                            "flex items-center gap-3 px-5 py-3 rounded-full text-sm font-bold uppercase tracking-wider shadow-lg border",
+                                            feedback.type === "correct"
+                                                ? "bg-emerald-50 text-emerald-600 border-emerald-100 shadow-emerald-100"
+                                                : "bg-rose-50 text-rose-600 border-rose-100 shadow-rose-100"
+                                        )}>
+                                            {feedback.type === "correct" ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
+                                            {feedback.message}
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={checkAnswer}
+                                            disabled={isSubmitDisabled}
+                                            className={classNames(
+                                                "group flex items-center gap-3 px-6 py-3 rounded-full text-xs font-bold uppercase tracking-[0.25em] transition-all duration-300 border-4 border-white shadow-lg",
+                                                isSubmitDisabled
+                                                    ? "bg-slate-100 text-slate-300 cursor-not-allowed"
+                                                    : "bg-sky text-white shadow-sky/40 hover:scale-105 hover:shadow-2xl active:scale-95"
+                                            )}
+                                        >
+                                            <span>Check Answer</span>
+                                            <ArrowRight className={classNames(
+                                                "w-4 h-4 transition-transform duration-300",
+                                                !isSubmitDisabled && "group-hover:translate-x-1"
+                                            )} />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
 
                         </div>

@@ -33,10 +33,10 @@ export const MusicCover = ({ url, title, className, size = "md" }: MusicCoverPro
     }, [title]);
 
     const sizeClasses = {
-        sm: "w-12 h-12 rounded-xl border-2 border-white shadow-md",
-        md: "w-32 h-32 rounded-3xl border-4 border-white shadow-xl",
-        lg: "w-48 h-48 rounded-[2rem] border-[6px] border-white shadow-2xl",
-        xl: "w-full aspect-square rounded-[2.5rem] border-[8px] border-white shadow-[0_20px_50px_rgba(0,0,0,0.1)]",
+        sm: "w-10 h-10 rounded-lg border-2 border-white shadow-md",
+        md: "w-28 h-28 rounded-2xl border-[3px] border-white shadow-lg",
+        lg: "w-44 h-44 rounded-[1.75rem] border-[5px] border-white shadow-xl",
+        xl: "w-full aspect-square rounded-[1.75rem] border-[6px] border-white shadow-[0_16px_35px_rgba(0,0,0,0.08)]",
     };
 
     // Sticker shadow color based on gradient
