@@ -68,7 +68,11 @@ export const MusicEditPage = () => {
   const { data: track, isFetching, error } = useQuery({
     queryKey: ["music-track", id],
     queryFn: () => fetchMusicTrackDetail(id!),
-    enabled: Boolean(id)
+    enabled: Boolean(id),
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    staleTime: 1000 * 60 * 5,
+    keepPreviousData: true
   });
 
   useEffect(() => {
