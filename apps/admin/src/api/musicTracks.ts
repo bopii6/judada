@@ -1,4 +1,4 @@
-import type { MusicTrackDetail } from "@judada/shared";
+import type { MusicTrackDetail, MusicTrackSummary } from "@judada/shared";
 import { apiFetch } from "./http";
 
 export interface UploadMusicTrackPayload {
@@ -19,7 +19,7 @@ export interface UpdateMusicTrackPayload {
 }
 
 export const fetchMusicTracks = async () => {
-  const response = await apiFetch<{ tracks: MusicTrackDetail[] }>("/admin/music-tracks");
+  const response = await apiFetch<{ tracks: MusicTrackSummary[] }>("/admin/music-tracks");
   return response.tracks;
 };
 

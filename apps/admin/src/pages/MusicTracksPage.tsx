@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { MusicTrackDetail, MusicTrackStatus } from "@judada/shared";
+import type { MusicTrackDetail, MusicTrackStatus, MusicTrackSummary } from "@judada/shared";
 import {
   fetchMusicTracks,
   fetchMusicTrackDetail,
@@ -63,7 +63,7 @@ const buildEditorState = (track: MusicTrackDetail): EditorState => ({
 
 export const MusicTracksPage = () => {
   const queryClient = useQueryClient();
-  const { data: tracks = [], isLoading, error } = useQuery({
+  const { data: tracks = [], isLoading, error } = useQuery<MusicTrackSummary[]>({
     queryKey: ["music-tracks"],
     queryFn: fetchMusicTracks
   });

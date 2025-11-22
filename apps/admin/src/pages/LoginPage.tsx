@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import "./LoginPage.css";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
+
 export const LoginPage = () => {
   const navigate = useNavigate();
   const { login, adminKey: storedAdminKey } = useAuth();
@@ -10,8 +12,9 @@ export const LoginPage = () => {
   const [name, setName] = useState("");
   const [adminKey, setAdminKey] = useState(storedAdminKey ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedName = name.trim();
     const trimmedKey = adminKey.trim();
@@ -25,8 +28,34 @@ export const LoginPage = () => {
       return;
     }
 
-    login({ name: trimmedName, adminKey: trimmedKey });
-    navigate("/dashboard");
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/overview`, {
+        headers: {
+          "x-admin-key": trimmedKey
+        }
+      });
+
+      if (!response.ok) {
+        let message = "管理员密钥错误，请检查后重试。";
+        try {
+          const body = await response.json();
+          if (body?.error) message = body.error;
+        } catch {
+          // ignore json parse
+        }
+        throw new Error(message);
+      }
+
+      login({ name: trimmedName, adminKey: trimmedKey });
+      navigate("/dashboard");
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -54,8 +83,8 @@ export const LoginPage = () => {
 
         {error && <p className="login-error">{error}</p>}
 
-        <button type="submit" className="login-submit">
-          进入后台
+        <button type="submit" className="login-submit" disabled={isSubmitting}>
+          {isSubmitting ? "验证中..." : "进入后台"}
         </button>
       </form>
     </div>

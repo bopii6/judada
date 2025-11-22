@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import type { MusicTrackDetail, MusicTrackStatus } from "@judada/shared";
+import type { MusicTrackSummary, MusicTrackStatus } from "@judada/shared";
 import { fetchMusicTracks, updateMusicTrack, deleteMusicTrack } from "../api/musicTracks";
 
 const statusTextMap: Record<MusicTrackStatus, string> = {
@@ -30,7 +30,7 @@ const formatDuration = (durationMs?: number | null) => {
 
 export const MusicListPage = () => {
   const queryClient = useQueryClient();
-  const { data: tracks = [], isLoading, error } = useQuery({
+  const { data: tracks = [], isLoading, error } = useQuery<MusicTrackSummary[]>({
     queryKey: ["music-tracks"],
     queryFn: fetchMusicTracks
   });

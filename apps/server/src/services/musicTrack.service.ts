@@ -122,21 +122,34 @@ const normalizeMimeType = (file: Express.Multer.File) => {
   return "application/octet-stream";
 };
 
+const resolveCoverUrl = (track: { slug: string; title: string; coverUrl?: string | null }) => {
+  if (track.coverUrl) return track.coverUrl;
+  if (track.slug === "baby-shark" || track.title.includes("Shark") || track.title.includes("鲨鱼")) {
+    return "https://images.unsplash.com/photo-1551244072-5d12893278ab?q=80&w=1000&auto=format&fit=crop";
+  }
+  return null;
+};
+
+const formatTrackSummary = (track: Prisma.MusicTrackGetPayload<Record<string, never>>) => ({
+  id: track.id,
+  slug: track.slug,
+  title: track.title,
+  artist: track.artist,
+  description: track.description,
+  coverUrl: resolveCoverUrl(track),
+  status: track.status,
+  durationMs: track.durationMs,
+  audioUrl: null,
+  createdAt: track.createdAt,
+  updatedAt: track.updatedAt,
+  publishedAt: track.publishedAt
+});
+
 const formatTrackResponse = async (track: Prisma.MusicTrackGetPayload<Record<string, never>>) => {
   const audioUrl = await fetchSignedUrl(track.audioStoragePath);
   return {
-    id: track.id,
-    slug: track.slug,
-    title: track.title,
-    artist: track.artist,
-    description: track.description,
-    coverUrl: track.coverUrl || ((track.slug === "baby-shark" || track.title.includes("Shark") || track.title.includes("鲨鱼")) ? "https://images.unsplash.com/photo-1551244072-5d12893278ab?q=80&w=1000&auto=format&fit=crop" : null),
-    status: track.status,
-    durationMs: track.durationMs,
+    ...formatTrackSummary(track),
     audioUrl,
-    createdAt: track.createdAt,
-    updatedAt: track.updatedAt,
-    publishedAt: track.publishedAt,
     words: toWordArray(track.words),
     phrases: toPhraseArray(track.phrases),
     metadata: track.metadata ?? null
@@ -146,9 +159,22 @@ const formatTrackResponse = async (track: Prisma.MusicTrackGetPayload<Record<str
 export const musicTrackService = {
   listForAdmin: async () => {
     const tracks = await prisma.musicTrack.findMany({
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        artist: true,
+        description: true,
+        coverUrl: true,
+        status: true,
+        durationMs: true,
+        createdAt: true,
+        updatedAt: true,
+        publishedAt: true
+      }
     });
-    return Promise.all(tracks.map(formatTrackResponse));
+    return tracks.map(formatTrackSummary);
   },
 
   getForAdmin: async (id: string) => {
