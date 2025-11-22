@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import type { MusicTrackDetail, MusicTrackStatus } from "@judada/shared";
 import { fetchMusicTrackDetail, updateMusicTrack, parseLrcFile } from "../api/musicTracks";
 import { MusicSegmentEditor } from "../components/MusicSegmentEditor";
@@ -72,7 +72,7 @@ export const MusicEditPage = () => {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     staleTime: 1000 * 60 * 5,
-    keepPreviousData: true
+    placeholderData: keepPreviousData
   });
 
   useEffect(() => {
