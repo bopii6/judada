@@ -122,7 +122,7 @@ const normalizeMimeType = (file: Express.Multer.File) => {
   return "application/octet-stream";
 };
 
-type TrackSummaryInput = Pick<Prisma.MusicTrack, "id" | "slug" | "title" | "artist" | "description" | "coverUrl" | "status" | "durationMs" | "createdAt" | "updatedAt" | "publishedAt">;
+type TrackSummaryInput = Pick<Prisma.MusicTrackGetPayload<Record<string, never>>, "id" | "slug" | "title" | "artist" | "description" | "coverUrl" | "status" | "durationMs" | "createdAt" | "updatedAt" | "publishedAt">;
 
 const resolveCoverUrl = (track: { slug: string; title: string; coverUrl?: string | null }) => {
   if (track.coverUrl) return track.coverUrl;
