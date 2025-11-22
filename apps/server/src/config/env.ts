@@ -11,7 +11,14 @@ const dotenvPaths = [
 for (const dotenvPath of dotenvPaths) {
   if (fs.existsSync(dotenvPath)) {
     dotenv.config({ path: dotenvPath });
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[env] Loaded .env from ${dotenvPath}`);
+    }
   }
+}
+
+if (process.env.NODE_ENV !== "production") {
+  console.log("[env] ADMIN_KEY (preview):", process.env.ADMIN_KEY?.slice(0, 4) ?? "<not set>");
 }
 
 const envSchema = z.object({
