@@ -551,6 +551,40 @@ export const MusicDemoPage = () => {
                     </div>
                 </header>
 
+                {/* Action Panel */}
+                <div className="sticky top-4 z-30 mb-8 w-full max-w-3xl mx-auto">
+                    <div className="flex justify-center sm:justify-end">
+                        {feedback.type ? (
+                            <div className={classNames(
+                                "flex items-center gap-3 px-6 py-3 rounded-full text-sm font-bold uppercase tracking-wider shadow-lg border",
+                                feedback.type === "correct"
+                                    ? "bg-emerald-50 text-emerald-600 border-emerald-100 shadow-emerald-100"
+                                    : "bg-rose-50 text-rose-600 border-rose-100 shadow-rose-100"
+                            )}>
+                                {feedback.type === "correct" ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
+                                {feedback.message}
+                            </div>
+                        ) : (
+                            <button
+                                onClick={checkAnswer}
+                                disabled={isSubmitDisabled}
+                                className={classNames(
+                                    "group flex items-center gap-3 px-8 py-4 rounded-full text-xs font-bold uppercase tracking-[0.3em] transition-all duration-300 border-4 border-white shadow-lg",
+                                    isSubmitDisabled
+                                        ? "bg-slate-100 text-slate-300 cursor-not-allowed"
+                                        : "bg-sky text-white shadow-sky/40 hover:scale-105 hover:shadow-2xl active:scale-95"
+                                )}
+                            >
+                                <span>Check Answer</span>
+                                <ArrowRight className={classNames(
+                                    "w-4 h-4 transition-transform duration-300",
+                                    !isSubmitDisabled && "group-hover:translate-x-1"
+                                )} />
+                            </button>
+                        )}
+                    </div>
+                </div>
+
                 {/* Main Game Area */}
                 <main className="flex-1 flex flex-col items-center justify-center w-full max-w-3xl mx-auto">
                     {gameState === "completed" ? (
@@ -761,37 +795,6 @@ export const MusicDemoPage = () => {
                                 )}
                             </div>
 
-                            {/* Feedback & Action */}
-                            <div className="h-24 flex items-center justify-center">
-                                {feedback.type ? (
-                                    <div className={classNames(
-                                        "flex items-center gap-4 px-8 py-4 rounded-full text-base font-bold uppercase tracking-wider shadow-lg animate-in slide-in-from-bottom-4 border",
-                                        feedback.type === "correct"
-                                            ? "bg-emerald-50 text-emerald-600 border-emerald-100 shadow-emerald-100"
-                                            : "bg-rose-50 text-rose-600 border-rose-100 shadow-rose-100"
-                                    )}>
-                                        {feedback.type === "correct" ? <CheckCircle2 className="w-6 h-6" /> : <XCircle className="w-6 h-6" />}
-                                        {feedback.message}
-                                    </div>
-                                ) : (
-                                    <button
-                                        onClick={checkAnswer}
-                                        disabled={isSubmitDisabled}
-                                        className={classNames(
-                                            "group flex items-center gap-3 px-10 py-5 rounded-full text-sm font-bold uppercase tracking-widest transition-all duration-300 border-4 border-white",
-                                            isSubmitDisabled
-                                                ? "bg-slate-100 text-slate-300 cursor-not-allowed"
-                                                : "bg-sky text-white shadow-xl shadow-sky/40 hover:scale-110 hover:shadow-2xl active:scale-95"
-                                        )}
-                                    >
-                                        <span>Check Answer</span>
-                                        <ArrowRight className={classNames(
-                                            "w-4 h-4 transition-transform duration-300",
-                                            !isSubmitDisabled && "group-hover:translate-x-1"
-                                        )} />
-                                    </button>
-                                )}
-                            </div>
                         </div>
                     )}
                 </main>

@@ -1,4 +1,5 @@
 import axios from "axios";
+import { callHunyuanChat } from "../lib/hunyuan";
 import { HttpError } from "../utils/errors";
 
 interface DictionaryEntry {
@@ -74,53 +75,45 @@ const getEmojiForWord = (word: string, definition: string, partOfSpeech: string)
     return '📖';
 };
 
-// AI-powered translation using OpenAI - Kid-friendly, cute style for ages 3-15
-const translateToChinese = async (word: string, definition: string, partOfSpeech: string): Promise<{ translation: string, definitionCn: string }> => {
-    try {
-        const { getOpenAI } = require('../lib/openai');
-        const openai = getOpenAI();
+const kidFriendlySystemPrompt = "你是一位幽默有趣的英语启蒙老师，擅长把任何单词解释成3-15岁小朋友能听懂的风格。请确保输出总是可解析的JSON。";
 
-        const prompt = `你是一个超级有趣的英语小老师！🎈 请为 3-15 岁的小朋友翻译和解释这个单词。
-
+const buildKidFriendlyPrompt = (word: string, definition: string, partOfSpeech: string) => `请把下面的英文释义翻译成小朋友能理解的风格：
 单词: ${word}
 词性: ${partOfSpeech}
 英文释义: ${definition}
 
-请返回一个 JSON 格式的数据，包含以下两个字段：
-1. "translation": 单词的中文直译（简单、常用，适合儿童）
-2. "definitionCn": 用可爱、生动的方式给小朋友解释这个词的意思（1-2句话）
+请返回一个 JSON，对象必须只包含以下键：
+1. "translation": 单词最常见的中文翻译；
+2. "definitionCn": 充满想象力、可爱又简洁的解释（1-2句话，适合小朋友，并可包含表情符号）。
 
-示例格式：
+示例：
 {
   "translation": "苹果",
-  "definitionCn": "一种圆圆的、红红的水果，咬一口脆脆甜甜的，非常好吃！🍎"
+  "definitionCn": "一种圆圆的水果，咬一口脆脆甜甜的，就像小朋友的脸颊一样可爱！🍎"
 }
 
-请只返回 JSON 数据。`;
+请只输出 JSON 内容，不要包含额外文本。`;
 
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-                {
-                    role: "system",
-                    content: "你是一个JSON生成器。请只返回纯JSON格式的数据，不要包含Markdown标记或其他文本。"
-                },
-                {
-                    role: "user",
-                    content: prompt
-                }
-            ],
-            temperature: 0.7,
-            max_tokens: 200,
-            response_format: { type: "json_object" }
-        });
+const extractJsonBlock = (text: string) => {
+    const trimmed = text.trim();
+    const fencedMatch = trimmed.match(/```json\s*([\s\S]*?)```/i) || trimmed.match(/```([\s\S]*?)```/);
+    return (fencedMatch ? fencedMatch[1] : trimmed).trim();
+};
 
-        const content = response.choices[0]?.message?.content?.trim();
-        if (!content) return { translation: word, definitionCn: definition };
+const translateToChinese = async (word: string, definition: string, partOfSpeech: string): Promise<{ translation: string, definitionCn: string }> => {
+    try {
+        const response = await callHunyuanChat([
+            { Role: "system", Content: kidFriendlySystemPrompt },
+            { Role: "user", Content: buildKidFriendlyPrompt(word, definition, partOfSpeech) }
+        ], { temperature: 0.4 });
 
-        return JSON.parse(content);
+        const payload = JSON.parse(extractJsonBlock(response));
+        return {
+            translation: payload.translation || word,
+            definitionCn: payload.definitionCn || definition
+        };
     } catch (error) {
-        console.error("OpenAI translation error:", error);
+        console.error("Hunyuan translation error:", error);
         return { translation: word, definitionCn: definition };
     }
 };
@@ -160,7 +153,7 @@ export const dictionaryService = {
             // Get emoji
             const emoji = getEmojiForWord(cleanWord, definition, partOfSpeech);
 
-            // Translate to Chinese using AI (kid-friendly style)
+            // Translate to Chinese via Google for faster lookup
             const { translation, definitionCn } = await translateToChinese(cleanWord, definition, partOfSpeech);
 
             return {

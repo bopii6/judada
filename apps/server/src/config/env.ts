@@ -28,6 +28,8 @@ const envSchema = z.object({
   TENCENT_SECRET_KEY: z.string().min(1, "TENCENT_SECRET_KEY is required"),
   TENCENT_ASR_REGION: z.string().default("ap-guangzhou"),
   TENCENT_ASR_ENGINE: z.string().default("16k_en"),
+  TENCENT_HUNYUAN_REGION: z.string().default("ap-guangzhou"),
+  TENCENT_HUNYUAN_MODEL: z.string().default("hunyuan-turbo"),
   REDIS_URL: z.string().min(1, "REDIS_URL is required"),
   QUEUE_PREFIX: z.string().default("course-gen"),
   SMTP_HOST: z.string().optional(),
