@@ -12,12 +12,58 @@ import { MusicDemoPage } from "./pages/lab/MusicDemoPage";
 import { MusicLevelSelectionPage } from "./pages/lab/MusicLevelSelectionPage";
 import { useAuth } from "./hooks/useAuth";
 import { useCloudSync, progressStore } from "./store/progressStore";
+import { useQueryClient } from "@tanstack/react-query";
+import { fetchMusicTracks } from "./api/music";
+import { warmMusicAssets } from "./utils/musicAssetCache";
 
 const App = () => {
   const { isAuthenticated, isLoading } = useAuth();
+  const queryClient = useQueryClient();
+  const hasPrefetchedAssets = React.useRef(false);
 
   // 初始化云同步
   useCloudSync();
+
+  // 预加载音乐闯关资源，用户点击菜单即刻可用
+  React.useEffect(() => {
+    void queryClient.prefetchQuery({
+      queryKey: ["lab-music-tracks"],
+      queryFn: fetchMusicTracks,
+      staleTime: 1000 * 60 * 10
+    });
+  }, [queryClient]);
+
+  // 进一步预加载封面与音频资源，进入闯关时秒开
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const prefetchAssets = async () => {
+      if (hasPrefetchedAssets.current) return;
+
+      try {
+        const tracks = await queryClient.ensureQueryData({
+          queryKey: ["lab-music-tracks"],
+          queryFn: fetchMusicTracks,
+          staleTime: 1000 * 60 * 10
+        });
+
+        if (cancelled || hasPrefetchedAssets.current) return;
+
+        await warmMusicAssets(tracks, 4);
+        if (!cancelled) {
+          hasPrefetchedAssets.current = true;
+        }
+      } catch (error) {
+        console.warn("[Prefetch] music assets failed", error);
+      }
+    };
+
+    void prefetchAssets();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [queryClient]);
 
   // 登录后立即拉取云端进度，避免初始为 0
   React.useEffect(() => {

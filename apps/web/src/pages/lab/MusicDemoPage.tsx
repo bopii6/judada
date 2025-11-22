@@ -10,6 +10,7 @@ import { useSoundEffects } from "../../hooks/useSoundEffects";
 import { MusicCover } from "../../components/MusicCover";
 import { WordDetailSidebar } from "../../components/WordDetailSidebar";
 import { fetchWordDefinition } from "../../api/dictionary";
+import { getCachedAudioUrl } from "../../utils/musicAssetCache";
 
 type GameState = "idle" | "playing" | "waiting" | "completed";
 
@@ -97,6 +98,7 @@ export const MusicDemoPage = () => {
 
     const song = activeTrack ?? SAMPLE_TRACK;
     const usingSample = !activeTrack;
+    const audioSource = useMemo(() => getCachedAudioUrl(song.audioUrl) ?? song.audioUrl ?? "", [song.audioUrl]);
 
     const [gameState, setGameState] = useState<GameState>("idle");
     const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
@@ -473,7 +475,7 @@ export const MusicDemoPage = () => {
 
             <audio
                 ref={audioRef}
-                src={song.audioUrl ?? ""}
+                src={audioSource}
                 preload="auto"
                 onTimeUpdate={handleTimeUpdate}
                 className="hidden"

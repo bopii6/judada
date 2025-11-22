@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import classNames from "classnames";
 import { Music } from "lucide-react";
+import { getCachedCoverUrl } from "../utils/musicAssetCache";
 
 interface MusicCoverProps {
     url?: string | null;
@@ -21,6 +22,7 @@ const GRADIENTS = [
 ];
 
 export const MusicCover = ({ url, title, className, size = "md" }: MusicCoverProps) => {
+    const resolvedUrl = url ? getCachedCoverUrl(url) : undefined;
     const gradient = useMemo(() => {
         let hash = 0;
         for (let i = 0; i < title.length; i++) {
@@ -47,7 +49,7 @@ export const MusicCover = ({ url, title, className, size = "md" }: MusicCoverPro
         return "shadow-slate-200";
     }, [gradient]);
 
-    if (url) {
+    if (resolvedUrl) {
         return (
             <div className={classNames(
                 "relative overflow-hidden bg-white transition-transform duration-300 hover:scale-105 hover:rotate-2",
@@ -55,7 +57,7 @@ export const MusicCover = ({ url, title, className, size = "md" }: MusicCoverPro
                 className
             )}>
                 <img
-                    src={url}
+                    src={resolvedUrl}
                     alt={title}
                     className="w-full h-full object-cover"
                 />
