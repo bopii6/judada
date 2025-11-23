@@ -65,6 +65,7 @@ export interface MusicTrackSummary {
   id: string;
   slug: string;
   title: string;
+  titleCn?: string | null;
   artist?: string | null;
   coverUrl?: string | null;
   description?: string | null;
@@ -81,4 +82,3 @@ export interface MusicTrackDetail extends MusicTrackSummary {
   metadata?: Record<string, unknown> | null;
   publishedAt?: string | null;
 }
-

@@ -197,6 +197,7 @@ model Asset {
 model MusicTrack {
   id               String           @id @default(uuid())
   title            String
+  titleCn          String?
   slug             String           @unique
   artist           String?
   description      String?

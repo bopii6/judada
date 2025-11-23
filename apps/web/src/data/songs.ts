@@ -4,6 +4,7 @@ export const SAMPLE_TRACK: MusicTrackDetail = {
   id: "sample-baby-shark",
   slug: "baby-shark",
   title: "Baby Shark",
+  titleCn: "宝贝鲨鱼",
   artist: "Pinkfong",
   coverUrl: "https://images.unsplash.com/photo-1551244072-5d12893278ab?q=80&w=1000&auto=format&fit=crop",
   description: "示例歌曲，用于在后台没有音频时展示体验效果。",

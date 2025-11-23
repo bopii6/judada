@@ -53,6 +53,7 @@ const numericString = z.preprocess(
 
 const createTrackMetadataSchema = z.object({
   title: z.string().trim().optional(),
+  titleCn: z.string().trim().optional(),
   artist: z.string().trim().optional(),
   description: z.string().optional()
 });
@@ -75,6 +76,7 @@ const musicPhraseSchema = z.object({
 
 const updateTrackSchema = z.object({
   title: z.string().min(1).optional(),
+  titleCn: z.string().optional().nullable(),
   artist: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
   coverUrl: z.string().url().optional().nullable(),
@@ -237,6 +239,7 @@ router.post("/music-tracks", audioUpload.single("file"), async (req, res, next) 
     const track = await musicTrackService.createFromUpload({
       file: req.file,
       title: metadata.title,
+      titleCn: metadata.titleCn,
       artist: metadata.artist,
       description: metadata.description
     });
@@ -251,6 +254,7 @@ router.put("/music-tracks/:id", async (req, res, next) => {
     const payload = updateTrackSchema.parse(req.body);
     const track = await musicTrackService.updateTrack(req.params.id, {
       title: payload.title,
+      titleCn: payload.titleCn,
       artist: payload.artist ?? null,
       description: payload.description ?? null,
       coverUrl: payload.coverUrl ?? null,

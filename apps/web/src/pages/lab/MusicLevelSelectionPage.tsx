@@ -1,250 +1,169 @@
-import React from "react";
+import React, { useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Play, ChevronRight, ChevronLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
-import { Play, Clock, ArrowLeft, Star } from "lucide-react";
-import classNames from "classnames";
 import { fetchMusicTracks } from "../../api/music";
 import { MusicCover } from "../../components/MusicCover";
-import { Mascot } from "../../components/Mascot";
-
-const formatTrackDuration = (durationMs?: number | null) => {
-    if (!durationMs) return "--";
-    const totalSeconds = Math.max(0, Math.round(durationMs / 1000));
-    const minutes = Math.floor(totalSeconds / 60)
-        .toString()
-        .padStart(2, "0");
-    const seconds = (totalSeconds % 60).toString().padStart(2, "0");
-    return `${minutes}:${seconds}`;
-};
-
-const getSmartCoverUrl = (track: { title: string; coverUrl?: string | null; slug: string }) => {
-    if (track.coverUrl) return track.coverUrl;
-
-    const title = track.title.toLowerCase();
-
-    // Baby Shark / Shark Family
-    if (title.includes("shark") || title.includes("鲨鱼")) {
-        return "https://images.unsplash.com/photo-1551244072-5d12893278ab?q=80&w=1000&auto=format&fit=crop";
-    }
-
-    // Twinkle Twinkle Little Star
-    if (title.includes("star") || title.includes("twinkle") || title.includes("星星")) {
-        return "https://images.unsplash.com/photo-1516339901601-2e1b62dc0c45?q=80&w=1000&auto=format&fit=crop";
-    }
-
-    // Alphabet Song / ABC
-    if (title.includes("alphabet") || title.includes("abc") || title.includes("字母")) {
-        return "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1000&auto=format&fit=crop";
-    }
-
-    // Default Music / Happy theme
-    return "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=1000&auto=format&fit=crop";
-};
+import { SAMPLE_TRACK } from "../../data/songs";
+import classNames from "classnames";
 
 export const MusicLevelSelectionPage = () => {
-    const { data: tracks = [], isLoading, error } = useQuery({
+    const navigate = useNavigate();
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    // Force refresh: Horizontal Adventure Layout
+    console.log("MusicLevelSelectionPage loaded");
+
+    const { data: tracks = [], isLoading } = useQuery({
         queryKey: ["lab-music-tracks"],
         queryFn: fetchMusicTracks
     });
 
-    // Map Configuration
-    const ITEM_SPACING = 320; // Vertical space between items
-    const WAVE_AMPLITUDE = 180; // Horizontal sway
-    const START_OFFSET = 100; // Initial vertical padding
+    const displayTracks = tracks.length > 0 ? tracks : [SAMPLE_TRACK];
 
-    // Calculate total height
-    const totalHeight = (tracks.length * ITEM_SPACING) + START_OFFSET + 200;
-
-    // Generate Winding Path SVG
-    const generatePath = () => {
-        let path = `M 0 ${START_OFFSET}`; // Start center
-
-        for (let i = 0; i < tracks.length; i++) {
-            const y = START_OFFSET + (i * ITEM_SPACING);
-            const nextY = START_OFFSET + ((i + 1) * ITEM_SPACING);
-
-            // Determine x positions (0 is center)
-            // Pattern: Center -> Right -> Center -> Left -> Center
-            const getX = (index: number) => {
-                const cycle = index % 4;
-                if (cycle === 1) return WAVE_AMPLITUDE;
-                if (cycle === 3) return -WAVE_AMPLITUDE;
-                return 0;
-            };
-
-            const currentX = getX(i);
-            const nextX = getX(i + 1);
-
-            // Cubic bezier for smooth curve
-            // Control points: vertical out from current, vertical in to next
-            const cp1x = currentX;
-            const cp1y = y + (ITEM_SPACING / 2);
-            const cp2x = nextX;
-            const cp2y = y + (ITEM_SPACING / 2);
-
-            if (i < tracks.length - 1) {
-                path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${nextX} ${nextY}`;
-            }
+    const scroll = (direction: "left" | "right") => {
+        if (scrollContainerRef.current) {
+            const scrollAmount = 340; // Card width + gap
+            scrollContainerRef.current.scrollBy({
+                left: direction === "right" ? scrollAmount : -scrollAmount,
+                behavior: "smooth"
+            });
         }
-        return path;
     };
 
     return (
-        <div className="min-h-screen w-full bg-cream text-slate-800 font-sans selection:bg-bubblegum/30 selection:text-slate-900 overflow-x-hidden">
-            {/* Cute Background Blobs */}
+        <div className="min-h-screen w-full bg-gradient-to-r from-sky-200 via-indigo-200 to-purple-200 text-slate-800 font-sans overflow-hidden flex flex-col">
+            {/* Background Elements (Parallax-ish) */}
             <div className="fixed inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-bubblegum/20 blur-[100px] animate-blob" />
-                <div className="absolute top-[20%] right-[-10%] w-[40%] h-[40%] rounded-full bg-sunshine/20 blur-[100px] animate-blob animation-delay-2000" />
-                <div className="absolute bottom-[-10%] left-[20%] w-[60%] h-[60%] rounded-full bg-sky/20 blur-[100px] animate-blob animation-delay-4000" />
+                <div className="absolute top-[10%] left-[5%] w-32 h-32 bg-white/30 rounded-full blur-3xl" />
+                <div className="absolute bottom-[20%] right-[10%] w-64 h-64 bg-yellow-200/20 rounded-full blur-3xl" />
+                {/* Ground / Horizon Line */}
+                <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-white/40 to-transparent" />
             </div>
 
-            {/* Mascot Guide */}
-            <Mascot />
-
-            <div className="relative z-10 max-w-[1000px] mx-auto px-6 py-12">
-                {/* Header */}
-                <header className="mb-8 flex flex-col items-center text-center space-y-6 relative z-20">
-                    <Link
-                        to="/lab"
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 backdrop-blur-sm border-2 border-indigo-100 text-indigo-400 hover:text-indigo-600 hover:border-indigo-200 hover:scale-105 transition-all duration-300 font-bold text-sm shadow-sm"
+            {/* Header */}
+            <header className="relative z-20 px-6 py-6 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => navigate("/dashboard")}
+                        className="group flex items-center justify-center w-12 h-12 rounded-full bg-white/80 backdrop-blur-md border border-white/50 shadow-sm hover:shadow-md transition-all duration-300"
                     >
-                        <ArrowLeft className="w-4 h-4" />
-                        <span>Back to Lab</span>
-                    </Link>
-
-                    <div className="relative">
-                        <h1 className="text-5xl md:text-7xl font-black tracking-tight text-slate-800 drop-shadow-sm">
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-bubblegum to-sky">Adventure Map</span>
+                        <ArrowLeft className="w-5 h-5 text-slate-600 group-hover:text-slate-900" />
+                    </button>
+                    <div>
+                        <h1 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight flex items-center gap-2 drop-shadow-sm">
+                            <span>Adventure Map</span>
+                            <span className="text-2xl">🗺️</span>
                         </h1>
-                        <div className="absolute -top-6 -right-8 text-4xl animate-bounce duration-[3000ms]">🗺️</div>
                     </div>
-                </header>
+                </div>
+            </header>
 
-                {/* Treasure Map Container */}
-                {isLoading ? (
-                    <div className="flex justify-center pt-20">
-                        <div className="animate-bounce text-4xl">🐻 Loading map...</div>
+            {/* Horizontal Scroll Container */}
+            <main className="flex-1 relative flex items-center">
+
+                {/* Navigation Buttons (Desktop) */}
+                <button
+                    onClick={() => scroll("left")}
+                    className="hidden md:flex absolute left-8 z-30 w-14 h-14 rounded-full bg-white/80 backdrop-blur-md shadow-lg items-center justify-center hover:scale-110 active:scale-95 transition-all text-slate-600 hover:text-indigo-600"
+                >
+                    <ChevronLeft className="w-8 h-8" />
+                </button>
+                <button
+                    onClick={() => scroll("right")}
+                    className="hidden md:flex absolute right-8 z-30 w-14 h-14 rounded-full bg-white/80 backdrop-blur-md shadow-lg items-center justify-center hover:scale-110 active:scale-95 transition-all text-slate-600 hover:text-indigo-600"
+                >
+                    <ChevronRight className="w-8 h-8" />
+                </button>
+
+                {/* Scroll Track */}
+                <div
+                    ref={scrollContainerRef}
+                    className="w-full overflow-x-auto flex items-center gap-8 px-8 md:px-32 py-12 snap-x snap-mandatory no-scrollbar"
+                    style={{ scrollPaddingLeft: '50vw' }}
+                >
+                    {/* Start Marker */}
+                    <div className="snap-center shrink-0 flex flex-col items-center justify-center gap-4 w-32 opacity-60">
+                        <div className="w-4 h-4 bg-slate-800 rounded-full" />
+                        <div className="text-sm font-bold uppercase tracking-widest">Start</div>
                     </div>
-                ) : error ? (
-                    <div className="text-center p-10">
-                        <p className="text-rose-500 font-bold">Map lost!</p>
-                        <button onClick={() => window.location.reload()} className="mt-4 underline">Retry</button>
-                    </div>
-                ) : (
-                    <div className="relative w-full mx-auto" style={{ height: totalHeight, maxWidth: '600px' }}>
-                        {/* Winding Path SVG */}
-                        <svg
-                            className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full overflow-visible pointer-events-none z-0"
-                            style={{ maxWidth: '600px' }}
-                        >
-                            {/* Dashed Path */}
-                            <path
-                                d={generatePath()}
-                                fill="none"
-                                stroke="#E2E8F0"
-                                strokeWidth="12"
-                                strokeLinecap="round"
-                                strokeDasharray="20 20"
-                                className="drop-shadow-sm"
-                            />
-                            <path
-                                d={generatePath()}
-                                fill="none"
-                                stroke="#94A3B8"
-                                strokeWidth="4"
-                                strokeLinecap="round"
-                                strokeDasharray="15 15"
-                                className="opacity-50"
-                            />
-                        </svg>
 
-                        {/* Start Marker */}
-                        <div className="absolute left-1/2 -translate-x-1/2 -top-4 z-10 flex flex-col items-center">
-                            <div className="w-16 h-16 bg-sunshine rounded-full border-4 border-white shadow-lg flex items-center justify-center animate-bounce">
-                                <span className="text-2xl">🚩</span>
-                            </div>
-                            <span className="font-black text-slate-400 mt-2 bg-white/80 px-3 py-1 rounded-full backdrop-blur-sm">START</span>
-                        </div>
+                    {displayTracks.map((track, index) => (
+                        <div key={track.id} className="snap-center shrink-0 relative group">
+                            {/* Connecting Line (Dashed) */}
+                            {index < displayTracks.length - 1 && (
+                                <div className="absolute top-1/2 left-full w-8 h-1 bg-slate-400/30 -translate-y-1/2 z-0" />
+                            )}
 
-                        {/* Track Items */}
-                        {tracks.map((track, index) => {
-                            // Calculate Position
-                            const cycle = index % 4;
-                            let xOffset = 0;
-                            if (cycle === 1) xOffset = WAVE_AMPLITUDE;
-                            if (cycle === 3) xOffset = -WAVE_AMPLITUDE;
+                            <Link
+                                to={`/lab/music/${track.slug}`}
+                                className="block w-[280px] md:w-[320px] transition-transform duration-500 hover:-translate-y-4"
+                            >
+                                {/* Card / Island */}
+                                <div className="bg-white rounded-[2.5rem] p-4 shadow-xl shadow-indigo-900/10 border-[6px] border-white group-hover:shadow-2xl group-hover:shadow-indigo-500/20 transition-all duration-300 relative overflow-hidden">
 
-                            const topPos = START_OFFSET + (index * ITEM_SPACING);
+                                    {/* Level Badge */}
+                                    <div className="absolute top-4 left-4 z-20 bg-slate-900 text-white text-xs font-black px-3 py-1 rounded-full shadow-md">
+                                        Level {index + 1}
+                                    </div>
 
-                            return (
-                                <div
-                                    key={track.id}
-                                    className="absolute left-1/2 -translate-x-1/2 w-52 md:w-64 z-10"
-                                    style={{
-                                        top: topPos,
-                                        transform: `translateX(calc(-50% + ${xOffset}px))`
-                                    }}
-                                >
-                                    <Link
-                                        to={`/lab/music/${track.slug}`}
-                                        className="group relative flex flex-col bg-white rounded-[2rem] border-[6px] border-white shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.12)] hover:shadow-indigo-100/50 transition-all duration-500 hover:-translate-y-2 hover:rotate-2 hover:scale-110"
-                                    >
-                                        {/* Level Number Badge */}
-                                        <div className="absolute -top-4 -left-4 w-10 h-10 bg-bubblegum text-white font-black rounded-full border-4 border-white shadow-md flex items-center justify-center z-20 transform -rotate-12 group-hover:rotate-0 transition-transform">
-                                            {index + 1}
-                                        </div>
+                                    {/* Cover Art */}
+                                    <div className="aspect-square rounded-[2rem] overflow-hidden bg-slate-100 relative mb-4">
+                                        <MusicCover
+                                            url={track.coverUrl}
+                                            title={track.title}
+                                            size="xl"
+                                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                        />
 
-                                        {/* Cover */}
-                                        <div className="relative aspect-square rounded-[1.5rem] overflow-hidden m-2">
-                                            <MusicCover
-                                                url={getSmartCoverUrl(track)}
-                                                title={track.title}
-                                                size="xl"
-                                                className="w-full h-full"
-                                            />
-
-                                            {/* Play Overlay */}
-                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/10 backdrop-blur-[1px]">
-                                                <div className="w-14 h-14 rounded-full bg-white text-bubblegum flex items-center justify-center shadow-lg animate-bounce">
-                                                    <Play className="w-6 h-6 ml-1 fill-current" />
-                                                </div>
+                                        {/* Play Button Overlay */}
+                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 bg-black/10 backdrop-blur-[1px]">
+                                            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg transform scale-50 group-hover:scale-100 transition-transform duration-300 text-indigo-600">
+                                                <Play className="w-8 h-8 fill-current ml-1" />
                                             </div>
                                         </div>
+                                    </div>
 
-                                        {/* Title */}
-                                        <div className="px-4 pb-4 text-center">
-                                            <h3 className="text-lg font-black text-slate-800 line-clamp-1 group-hover:text-bubblegum transition-colors">
-                                                {track.title}
-                                            </h3>
-                                            {track.description && (
-                                                <p className="mt-2 text-sm text-slate-500 line-clamp-2">
+                                    {/* Info */}
+                                    <div className="text-center space-y-1 pb-2">
+                                        <h3 className="text-xl font-black text-slate-800 line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                                            {track.title}
+                                        </h3>
+                                        {track.titleCn && (
+                                            <p className="text-base font-medium text-slate-500 line-clamp-1">
+                                                {track.titleCn}
+                                            </p>
+                                        )}
+
+                                        {/* Description / Introduction */}
+                                        {track.description && (
+                                            <div className="mt-3 px-3 py-2 bg-slate-50 rounded-xl border border-slate-100">
+                                                <p className="text-xs text-slate-500 text-left leading-relaxed line-clamp-3 whitespace-pre-wrap font-medium">
                                                     {track.description}
                                                 </p>
-                                            )}
-                                            <div className="flex justify-center gap-1 mt-1 text-sunshine">
-                                                <Star className="w-3 h-3 fill-current" />
-                                                <Star className="w-3 h-3 fill-current" />
-                                                <Star className="w-3 h-3 fill-current opacity-30" />
                                             </div>
-                                        </div>
-                                    </Link>
+                                        )}
+                                    </div>
                                 </div>
-                            );
-                        })}
 
-                        {/* End Marker */}
-                        <div
-                            className="absolute left-1/2 -translate-x-1/2 z-10 flex flex-col items-center"
-                            style={{ top: totalHeight - 100 }}
-                        >
-                            <div className="w-20 h-20 bg-bubblegum rounded-full border-4 border-white shadow-lg flex items-center justify-center animate-pulse">
-                                <span className="text-4xl">🏆</span>
-                            </div>
-                            <span className="font-black text-slate-400 mt-2 bg-white/80 px-3 py-1 rounded-full backdrop-blur-sm">GOAL!</span>
+                                {/* Reflection / Shadow on "Ground" */}
+                                <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-[80%] h-4 bg-black/10 blur-md rounded-[100%] transition-all duration-500 group-hover:w-[60%] group-hover:opacity-50" />
+                            </Link>
                         </div>
+                    ))}
+
+                    {/* End Marker */}
+                    <div className="snap-center shrink-0 flex flex-col items-center justify-center gap-4 w-40 opacity-60 pl-8">
+                        <div className="w-16 h-16 rounded-full border-4 border-dashed border-slate-400 flex items-center justify-center">
+                            <span className="text-2xl">🔒</span>
+                        </div>
+                        <div className="text-sm font-bold uppercase tracking-widest text-center">More<br />Coming Soon</div>
                     </div>
-                )}
-            </div>
+
+                    {/* Padding for right side scroll */}
+                    <div className="w-16 shrink-0" />
+                </div>
+            </main>
         </div>
     );
 };

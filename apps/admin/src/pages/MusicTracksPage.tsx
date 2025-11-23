@@ -29,6 +29,7 @@ const statusClassMap: Record<MusicTrackStatus, string> = {
 const initialUploadForm = {
   file: null as File | null,
   title: "",
+  titleCn: "",
   artist: "",
   description: ""
 };
@@ -45,6 +46,7 @@ const formatDuration = (durationMs?: number | null) => {
 
 interface EditorState {
   title: string;
+  titleCn: string;
   artist: string;
   status: MusicTrackStatus;
   description: string;
@@ -54,6 +56,7 @@ interface EditorState {
 
 const buildEditorState = (track: MusicTrackDetail): EditorState => ({
   title: track.title,
+  titleCn: track.titleCn ?? "",
   artist: track.artist ?? "",
   status: track.status,
   description: track.description ?? "",
@@ -141,6 +144,7 @@ export const MusicTracksPage = () => {
     uploadMutation.mutate({
       file: uploadForm.file,
       title: uploadForm.title.trim() || undefined,
+      titleCn: uploadForm.titleCn.trim() || undefined,
       artist: uploadForm.artist.trim() || undefined,
       description: uploadForm.description.trim() || undefined
     });
@@ -160,6 +164,7 @@ export const MusicTracksPage = () => {
         id: selectedId,
         payload: {
           title: editorState.title.trim(),
+          titleCn: editorState.titleCn.trim() || null,
           artist: editorState.artist.trim() || null,
           description: editorState.description.trim() || null,
           coverUrl: editorState.coverUrl.trim() || null,
@@ -207,7 +212,7 @@ export const MusicTracksPage = () => {
               </label>
               <div className="music-grid">
                 <label className="music-field">
-                  <span>歌曲标题</span>
+                  <span>英文标题</span>
                   <input
                     type="text"
                     value={uploadForm.title}
@@ -216,15 +221,24 @@ export const MusicTracksPage = () => {
                   />
                 </label>
                 <label className="music-field">
-                  <span>演唱者</span>
+                  <span>中文标题</span>
                   <input
                     type="text"
-                    value={uploadForm.artist}
-                    onChange={event => setUploadForm(prev => ({ ...prev, artist: event.target.value }))}
-                    placeholder="可选"
+                    value={uploadForm.titleCn}
+                    onChange={event => setUploadForm(prev => ({ ...prev, titleCn: event.target.value }))}
+                    placeholder="展示在卡片副标题，可选"
                   />
                 </label>
               </div>
+              <label className="music-field">
+                <span>演唱者（可选）</span>
+                <input
+                  type="text"
+                  value={uploadForm.artist}
+                  onChange={event => setUploadForm(prev => ({ ...prev, artist: event.target.value }))}
+                  placeholder="内部参考使用"
+                />
+              </label>
               <label className="music-field">
                 <span>备注</span>
                 <input
@@ -312,7 +326,7 @@ export const MusicTracksPage = () => {
               <>
                 <div className="music-grid">
                   <label className="music-field">
-                    <span>标题</span>
+                    <span>英文标题</span>
                     <input
                       type="text"
                       value={editorState.title}
@@ -320,14 +334,24 @@ export const MusicTracksPage = () => {
                     />
                   </label>
                   <label className="music-field">
-                    <span>演唱者</span>
+                    <span>中文标题</span>
                     <input
                       type="text"
-                      value={editorState.artist}
-                      onChange={event => setEditorState(prev => prev && { ...prev, artist: event.target.value })}
+                      value={editorState.titleCn}
+                      onChange={event => setEditorState(prev => prev && { ...prev, titleCn: event.target.value })}
+                      placeholder="用于展示翻译"
                     />
                   </label>
                 </div>
+
+                <label className="music-field">
+                  <span>演唱者（可选）</span>
+                  <input
+                    type="text"
+                    value={editorState.artist}
+                    onChange={event => setEditorState(prev => prev && { ...prev, artist: event.target.value })}
+                  />
+                </label>
 
                 <div className="music-grid">
                   <label className="music-field">

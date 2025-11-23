@@ -113,6 +113,7 @@ export const MusicListPage = () => {
                       <td>
                         <div className="track-title">
                           <span>{track.title}</span>
+                          {track.titleCn && <span className="track-subtitle">{track.titleCn}</span>}
                           <small>{track.slug}</small>
                         </div>
                       </td>
@@ -177,6 +178,7 @@ export const MusicListPage = () => {
                       <td>
                         <div className="track-title">
                           <span>{track.title}</span>
+                          {track.titleCn && <span className="track-subtitle">{track.titleCn}</span>}
                           <small>{track.slug}</small>
                         </div>
                       </td>
@@ -322,6 +324,12 @@ export const MusicListPage = () => {
 
         .track-title span {
           font-weight: 500;
+        }
+
+        .track-title .track-subtitle {
+          color: #4b5563;
+          font-size: 13px;
+          font-weight: 400;
         }
 
         .track-title small {

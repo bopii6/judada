@@ -9,6 +9,8 @@ import { fetchMusicTracks } from "../../api/music";
 import { useSoundEffects } from "../../hooks/useSoundEffects";
 import { MusicCover } from "../../components/MusicCover";
 import { WordDetailSidebar } from "../../components/WordDetailSidebar";
+import { WordHoverCard } from "../../components/WordHoverCard";
+import { LyricsProgressSidebar } from "../../components/LyricsProgressSidebar";
 import { fetchWordDefinition } from "../../api/dictionary";
 import { getCachedAudioUrl } from "../../utils/musicAssetCache";
 
@@ -200,6 +202,7 @@ export const MusicDemoPage = () => {
         if (usedBankIndices.has(bankIndex) || isInputLocked) return;
 
         const word = wordBank[bankIndex];
+        if (!word) return;
 
         // Find first empty fillable slot
         const emptySlotIndex = wordSlots.findIndex((slot, idx) =>
@@ -429,6 +432,22 @@ export const MusicDemoPage = () => {
         }
     }, [interactionMode, isInputLocked, focusFirstWritableBlock]);
 
+    // Auto-check when all words are filled
+    useEffect(() => {
+        const requiredWordCount = wordSlots.filter(slot => slot.fillableLength > 0).length;
+        const completedWordCount = wordSlots.filter(
+            (slot, index) => slot.fillableLength === 0 || (wordInputs[index]?.length ?? 0) === slot.fillableLength
+        ).length;
+
+        if (requiredWordCount > 0 && completedWordCount === requiredWordCount && !isInputLocked && !feedback.type) {
+            // Small delay to allow user to see the last word filled
+            const timer = setTimeout(() => {
+                checkAnswer();
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [wordInputs, wordSlots, isInputLocked, feedback.type]);
+
     const resetGame = () => {
         playClick();
         if (audioRef.current) {
@@ -502,7 +521,9 @@ export const MusicDemoPage = () => {
                             />
                             <div>
                                 <h1 className="text-xl font-bold text-slate-900 leading-tight">{song.title}</h1>
-                                <p className="text-sm font-medium text-slate-500">{song.artist ?? "Unknown Artist"}</p>
+                                {song.titleCn && (
+                                    <p className="text-sm font-medium text-slate-500">{song.titleCn}</p>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -554,256 +575,248 @@ export const MusicDemoPage = () => {
                     </div>
                 </header>
 
-                {/* Main Game Area */}
-                <main className="flex-1 flex flex-col items-center justify-center w-full max-w-3xl mx-auto">
-                    {gameState === "completed" ? (
-                        <div className="text-center space-y-8 animate-in fade-in zoom-in duration-500">
-                            <div className="relative inline-flex items-center justify-center w-24 h-24 rounded-full bg-emerald-100 text-emerald-600 mb-4 shadow-lg shadow-emerald-100">
-                                <CheckCircle2 className="w-12 h-12" />
-                            </div>
-                            <div className="space-y-2">
-                                <h2 className="text-5xl font-black text-slate-900 tracking-tight">Lesson Complete!</h2>
-                                <p className="text-xl text-slate-600 max-w-md mx-auto">
-                                    You&apos;ve successfully transcribed all the clips. Great ear!
-                                </p>
-                            </div>
-                            <button
-                                onClick={resetGame}
-                                className="mt-8 inline-flex items-center gap-3 rounded-full bg-slate-900 text-white px-10 py-5 text-sm font-bold uppercase tracking-widest shadow-xl shadow-slate-900/20 transition-transform hover:scale-105 active:scale-95"
-                            >
-                                <RefreshCw className="w-4 h-4" />
-                                Play Again
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="w-full flex flex-col gap-16">
-                            {/* Progress & Visualizer */}
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between px-2 text-xs font-bold uppercase tracking-widest text-slate-400">
-                                    <span>Phrase {displayPhraseIndex} / {phraseCount}</span>
-                                    <span>{Math.round((currentPhraseIndex / phraseCount) * 100)}% Complete</span>
-                                </div>
-                                <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-indigo-500 transition-all duration-500 ease-out"
-                                        style={{ width: `${((currentPhraseIndex) / phraseCount) * 100}%` }}
-                                    />
-                                </div>
-                            </div>
+                {/* Content Container with Sidebar */}
+                <div className="flex-1 flex w-full max-w-6xl mx-auto gap-8 overflow-hidden">
+                    {/* Lyrics Progress Sidebar (Desktop) */}
+                    <div className="hidden lg:block w-72 shrink-0 h-[calc(100vh-140px)] sticky top-0">
+                        <LyricsProgressSidebar
+                            phrases={song.phrases}
+                            currentIndex={currentPhraseIndex}
+                            className="rounded-3xl border border-white/60 shadow-sm overflow-hidden h-full"
+                        />
+                    </div>
 
-                            {/* Lyric Display Card */}
-                            <div className="relative group perspective-1000">
-                                <div className="absolute -inset-4 bg-white/50 rounded-[2.5rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                                <div className="relative bg-white/80 backdrop-blur-xl rounded-[2.5rem] border border-white/60 p-10 md:p-16 text-center transition-transform duration-300 hover:scale-[1.01] shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-
-                                    {/* Play Button - Jelly Style */}
-                                    <div className="absolute -top-8 left-1/2 -translate-x-1/2">
-                                        <button
-                                            onClick={playPhrase}
-                                            disabled={gameState === "playing" || isLoadingAudio || !song.phrases.length}
-                                            className={classNames(
-                                                "flex h-16 w-16 items-center justify-center rounded-full shadow-xl transition-all duration-300 border-4 border-white",
-                                                gameState === "playing" || isLoadingAudio
-                                                    ? "bg-white text-bubblegum scale-95 shadow-bubblegum/30"
-                                                    : "bg-bubblegum text-white hover:scale-110 hover:shadow-2xl shadow-bubblegum/40 active:scale-95"
-                                            )}
-                                        >
-                                            {isLoadingAudio ? (
-                                                <div className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                            ) : gameState === "playing" ? (
-                                                <span className="flex gap-1">
-                                                    <span className="w-1.5 h-5 bg-current rounded-full animate-[bounce_1s_infinite]" />
-                                                    <span className="w-1.5 h-5 bg-current rounded-full animate-[bounce_1s_infinite_0.2s]" />
-                                                    <span className="w-1.5 h-5 bg-current rounded-full animate-[bounce_1s_infinite_0.4s]" />
-                                                </span>
-                                            ) : (
-                                                <Play className="w-7 h-7 ml-1 fill-current" />
-                                            )}
-                                        </button>
+                    {/* Main Game Area */}
+                    <main className="flex-1 flex flex-col items-center justify-center w-full min-w-0 relative">
+                        {gameState === "completed" ? (
+                            <div className="text-center space-y-8 animate-in fade-in zoom-in duration-500">
+                                <div className="relative inline-flex items-center justify-center w-24 h-24 rounded-full bg-emerald-100 text-emerald-600 mb-4 shadow-lg shadow-emerald-100">
+                                    <CheckCircle2 className="w-12 h-12" />
+                                </div>
+                                <div className="space-y-2">
+                                    <h2 className="text-5xl font-black text-slate-900 tracking-tight">Lesson Complete!</h2>
+                                    <p className="text-xl text-slate-600 max-w-md mx-auto">
+                                        You&apos;ve successfully transcribed all the clips. Great ear!
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={resetGame}
+                                    className="mt-8 inline-flex items-center gap-3 rounded-full bg-slate-900 text-white px-10 py-5 text-sm font-bold uppercase tracking-widest shadow-xl shadow-slate-900/20 transition-transform hover:scale-105 active:scale-95"
+                                >
+                                    <RefreshCw className="w-4 h-4" />
+                                    Play Again
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="w-full flex flex-col gap-12">
+                                {/* Progress & Visualizer */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between px-2 text-xs font-bold uppercase tracking-widest text-slate-400">
+                                        <span>第 {displayPhraseIndex} / {phraseCount} 句</span>
+                                        <span>进度 {Math.round((currentPhraseIndex / phraseCount) * 100)}%</span>
                                     </div>
-
-                                    <div className="mt-6 space-y-4">
-                                        <h3 className="text-3xl md:text-4xl font-bold text-slate-900 leading-tight flex flex-wrap justify-center gap-x-3">
-                                            {currentPhrase?.en.split(" ").map((word, i) => (
-                                                <span
-                                                    key={i}
-                                                    onClick={() => handleWordClick(word)}
-                                                    className="cursor-pointer hover:text-indigo-600 hover:scale-105 transition-all duration-200 active:scale-95"
-                                                >
-                                                    {word}
-                                                </span>
-                                            ))}
-                                        </h3>
-                                        {currentPhrase?.zh && (
-                                            <p className="text-xl text-indigo-600 font-medium">
-                                                {currentPhrase.zh}
-                                            </p>
-                                        )}
+                                    <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-indigo-500 transition-all duration-500 ease-out"
+                                            style={{ width: `${((currentPhraseIndex) / phraseCount) * 100}%` }}
+                                        />
                                     </div>
                                 </div>
-                            </div>
 
+                                {/* Lyric Display Card */}
+                                <div className="relative group perspective-1000">
+                                    <div className="absolute -inset-4 bg-white/50 rounded-[2.5rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                    <div className="relative bg-white/80 backdrop-blur-xl rounded-[2.5rem] border border-white/60 p-10 md:p-16 text-center transition-transform duration-300 hover:scale-[1.01] shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
 
-
-                            {/* Input Area */}
-                            <div className="space-y-8">
-                                {/* Word Slots / Inputs */}
-                                <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-4 px-8 min-h-[120px]">
-                                    {wordSlots.map((slot, index) => {
-                                        const hasInput = !!wordInputs[index];
-
-                                        if (interactionMode === "typing") {
-                                            return (
-                                                <div key={slot.id} className="flex flex-col items-center">
-                                                    <div className="flex items-end gap-0.5">
-                                                        <div
-                                                            onClick={() => wordInputs[index] && handleWordClick(wordInputs[index])}
-                                                            className={classNames(
-                                                                "relative group/input",
-                                                                wordErrors[index] && "lesson-animate-shake",
-                                                                wordInputs[index] && "cursor-pointer"
-                                                            )}>
-                                                            {/* Hint Overlay - Moved to left */}
-                                                            {!wordInputs[index] && slot.prefill && (
-                                                                <span className="absolute -left-3 bottom-1 text-lg font-bold text-slate-300 pointer-events-none select-none">
-                                                                    {slot.prefill}
-                                                                </span>
-                                                            )}
-
-                                                            <input
-                                                                ref={element => {
-                                                                    blockRefs.current[index] = element;
-                                                                }}
-                                                                value={wordInputs[index] ?? ""}
-                                                                onChange={event => handleWordInputChange(index, event.target.value)}
-                                                                onKeyDown={(e) => handleWordKeyDown(e, index)}
-                                                                maxLength={slot.fillableLength || undefined}
-                                                                disabled={isInputLocked || slot.fillableLength === 0}
-                                                                style={{ width: `${Math.max(slot.fillableLength || slot.length || 1, 1.5) * 0.7}em` }}
-                                                                className={classNames(
-                                                                    "bg-transparent text-3xl font-bold tracking-wide text-center outline-none transition-colors relative z-10",
-                                                                    slot.fillableLength === 0 ? "text-slate-300 cursor-default" :
-                                                                        wordErrors[index] ? "text-rose-500" : "text-slate-900",
-                                                                    "placeholder-transparent"
-                                                                )}
-                                                            />
-                                                            {/* Animated Underline */}
-                                                            <div className={classNames(
-                                                                "absolute bottom-0 left-0 right-0 h-0.5 transition-all duration-300 rounded-full",
-                                                                slot.fillableLength === 0
-                                                                    ? "bg-slate-200"
-                                                                    : wordErrors[index]
-                                                                        ? "bg-rose-400 h-1"
-                                                                        : "bg-slate-300 group-focus-within/input:bg-indigo-500 group-focus-within/input:h-1"
-                                                            )} />
-                                                        </div>
-
-                                                        {/* Suffix */}
-                                                        {slot.suffix && (
-                                                            <span className="text-4xl font-bold text-slate-300 mb-1">{slot.suffix}</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            );
-                                        }
-
-                                        // Word Bank Mode
-                                        return (
-                                            <div key={slot.id} className="flex items-center gap-1">
-                                                {slot.fillableLength > 0 ? (
-                                                    <button
-                                                        onClick={() => handleSlotClick(index)}
-                                                        disabled={isInputLocked || !hasInput}
-                                                        className={classNames(
-                                                            "px-6 py-3 rounded-2xl text-2xl font-bold transition-all duration-300 border-3",
-                                                            hasInput
-                                                                ? "bg-bubblegum text-white border-white shadow-lg shadow-bubblegum/30 hover:scale-110 hover:shadow-xl active:scale-95"
-                                                                : "bg-white border-dashed border-slate-300 text-slate-300 cursor-default"
-                                                        )}
-                                                    >
-                                                        {hasInput ? wordInputs[index] : "___"}
-                                                    </button>
+                                        {/* Play Button - Jelly Style */}
+                                        <div className="absolute -top-8 left-1/2 -translate-x-1/2">
+                                            <button
+                                                onClick={playPhrase}
+                                                disabled={gameState === "playing" || isLoadingAudio || !song.phrases.length}
+                                                className={classNames(
+                                                    "flex h-16 w-16 items-center justify-center rounded-full shadow-xl transition-all duration-300 border-4 border-white",
+                                                    gameState === "playing" || isLoadingAudio
+                                                        ? "bg-white text-bubblegum scale-95 shadow-bubblegum/30"
+                                                        : "bg-bubblegum text-white hover:scale-110 hover:shadow-2xl shadow-bubblegum/40 active:scale-95"
+                                                )}
+                                            >
+                                                {isLoadingAudio ? (
+                                                    <div className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                                ) : gameState === "playing" ? (
+                                                    <span className="flex gap-1">
+                                                        <span className="w-1.5 h-5 bg-current rounded-full animate-[bounce_1s_infinite]" />
+                                                        <span className="w-1.5 h-5 bg-current rounded-full animate-[bounce_1s_infinite_0.2s]" />
+                                                        <span className="w-1.5 h-5 bg-current rounded-full animate-[bounce_1s_infinite_0.4s]" />
+                                                    </span>
                                                 ) : (
-                                                    <span className="text-2xl font-bold text-slate-400">{slot.core}</span>
+                                                    <Play className="w-7 h-7 ml-1 fill-current" />
                                                 )}
+                                            </button>
+                                        </div>
 
-                                                {/* Suffix */}
-                                                {slot.suffix && (
-                                                    <span className="text-2xl font-bold text-slate-400">{slot.suffix}</span>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
+                                        <div className="mt-6 space-y-4">
+                                            <h3 className="text-3xl md:text-4xl font-bold text-slate-900 leading-tight flex flex-wrap justify-center gap-x-3">
+                                                {currentPhrase?.en.split(" ").map((word, i) => (
+                                                    <WordHoverCard
+                                                        key={i}
+                                                        word={word}
+                                                        onClick={() => handleWordClick(word)}
+                                                    >
+                                                        {word}
+                                                    </WordHoverCard>
+                                                ))}
+                                            </h3>
+                                            {currentPhrase?.zh && (
+                                                <p className="text-xl text-indigo-600 font-medium">
+                                                    {currentPhrase.zh}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
 
-                                {/* Word Bank - Only show in Word Bank mode */}
-                                {interactionMode === "wordBank" && (
-                                    <div className="px-8">
-                                        {wordBank.length > 0 ? (
-                                            <div className="flex flex-wrap items-center justify-center gap-3 p-6 bg-slate-50 rounded-3xl border-2 border-slate-100 min-h-[100px]">
-                                                {wordBank.map((word, bankIndex) => {
-                                                    const isUsed = usedBankIndices.has(bankIndex);
+                                {/* Input Area */}
+                                <div className="space-y-8">
+                                    {/* Word Slots / Inputs */}
+                                    <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-4 px-8 min-h-[120px]">
+                                        {wordSlots.map((slot, index) => {
+                                            const hasInput = !!wordInputs[index];
 
-                                                    return (
+                                            if (interactionMode === "typing") {
+                                                return (
+                                                    <div key={slot.id} className="flex flex-col items-center">
+                                                        <div className="flex items-end gap-0.5">
+                                                            <div
+                                                                onClick={() => wordInputs[index] && handleWordClick(wordInputs[index])}
+                                                                className={classNames(
+                                                                    "relative group/input",
+                                                                    wordErrors[index] && "lesson-animate-shake",
+                                                                    wordInputs[index] && "cursor-pointer"
+                                                                )}>
+                                                                {/* Hint Overlay - Moved to left */}
+                                                                {!wordInputs[index] && slot.prefill && (
+                                                                    <span className="absolute -left-3 bottom-1 text-lg font-bold text-slate-300 pointer-events-none select-none">
+                                                                        {slot.prefill}
+                                                                    </span>
+                                                                )}
+
+                                                                <input
+                                                                    ref={element => {
+                                                                        blockRefs.current[index] = element;
+                                                                    }}
+                                                                    value={wordInputs[index] ?? ""}
+                                                                    onChange={event => handleWordInputChange(index, event.target.value)}
+                                                                    onKeyDown={(e) => handleWordKeyDown(e, index)}
+                                                                    maxLength={slot.fillableLength || undefined}
+                                                                    disabled={isInputLocked || slot.fillableLength === 0}
+                                                                    style={{ width: `${Math.max(slot.fillableLength || slot.length || 1, 1.5) * 0.7}em` }}
+                                                                    className={classNames(
+                                                                        "bg-transparent text-3xl font-bold tracking-wide text-center outline-none transition-colors relative z-10",
+                                                                        slot.fillableLength === 0 ? "text-slate-300 cursor-default" :
+                                                                            wordErrors[index] ? "text-rose-500" : "text-slate-900",
+                                                                        "placeholder-transparent"
+                                                                    )}
+                                                                />
+                                                                {/* Animated Underline */}
+                                                                <div className={classNames(
+                                                                    "absolute bottom-0 left-0 right-0 h-0.5 transition-all duration-300 rounded-full",
+                                                                    slot.fillableLength === 0
+                                                                        ? "bg-slate-200"
+                                                                        : wordErrors[index]
+                                                                            ? "bg-rose-400 h-1"
+                                                                            : "bg-slate-300 group-focus-within/input:bg-indigo-500 group-focus-within/input:h-1"
+                                                                )} />
+                                                            </div>
+
+                                                            {/* Suffix */}
+                                                            {slot.suffix && (
+                                                                <span className="text-4xl font-bold text-slate-300 mb-1">{slot.suffix}</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
+
+                                            // Word Bank Mode
+                                            return (
+                                                <div key={slot.id} className="flex items-center gap-1">
+                                                    {slot.fillableLength > 0 ? (
                                                         <button
-                                                            key={`bank-${bankIndex}-${word}`}
-                                                            onClick={() => handleBankWordClick(bankIndex)}
-                                                            disabled={isUsed || isInputLocked}
+                                                            onClick={() => handleSlotClick(index)}
+                                                            disabled={isInputLocked || !hasInput}
                                                             className={classNames(
-                                                                "px-6 py-3 rounded-2xl text-2xl font-bold transition-all duration-300 border-3 border-white",
-                                                                isUsed
-                                                                    ? "bg-slate-100 text-slate-300 cursor-not-allowed opacity-40"
-                                                                    : "bg-white text-slate-700 shadow-lg shadow-sky/20 hover:scale-110 hover:shadow-xl hover:shadow-bubblegum/30 hover:bg-sunshine hover:text-white active:scale-95"
+                                                                "px-6 py-3 rounded-2xl text-2xl font-bold transition-all duration-300 border-3",
+                                                                hasInput
+                                                                    ? "bg-bubblegum text-white border-white shadow-lg shadow-bubblegum/30 hover:scale-110 hover:shadow-xl active:scale-95"
+                                                                    : "bg-white border-dashed border-slate-300 text-slate-300 cursor-default"
                                                             )}
                                                         >
-                                                            {word}
+                                                            {hasInput ? wordInputs[index] : "___"}
                                                         </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center justify-center p-8 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 text-slate-400 font-bold min-h-[100px]">
-                                                No words available / 暂无单词
+                                                    ) : (
+                                                        <span className="text-2xl font-bold text-slate-400">{slot.core}</span>
+                                                    )}
+
+                                                    {/* Suffix */}
+                                                    {slot.suffix && (
+                                                        <span className="text-2xl font-bold text-slate-400">{slot.suffix}</span>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Word Bank - Only show in Word Bank mode */}
+                                    {interactionMode === "wordBank" && (
+                                        <div className="px-8">
+                                            {wordBank.length > 0 ? (
+                                                <div className="flex flex-wrap items-center justify-center gap-3 p-6 bg-slate-50 rounded-3xl border-2 border-slate-100 min-h-[100px]">
+                                                    {wordBank.map((word, bankIndex) => {
+                                                        const isUsed = usedBankIndices.has(bankIndex);
+
+                                                        return (
+                                                            <button
+                                                                key={`bank-${bankIndex}-${word}`}
+                                                                onClick={() => handleBankWordClick(bankIndex)}
+                                                                disabled={isUsed || isInputLocked}
+                                                                className={classNames(
+                                                                    "px-6 py-3 rounded-2xl text-2xl font-bold transition-all duration-300 border-3 border-white",
+                                                                    isUsed
+                                                                        ? "bg-slate-100 text-slate-300 cursor-not-allowed opacity-40"
+                                                                        : "bg-white text-slate-700 shadow-lg shadow-sky/20 hover:scale-110 hover:shadow-xl hover:shadow-bubblegum/30 hover:bg-sunshine hover:text-white active:scale-95"
+                                                                )}
+                                                            >
+                                                                {word}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center justify-center p-8 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 text-slate-400 font-bold min-h-[100px]">
+                                                    No words available / 暂无单词
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className="mt-6 flex justify-center">
+                                        {feedback.type && (
+                                            <div className={classNames(
+                                                "flex items-center gap-3 px-5 py-3 rounded-full text-sm font-bold uppercase tracking-wider shadow-lg border animate-in fade-in zoom-in duration-300",
+                                                feedback.type === "correct"
+                                                    ? "bg-emerald-50 text-emerald-600 border-emerald-100 shadow-emerald-100"
+                                                    : "bg-rose-50 text-rose-600 border-rose-100 shadow-rose-100"
+                                            )}>
+                                                {feedback.type === "correct" ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
+                                                {feedback.message}
                                             </div>
                                         )}
                                     </div>
-                                )}
-
-                                <div className="mt-6 flex justify-center">
-                                    {feedback.type ? (
-                                        <div className={classNames(
-                                            "flex items-center gap-3 px-5 py-3 rounded-full text-sm font-bold uppercase tracking-wider shadow-lg border",
-                                            feedback.type === "correct"
-                                                ? "bg-emerald-50 text-emerald-600 border-emerald-100 shadow-emerald-100"
-                                                : "bg-rose-50 text-rose-600 border-rose-100 shadow-rose-100"
-                                        )}>
-                                            {feedback.type === "correct" ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
-                                            {feedback.message}
-                                        </div>
-                                    ) : (
-                                        <button
-                                            onClick={checkAnswer}
-                                            disabled={isSubmitDisabled}
-                                            className={classNames(
-                                                "group flex items-center gap-3 px-6 py-3 rounded-full text-xs font-bold uppercase tracking-[0.25em] transition-all duration-300 border-4 border-white shadow-lg",
-                                                isSubmitDisabled
-                                                    ? "bg-slate-100 text-slate-300 cursor-not-allowed"
-                                                    : "bg-sky text-white shadow-sky/40 hover:scale-105 hover:shadow-2xl active:scale-95"
-                                            )}
-                                        >
-                                            <span>Check Answer</span>
-                                            <ArrowRight className={classNames(
-                                                "w-4 h-4 transition-transform duration-300",
-                                                !isSubmitDisabled && "group-hover:translate-x-1"
-                                            )} />
-                                        </button>
-                                    )}
                                 </div>
                             </div>
-
-                        </div>
-                    )}
-                </main>
+                        )}
+                    </main>
+                </div>
             </div>
         </div>
     );

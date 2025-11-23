@@ -33,12 +33,14 @@ const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour
 interface CreateTrackInput {
   file: Express.Multer.File;
   title?: string | null;
+  titleCn?: string | null;
   artist?: string | null;
   description?: string | null;
 }
 
 interface UpdateTrackInput {
   title?: string;
+  titleCn?: string | null;
   artist?: string | null;
   description?: string | null;
   coverUrl?: string | null;
@@ -122,7 +124,10 @@ const normalizeMimeType = (file: Express.Multer.File) => {
   return "application/octet-stream";
 };
 
-type TrackSummaryInput = Pick<Prisma.MusicTrackGetPayload<Record<string, never>>, "id" | "slug" | "title" | "artist" | "description" | "coverUrl" | "status" | "durationMs" | "createdAt" | "updatedAt" | "publishedAt">;
+type TrackSummaryInput = Pick<
+  Prisma.MusicTrackGetPayload<Record<string, never>>,
+  "id" | "slug" | "title" | "titleCn" | "artist" | "description" | "coverUrl" | "status" | "durationMs" | "createdAt" | "updatedAt" | "publishedAt"
+>;
 
 const resolveCoverUrl = (track: { slug: string; title: string; coverUrl?: string | null }) => {
   if (track.coverUrl) return track.coverUrl;
@@ -136,6 +141,7 @@ const formatTrackSummary = (track: TrackSummaryInput) => ({
   id: track.id,
   slug: track.slug,
   title: track.title,
+  titleCn: track.titleCn ?? null,
   artist: track.artist,
   description: track.description,
   coverUrl: resolveCoverUrl(track),
@@ -166,6 +172,7 @@ export const musicTrackService = {
         id: true,
         slug: true,
         title: true,
+        titleCn: true,
         artist: true,
         description: true,
         coverUrl: true,
@@ -187,7 +194,7 @@ export const musicTrackService = {
     return formatTrackResponse(track);
   },
 
-  createFromUpload: async ({ file, title, artist, description }: CreateTrackInput) => {
+  createFromUpload: async ({ file, title, titleCn, artist, description }: CreateTrackInput) => {
     if (!file || !file.buffer || !file.buffer.length) {
       throw new HttpError(400, "请上传有效的音频文件");
     }
@@ -251,6 +258,7 @@ export const musicTrackService = {
     const created = await prisma.musicTrack.create({
       data: {
         title: inferredTitle,
+        titleCn: titleCn ?? null,
         slug: resolvedSlug,
         artist: inferredArtist,
         description: description ?? null,
@@ -283,6 +291,7 @@ export const musicTrackService = {
       where: { id },
       data: {
         title: payload.title ?? existing.title,
+        titleCn: payload.titleCn === undefined ? undefined : payload.titleCn,
         artist: payload.artist ?? null,
         description: payload.description ?? null,
         coverUrl: payload.coverUrl ?? null,

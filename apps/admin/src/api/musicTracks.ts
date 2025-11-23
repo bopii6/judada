@@ -4,12 +4,14 @@ import { apiFetch } from "./http";
 export interface UploadMusicTrackPayload {
   file: File;
   title?: string;
+  titleCn?: string;
   artist?: string;
   description?: string;
 }
 
 export interface UpdateMusicTrackPayload {
   title?: string;
+  titleCn?: string | null;
   artist?: string | null;
   description?: string | null;
   coverUrl?: string | null;
@@ -32,6 +34,7 @@ export const uploadMusicTrack = async (payload: UploadMusicTrackPayload) => {
   const formData = new FormData();
   formData.append("file", payload.file);
   if (payload.title) formData.append("title", payload.title);
+  if (payload.titleCn) formData.append("titleCn", payload.titleCn);
   if (payload.artist) formData.append("artist", payload.artist);
   if (payload.description) formData.append("description", payload.description);
 

@@ -14,6 +14,7 @@ const statusTextMap: Record<MusicTrackStatus, string> = {
 
 interface EditorState {
   title: string;
+  titleCn: string;
   artist: string;
   status: MusicTrackStatus;
   description: string;
@@ -45,6 +46,7 @@ const convertSecondsToMs = (phrases: any[]) => {
 
 const buildEditorState = (track: MusicTrackDetail): EditorState => ({
   title: track.title,
+  titleCn: track.titleCn ?? "",
   artist: track.artist ?? "",
   status: track.status,
   description: track.description ?? "",
@@ -118,6 +120,7 @@ export const MusicEditPage = () => {
 
       updateMutation.mutate({
         title: editorState.title.trim(),
+        titleCn: editorState.titleCn.trim() || null,
         artist: editorState.artist.trim() || null,
         description: editorState.description.trim() || null,
         coverUrl: editorState.coverUrl.trim() || null,
@@ -218,7 +221,7 @@ export const MusicEditPage = () => {
               <h3>基本信息</h3>
               <div className="form-grid">
                 <div className="form-field">
-                  <label>标题</label>
+                  <label>英文标题</label>
                   <input
                     type="text"
                     value={editorState.title}
@@ -226,13 +229,22 @@ export const MusicEditPage = () => {
                   />
                 </div>
                 <div className="form-field">
-                  <label>演唱者</label>
+                  <label>中文标题</label>
                   <input
                     type="text"
-                    value={editorState.artist}
-                    onChange={event => setEditorState(prev => prev && { ...prev, artist: event.target.value })}
+                    value={editorState.titleCn}
+                    placeholder="玩家卡片下方展示，用于翻译"
+                    onChange={event => setEditorState(prev => prev && { ...prev, titleCn: event.target.value })}
                   />
                 </div>
+              </div>
+              <div className="form-field">
+                <label>演唱者（可选）</label>
+                <input
+                  type="text"
+                  value={editorState.artist}
+                  onChange={event => setEditorState(prev => prev && { ...prev, artist: event.target.value })}
+                />
               </div>
               <div className="form-grid">
                 <div className="form-field">
