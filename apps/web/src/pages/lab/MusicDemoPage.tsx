@@ -11,6 +11,7 @@ import { MusicCover } from "../../components/MusicCover";
 import { WordDetailSidebar } from "../../components/WordDetailSidebar";
 import { WordHoverCard } from "../../components/WordHoverCard";
 import { LyricsProgressSidebar } from "../../components/LyricsProgressSidebar";
+import { Scorecard } from "../../components/Scorecard";
 import { fetchWordDefinition } from "../../api/dictionary";
 import { getCachedAudioUrl } from "../../utils/musicAssetCache";
 
@@ -78,7 +79,7 @@ const assembleWordInputs = (slots: WordSlot[], inputs: string[]) =>
         .join(" ");
 
 export const MusicDemoPage = () => {
-    const { playClick, playSuccess, playError, playPop } = useSoundEffects();
+    const { playClick, playSuccess, playError, playPop, playLevelComplete } = useSoundEffects();
     const { slug } = useParams();
     const navigate = useNavigate();
 
@@ -107,6 +108,10 @@ export const MusicDemoPage = () => {
     const [wordInputs, setWordInputs] = useState<string[]>([]);
     const [wordErrors, setWordErrors] = useState<Record<number, boolean>>({});
     const [feedback, setFeedback] = useState<{ type: "correct" | "incorrect" | null; message?: string }>({ type: null });
+
+    // Stats
+    const [totalErrors, setTotalErrors] = useState(0);
+    const [totalAttempts, setTotalAttempts] = useState(0);
 
     const [isLoadingAudio, setIsLoadingAudio] = useState(false);
 
@@ -169,6 +174,8 @@ export const MusicDemoPage = () => {
         setCurrentPhraseIndex(0);
         setWordInputs([]);
         setWordErrors({});
+        setTotalErrors(0);
+        setTotalAttempts(0);
         setFeedback({ type: null });
         setIsLoadingAudio(false);
     }, [song.id]);
@@ -316,6 +323,7 @@ export const MusicDemoPage = () => {
 
             setTimeout(() => {
                 if (isLastPhrase) {
+                    playLevelComplete();
                     setGameState("completed");
                 } else {
                     const nextIndex = currentPhraseIndex + 1;
@@ -329,8 +337,10 @@ export const MusicDemoPage = () => {
             }, 1000);
         } else {
             playError();
+            setTotalErrors(prev => prev + 1);
             setFeedback({ type: "incorrect", message: "Not quite. Listen again." });
         }
+        setTotalAttempts(prev => prev + 1);
     };
 
 
@@ -459,6 +469,8 @@ export const MusicDemoPage = () => {
         setCurrentPhraseIndex(0);
         setWordInputs([]);
         setWordErrors({});
+        setTotalErrors(0);
+        setTotalAttempts(0);
         setFeedback({ type: null });
     };
 
@@ -589,24 +601,12 @@ export const MusicDemoPage = () => {
                     {/* Main Game Area */}
                     <main className="flex-1 flex flex-col items-center justify-center w-full min-w-0 relative">
                         {gameState === "completed" ? (
-                            <div className="text-center space-y-8 animate-in fade-in zoom-in duration-500">
-                                <div className="relative inline-flex items-center justify-center w-24 h-24 rounded-full bg-emerald-100 text-emerald-600 mb-4 shadow-lg shadow-emerald-100">
-                                    <CheckCircle2 className="w-12 h-12" />
-                                </div>
-                                <div className="space-y-2">
-                                    <h2 className="text-5xl font-black text-slate-900 tracking-tight">Lesson Complete!</h2>
-                                    <p className="text-xl text-slate-600 max-w-md mx-auto">
-                                        You&apos;ve successfully transcribed all the clips. Great ear!
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={resetGame}
-                                    className="mt-8 inline-flex items-center gap-3 rounded-full bg-slate-900 text-white px-10 py-5 text-sm font-bold uppercase tracking-widest shadow-xl shadow-slate-900/20 transition-transform hover:scale-105 active:scale-95"
-                                >
-                                    <RefreshCw className="w-4 h-4" />
-                                    Play Again
-                                </button>
-                            </div>
+                            <Scorecard
+                                score={Math.max(0, 100 - (totalErrors * 5))}
+                                accuracy={totalAttempts > 0 ? Math.round(((totalAttempts - totalErrors) / totalAttempts) * 100) : 100}
+                                onRestart={resetGame}
+                                onExit={() => navigate("/lab/music")}
+                            />
                         ) : (
                             <div className="w-full flex flex-col gap-12">
                                 {/* Progress & Visualizer */}

@@ -84,10 +84,25 @@ export const useSoundEffects = () => {
         osc.stop(ctx.currentTime + 0.1);
     }, [getContext]);
 
+    const playLevelComplete = useCallback(() => {
+        // Victory fanfare
+        const now = 0;
+        // Quick ascending run
+        playTone(523.25, 'sine', 0.1, now, 0.1);       // C5
+        playTone(659.25, 'sine', 0.1, now + 0.1, 0.1); // E5
+        playTone(783.99, 'sine', 0.1, now + 0.2, 0.1); // G5
+        playTone(1046.50, 'sine', 0.4, now + 0.3, 0.1); // C6
+
+        // Harmony
+        playTone(523.25, 'triangle', 0.4, now + 0.3, 0.05); // C5
+        playTone(659.25, 'triangle', 0.4, now + 0.3, 0.05); // E5
+    }, [playTone]);
+
     return {
         playClick,
         playSuccess,
         playError,
-        playPop
+        playPop,
+        playLevelComplete
     };
 };
