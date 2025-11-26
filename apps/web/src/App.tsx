@@ -10,6 +10,7 @@ import { LoginPage } from "./pages/LoginPage";
 import EmailLoginPage from "./pages/EmailLoginPage";
 import { MusicDemoPage } from "./pages/lab/MusicDemoPage";
 import { MusicLevelSelectionPage } from "./pages/lab/MusicLevelSelectionPage";
+import { TelegraphPage } from "./pages/lab/TelegraphPage";
 import { useAuth } from "./hooks/useAuth";
 import { useCloudSync, progressStore } from "./store/progressStore";
 import { useQueryClient } from "@tanstack/react-query";
@@ -95,6 +96,7 @@ const App = () => {
       <Route path="/play/:courseId/stages/:stageId/:mode" element={<LessonPlayPage />} />
       <Route path="/lab/music" element={<MusicLevelSelectionPage />} />
       <Route path="/lab/music/:slug" element={<MusicDemoPage />} />
+      <Route path="/lab/telegraph" element={<TelegraphPage />} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

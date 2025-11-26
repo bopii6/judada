@@ -98,11 +98,41 @@ export const useSoundEffects = () => {
         playTone(659.25, 'triangle', 0.4, now + 0.3, 0.05); // E5
     }, [playTone]);
 
+    const playTypewriterKey = useCallback(() => {
+        // Simple mechanical keyboard click
+        const ctx = getContext();
+        const t = ctx.currentTime;
+
+        // Sharp click
+        const click = ctx.createOscillator();
+        const clickGain = ctx.createGain();
+
+        click.type = 'square';
+        click.frequency.setValueAtTime(1500, t);
+        click.frequency.exponentialRampToValueAtTime(300, t + 0.03);
+
+        clickGain.gain.setValueAtTime(0.3, t);
+        clickGain.gain.exponentialRampToValueAtTime(0.01, t + 0.03);
+
+        click.connect(clickGain);
+        clickGain.connect(ctx.destination);
+
+        click.start(t);
+        click.stop(t + 0.03);
+    }, [getContext]);
+
+    const playTypewriterDing = useCallback(() => {
+        // Bell sound for new line
+        playTone(1500, 'sine', 1.5, 0, 0.3);
+    }, [playTone]);
+
     return {
         playClick,
         playSuccess,
         playError,
         playPop,
-        playLevelComplete
+        playLevelComplete,
+        playTypewriterKey,
+        playTypewriterDing
     };
 };
