@@ -6,11 +6,12 @@ import classNames from "classnames";
 import { fetchCourseContent, type CourseStage } from "../../api/courses";
 import { TilesLessonExperience } from "../../components/play/TilesLessonExperience";
 import { TypingLessonExperience } from "../../components/play/TypingLessonExperience";
+import { SpaceBattleExperience } from "../../components/play/SpaceBattleExperience";
 import { StagesProgressSidebar } from "../../components/StagesProgressSidebar";
 import { progressStore } from "../../store/progressStore";
 import { ArrowLeft, Star, Keyboard, MousePointer2 } from "lucide-react";
 
-const MODES = ["tiles", "type"] as const;
+const MODES = ["tiles", "type", "game"] as const;
 
 type LessonMode = (typeof MODES)[number];
 
@@ -185,7 +186,9 @@ export const LessonPlayPage = () => {
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex items-center gap-2 rounded-full bg-white px-3 py-1.5 border border-slate-100 shadow-sm">
             {activeMode === "tiles" ? <MousePointer2 className="w-3 h-3 text-sky-500" /> : <Keyboard className="w-3 h-3 text-violet-500" />}
-            <span className="text-xs font-bold text-slate-600">{activeMode === "tiles" ? "点词" : "拼写"}</span>
+            <span className="text-xs font-bold text-slate-600">
+              {activeMode === "tiles" ? "点词" : activeMode === "type" ? "拼写" : "星际大战"}
+            </span>
           </div>
           <div className="rounded-full bg-slate-900 px-4 py-1.5 text-sm font-bold text-white shadow-lg shadow-slate-200">
             {stageIndex + 1} <span className="text-slate-400">/</span> {stages.length}
@@ -217,86 +220,94 @@ export const LessonPlayPage = () => {
             activeMode === "type" ? "flex-1 min-w-0" : "w-full max-w-4xl"
           )}>
 
-          {completed ? (
-            <div className="relative z-10 flex h-full flex-col items-center justify-center text-center py-20">
-              <div className="w-24 h-24 bg-yellow-100 rounded-full flex items-center justify-center mb-6 animate-bounce">
-                <Trophy className="w-12 h-12 text-yellow-500" />
+            {completed ? (
+              <div className="relative z-10 flex h-full flex-col items-center justify-center text-center py-20">
+                <div className="w-24 h-24 bg-yellow-100 rounded-full flex items-center justify-center mb-6 animate-bounce">
+                  <Trophy className="w-12 h-12 text-yellow-500" />
+                </div>
+                <h2 className="text-4xl font-black text-slate-800 mb-4">太棒了！全季通关</h2>
+                <p className="max-w-md text-lg text-slate-500 font-medium mb-8">
+                  你已经完成了本课程的所有关卡，休息一下，或者挑战新的课程吧！
+                </p>
+                <div className="flex gap-3 text-5xl mb-10">
+                  {[...Array(3)].map((_, idx) => (
+                    <Star key={idx} className="fill-yellow-400 text-yellow-400 animate-pulse drop-shadow-sm" style={{ animationDelay: `${idx * 0.15}s` }} />
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  className="rounded-2xl bg-slate-900 px-10 py-4 text-lg font-bold text-white shadow-xl hover:scale-105 transition-transform"
+                  onClick={handleBack}
+                >
+                  返回课程中心
+                </button>
               </div>
-              <h2 className="text-4xl font-black text-slate-800 mb-4">太棒了！全季通关</h2>
-              <p className="max-w-md text-lg text-slate-500 font-medium mb-8">
-                你已经完成了本课程的所有关卡，休息一下，或者挑战新的课程吧！
-              </p>
-              <div className="flex gap-3 text-5xl mb-10">
-                {[...Array(3)].map((_, idx) => (
-                  <Star key={idx} className="fill-yellow-400 text-yellow-400 animate-pulse drop-shadow-sm" style={{ animationDelay: `${idx * 0.15}s` }} />
-                ))}
-              </div>
-              <button
-                type="button"
-                className="rounded-2xl bg-slate-900 px-10 py-4 text-lg font-bold text-white shadow-xl hover:scale-105 transition-transform"
-                onClick={handleBack}
-              >
-                返回课程中心
-              </button>
-            </div>
-          ) : (
-            <div className="relative z-10 flex h-full flex-col">
-              {/* Progress & Stats Header */}
-              <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="px-2 py-1 rounded-lg bg-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                      Level {currentStage.difficulty ?? 1}
-                    </span>
-                    {combo > 1 && (
-                      <span className="px-2 py-1 rounded-lg bg-orange-100 text-[10px] font-bold uppercase tracking-wider text-orange-600 animate-pulse">
-                        Combo x{combo} 🔥
+            ) : (
+              <div className="relative z-10 flex h-full flex-col">
+                {/* Progress & Stats Header */}
+                <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="px-2 py-1 rounded-lg bg-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        Level {currentStage.difficulty ?? 1}
                       </span>
-                    )}
+                      {combo > 1 && (
+                        <span className="px-2 py-1 rounded-lg bg-orange-100 text-[10px] font-bold uppercase tracking-wider text-orange-600 animate-pulse">
+                          Combo x{combo} 🔥
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl font-black text-slate-800 leading-tight">
+                      {currentStage.lessonTitle}
+                    </h2>
                   </div>
-                  <h2 className="text-2xl sm:text-3xl font-black text-slate-800 leading-tight">
-                    {currentStage.lessonTitle}
-                  </h2>
+
+                  {/* Progress Bar */}
+                  <div className="w-full sm:w-48">
+                    <div className="flex justify-between text-xs font-bold text-slate-400 mb-1.5">
+                      <span>进度</span>
+                      <span>{progressPercent}%</span>
+                    </div>
+                    <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-sky-400 to-indigo-500 transition-all duration-500 ease-out"
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                {/* Progress Bar */}
-                <div className="w-full sm:w-48">
-                  <div className="flex justify-between text-xs font-bold text-slate-400 mb-1.5">
-                    <span>进度</span>
-                    <span>{progressPercent}%</span>
-                  </div>
-                  <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-sky-400 to-indigo-500 transition-all duration-500 ease-out"
-                      style={{ width: `${progressPercent}%` }}
+                {/* Game Area */}
+                <div className="flex-1 flex items-center justify-center min-h-[400px] bg-slate-50/50 rounded-[2rem] border border-slate-100/50 p-4 sm:p-8">
+                  {activeMode === "tiles" ? (
+                    <TilesLessonExperience
+                      stage={currentStage}
+                      index={stageIndex}
+                      total={stages.length}
+                      onSuccess={handleSuccess}
+                      onMistake={handleMistake}
                     />
-                  </div>
+                  ) : activeMode === "game" ? (
+                    <SpaceBattleExperience
+                      stage={currentStage}
+                      index={stageIndex}
+                      total={stages.length}
+                      onSuccess={handleSuccess}
+                      onMistake={handleMistake}
+                    />
+                  ) : (
+                    <TypingLessonExperience
+                      stage={currentStage}
+                      index={stageIndex}
+                      total={stages.length}
+                      onSuccess={handleSuccess}
+                      onMistake={handleMistake}
+                    />
+                  )}
                 </div>
               </div>
-
-              {/* Game Area */}
-              <div className="flex-1 flex items-center justify-center min-h-[400px] bg-slate-50/50 rounded-[2rem] border border-slate-100/50 p-4 sm:p-8">
-                {activeMode === "tiles" ? (
-                  <TilesLessonExperience
-                    stage={currentStage}
-                    index={stageIndex}
-                    total={stages.length}
-                    onSuccess={handleSuccess}
-                    onMistake={handleMistake}
-                  />
-                ) : (
-                  <TypingLessonExperience
-                    stage={currentStage}
-                    index={stageIndex}
-                    total={stages.length}
-                    onSuccess={handleSuccess}
-                    onMistake={handleMistake}
-                  />
-                )}
-              </div>
-            </div>
-          )}
-        </section>
+            )}
+          </section>
         </div>
       </main>
 

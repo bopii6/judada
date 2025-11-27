@@ -17,6 +17,13 @@ export const Courses = () => {
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       <div className="flex flex-col gap-3">
+        <button
+          onClick={() => navigate("/")}
+          className="self-start inline-flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors mb-2"
+        >
+          <ArrowRight className="w-4 h-4 rotate-180" />
+          <span>返回首页</span>
+        </button>
         <div className="inline-flex items-center gap-2 self-start rounded-full bg-indigo-50 px-4 py-1.5 text-xs font-bold text-indigo-500">
           <Layers className="w-3 h-3" />
           <span>LEARNING PATHS</span>
@@ -39,12 +46,13 @@ export const Courses = () => {
                 <img
                   src={course.coverUrl}
                   alt={course.title}
+                  loading="lazy"
                   className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
               ) : (
                 <div className={`h-full w-full flex items-center justify-center bg-gradient-to-br ${index % 3 === 0 ? 'from-sky-100 to-blue-50 text-sky-400' :
-                    index % 3 === 1 ? 'from-orange-100 to-amber-50 text-orange-400' :
-                      'from-violet-100 to-purple-50 text-violet-400'
+                  index % 3 === 1 ? 'from-orange-100 to-amber-50 text-orange-400' :
+                    'from-violet-100 to-purple-50 text-violet-400'
                   }`}>
                   <BookOpen className="w-16 h-16 opacity-50" />
                 </div>

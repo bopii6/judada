@@ -14,7 +14,7 @@ export interface CourseListResponse {
   courses: CourseSummary[];
 }
 
-export type LessonInteractionType = "type" | "tiles" | "listenTap" | "speak";
+export type LessonInteractionType = "type" | "tiles" | "listenTap" | "speak" | "game";
 
 export interface CourseStage {
   id: string;

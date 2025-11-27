@@ -1,7 +1,7 @@
 import React, { useSyncExternalStore } from "react";
 import { useAuth } from "../hooks/useAuth";
 
-type LessonMode = "tiles" | "type";
+type LessonMode = "tiles" | "type" | "game";
 
 export interface StageRecord {
   stageId: string;
@@ -276,13 +276,13 @@ const loadFromCloud = async (): Promise<boolean> => {
         daily,
         userStats: userStats
           ? {
-              totalPlayTime: userStats.totalPlayTime,
-              totalStars: userStats.totalStars,
-              completedStages: userStats.completedStages,
-              currentStreak: userStats.currentStreak,
-              longestStreak: userStats.longestStreak,
-              lastActiveAt: userStats.lastActiveAt
-            }
+            totalPlayTime: userStats.totalPlayTime,
+            totalStars: userStats.totalStars,
+            completedStages: userStats.completedStages,
+            currentStreak: userStats.currentStreak,
+            longestStreak: userStats.longestStreak,
+            lastActiveAt: userStats.lastActiveAt
+          }
           : undefined,
         lastSyncAt: new Date().toISOString(),
         isOnline: navigator.onLine
@@ -390,20 +390,20 @@ const recordStageCompletion = ({ stageId, courseId, stars, mode }: StageCompleti
 
   const stageRecord: StageRecord = current
     ? {
-        ...current,
-        bestStars: Math.max(current.bestStars, stars),
-        attempts: current.attempts + 1,
-        lastPlayedAt: now,
-        modes: mergeModes(current.modes, mode)
-      }
+      ...current,
+      bestStars: Math.max(current.bestStars, stars),
+      attempts: current.attempts + 1,
+      lastPlayedAt: now,
+      modes: mergeModes(current.modes, mode)
+    }
     : {
-        stageId,
-        courseId,
-        bestStars: stars,
-        attempts: 1,
-        lastPlayedAt: now,
-        modes: [mode]
-      };
+      stageId,
+      courseId,
+      bestStars: stars,
+      attempts: 1,
+      lastPlayedAt: now,
+      modes: [mode]
+    };
 
   const today = getTodayKey();
   const todayLog = state.daily[today] ?? {

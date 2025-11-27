@@ -14,6 +14,39 @@ import {
 import { enqueuePackageGenerationJob } from "../jobs/packageGeneration.queue";
 
 const prisma = getPrisma();
+const COURSE_COVER_FOLDER = "course-covers";
+const COURSE_COVER_ROUTE_PREFIX = "/api/course-covers";
+const ALLOWED_COVER_MIME = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
+const COVER_PATH_REGEX = /course-covers\/.+$/;
+
+const sanitizeCoverFileName = (name: string) => {
+  if (!name) return "cover";
+  const base = path.basename(name, path.extname(name));
+  const normalized = base
+    .normalize("NFKD")
+    .replace(/[^\w]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase();
+  return normalized || "cover";
+};
+
+const inferCoverExtension = (file: Express.Multer.File) => {
+  const originalExt = path.extname(file.originalname || "").toLowerCase();
+  if ([".jpg", ".jpeg", ".png", ".webp"].includes(originalExt)) {
+    return originalExt;
+  }
+  if (file.mimetype === "image/png") return ".png";
+  if (file.mimetype === "image/webp") return ".webp";
+  return ".jpg";
+};
+
+const getCoverStoragePath = (coverUrl?: string | null) => {
+  if (!coverUrl) return null;
+  const match = coverUrl.match(COVER_PATH_REGEX);
+  if (!match) return null;
+  return match[0];
+};
 
 export interface PackageOverview {
   packagesTotal: number;
@@ -276,6 +309,65 @@ export const coursePackageService = {
     await enqueuePackageGenerationJob(job.id);
 
     return { job, assets };
+  },
+
+  /**
+   * 上传或替换课程封面图
+   */
+  updateCoverImage: async (packageId: string, file: Express.Multer.File) => {
+    if (!file) {
+      const error = new Error("请上传封面图片");
+      (error as any).status = 400;
+      throw error;
+    }
+
+    if (!file.mimetype || !ALLOWED_COVER_MIME.has(file.mimetype.toLowerCase())) {
+      const error = new Error("仅支持 PNG/JPG/WebP 图片作为封面");
+      (error as any).status = 400;
+      throw error;
+    }
+
+    const pkg = await prisma.coursePackage.findUnique({ where: { id: packageId } });
+    if (!pkg) {
+      const error = new Error("课程包不存在");
+      (error as any).status = 404;
+      throw error;
+    }
+
+    const { SUPABASE_STORAGE_BUCKET } = getEnv();
+    const supabase = getSupabase();
+    const ext = inferCoverExtension(file);
+    const baseName = sanitizeCoverFileName(file.originalname ?? "cover").slice(0, 40);
+    const uniqueSuffix = Math.random().toString(36).slice(2, 8);
+    const safeFileName = `${baseName}-${Date.now()}-${uniqueSuffix}${ext}`;
+    const storagePath = `${COURSE_COVER_FOLDER}/${packageId}/${safeFileName}`;
+    const contentType = file.mimetype || "image/jpeg";
+
+    const uploadResult = await supabase.storage
+      .from(SUPABASE_STORAGE_BUCKET)
+      .upload(storagePath, file.buffer, { contentType, upsert: false });
+
+    if (uploadResult.error) {
+      throw new Error(`上传封面失败：${uploadResult.error.message}`);
+    }
+
+    const previousPath = getCoverStoragePath(pkg.coverUrl);
+    if (previousPath && previousPath !== storagePath) {
+      await supabase.storage
+        .from(SUPABASE_STORAGE_BUCKET)
+        .remove([previousPath])
+        .catch(() => {
+          /* ignore cleanup failure */
+        });
+    }
+
+    const coverUrl = `${COURSE_COVER_ROUTE_PREFIX}/${packageId}/${safeFileName}`;
+    await prisma.coursePackage.update({
+      where: { id: packageId },
+      data: { coverUrl }
+    });
+
+    return { coverUrl };
   },
 
   /**

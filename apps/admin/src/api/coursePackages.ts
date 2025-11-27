@@ -180,6 +180,15 @@ export const uploadCoursePackageMaterial = (
   );
 };
 
+export const uploadCoursePackageCover = (packageId: string, file: File) => {
+  const formData = new FormData();
+  formData.append("cover", file);
+  return apiFetch<{ coverUrl: string }>(`/admin/course-packages/${packageId}/cover`, {
+    method: "POST",
+    body: formData
+  });
+};
+
 export const publishCoursePackage = (packageId: string) =>
   apiFetch<{ success: boolean; result: { packageId: string; versionId: string; lessonCount: number } }>(
     `/admin/course-packages/${packageId}/publish`,

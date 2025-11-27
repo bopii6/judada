@@ -1,14 +1,16 @@
-﻿import { useMemo } from "react";
+﻿import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchCourseContent, type CourseStage } from "../api/courses";
 import { AdventureMap } from "../components/AdventureMap";
 import { useProgressStore } from "../store/progressStore";
-import { BookOpen, Clock, Star, Play, Lock, CheckCircle2 } from "lucide-react";
+import { BookOpen, Clock, Star, Play, Lock, CheckCircle2, ArrowRight } from "lucide-react";
 
 export const CourseOverviewPage = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
+  const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
+
   const {
     data,
     isLoading,
@@ -24,7 +26,12 @@ export const CourseOverviewPage = () => {
     if (!data?.stages) return [];
     return [...data.stages].sort((a, b) => a.stageSequence - b.stageSequence);
   }, [data]);
+
   const progress = useProgressStore();
+
+  const selectedStage = useMemo(() =>
+    stages.find(s => s.id === selectedStageId),
+    [stages, selectedStageId]);
 
   if (!courseId) {
     return <div className="flex min-h-[50vh] items-center justify-center text-slate-500 font-bold">未找到课程。</div>;
@@ -53,14 +60,24 @@ export const CourseOverviewPage = () => {
     return <div className="flex min-h-[50vh] items-center justify-center text-slate-500 font-bold">课程不存在或未发布。</div>;
   }
 
-  const handleStart = (stageId: string, mode: "tiles" | "type") => {
-    navigate(`/play/${courseId}/stages/${stageId}/${mode}`);
+  const handleStartGame = (mode: "tiles" | "type" | "game") => {
+    if (selectedStageId) {
+      navigate(`/play/${courseId}/stages/${selectedStageId}/${mode}`);
+    }
   };
 
   const { course } = data;
 
   return (
     <div className="space-y-10 max-w-5xl mx-auto pb-20">
+      <button
+        onClick={() => navigate("/courses")}
+        className="inline-flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors"
+      >
+        <ArrowRight className="w-4 h-4 rotate-180" />
+        <span>返回课程列表</span>
+      </button>
+
       {/* Hero Header */}
       <header className="relative overflow-hidden rounded-[2.5rem] bg-white p-8 sm:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100">
         {/* Background Decorations */}
@@ -74,6 +91,7 @@ export const CourseOverviewPage = () => {
               <img
                 src={course.coverUrl}
                 alt={course.title}
+                loading="lazy"
                 className="h-40 w-40 sm:h-48 sm:w-48 rounded-[2rem] object-cover shadow-lg rotate-3 hover:rotate-0 transition-transform duration-500"
               />
             ) : (
@@ -117,101 +135,81 @@ export const CourseOverviewPage = () => {
       <section>
         <AdventureMap
           stages={stages}
-          onStart={(stageId, mode) => handleStart(stageId, mode ?? "tiles")}
+          onStart={(stageId) => setSelectedStageId(stageId)}
         />
       </section>
 
-      {/* Stage List Section */}
-      <section className="space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-indigo-100 text-indigo-500">
-            <Play className="w-5 h-5 fill-current" />
-          </div>
-          <h2 className="text-2xl font-black text-slate-800">所有关卡</h2>
-        </div>
+      {/* Mode Selection Modal */}
+      {selectedStage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div
+            className="bg-white rounded-[2.5rem] p-8 max-w-lg w-full shadow-2xl animate-in zoom-in-95 duration-200 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setSelectedStageId(null)}
+              className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
 
-        <div className="grid gap-5 md:grid-cols-2">
-          {stages.map((stage, index) => {
-            const stars = progress.stages[stage.id]?.bestStars ?? 0;
-            const isLocked = index > 0 && !progress.stages[stages[index - 1].id];
-
-            return (
-              <div
-                key={stage.id}
-                className={`group relative overflow-hidden rounded-[2rem] border-2 transition-all duration-300 ${isLocked
-                  ? "bg-slate-50 border-slate-100 opacity-80"
-                  : "bg-white border-slate-100 hover:border-indigo-100 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1"
-                  }`}
-              >
-                <div className="p-6 sm:p-8">
-                  <div className="flex items-start justify-between gap-4 mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`flex h-10 w-10 items-center justify-center rounded-2xl font-black text-lg ${isLocked ? "bg-slate-200 text-slate-400" : "bg-indigo-50 text-indigo-500"
-                        }`}>
-                        {stage.stageSequence}
-                      </div>
-                      {stars > 0 && (
-                        <div className="flex gap-0.5">
-                          {[...Array(3)].map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`w-4 h-4 ${i < stars ? "fill-amber-400 text-amber-400" : "fill-slate-200 text-slate-200"}`}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {isLocked ? (
-                      <Lock className="w-5 h-5 text-slate-300" />
-                    ) : stars > 0 ? (
-                      <CheckCircle2 className="w-6 h-6 text-emerald-400" />
-                    ) : null}
-                  </div>
-
-                  <h3 className={`text-xl font-bold mb-2 ${isLocked ? "text-slate-400" : "text-slate-800"}`}>
-                    {stage.lessonTitle}
-                  </h3>
-                  <p className={`text-sm font-medium line-clamp-2 mb-6 ${isLocked ? "text-slate-400" : "text-slate-500"}`}>
-                    {stage.promptCn}
-                  </p>
-
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      disabled={isLocked}
-                      className={`flex-1 rounded-xl py-3 text-sm font-bold transition-all ${isLocked
-                        ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                        : "bg-slate-900 text-white hover:bg-indigo-600 hover:shadow-lg hover:shadow-indigo-200"
-                        }`}
-                      onClick={() => handleStart(stage.id, "tiles")}
-                    >
-                      点词模式
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isLocked}
-                      className={`flex-1 rounded-xl py-3 text-sm font-bold border-2 transition-all ${isLocked
-                        ? "border-slate-200 text-slate-300 cursor-not-allowed"
-                        : "border-slate-100 text-slate-600 hover:border-indigo-100 hover:text-indigo-600 hover:bg-indigo-50"
-                        }`}
-                      onClick={() => handleStart(stage.id, "type")}
-                    >
-                      拼写模式
-                    </button>
-                  </div>
-                </div>
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-500 mb-4 text-2xl font-black">
+                {selectedStage.stageSequence}
               </div>
-            );
-          })}
-
-          {!stages.length && (
-            <div className="col-span-full py-12 text-center rounded-[2rem] border-2 border-dashed border-slate-200 bg-slate-50/50">
-              <p className="text-slate-400 font-bold">这里空空如也，等待老师发布关卡...</p>
+              <h3 className="text-2xl font-black text-slate-800 mb-2">{selectedStage.lessonTitle}</h3>
+              <p className="text-slate-500 font-medium">{selectedStage.promptCn}</p>
             </div>
-          )}
+
+            <div className="grid gap-4">
+              <button
+                onClick={() => handleStartGame("tiles")}
+                className="group relative flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-100 hover:border-indigo-100 hover:bg-indigo-50 transition-all text-left"
+              >
+                <div className="w-12 h-12 rounded-xl bg-sky-100 text-sky-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Play className="w-6 h-6 fill-current" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-800 group-hover:text-indigo-700">点词模式</h4>
+                  <p className="text-xs text-slate-400 font-medium group-hover:text-indigo-400">轻松入门，点击单词完成句子</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => handleStartGame("type")}
+                className="group relative flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-100 hover:border-violet-100 hover:bg-violet-50 transition-all text-left"
+              >
+                <div className="w-12 h-12 rounded-xl bg-violet-100 text-violet-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-800 group-hover:text-violet-700">拼写模式</h4>
+                  <p className="text-xs text-slate-400 font-medium group-hover:text-violet-400">挑战自我，键盘输入完整单词</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => handleStartGame("game")}
+                className="group relative flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-100 hover:border-purple-100 hover:bg-purple-50 transition-all text-left overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="w-12 h-12 rounded-xl bg-slate-900 text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-purple-200">
+                  <Star className="w-6 h-6 fill-current animate-pulse" />
+                </div>
+                <div className="relative">
+                  <h4 className="font-bold text-slate-800 group-hover:text-purple-700">星际大战</h4>
+                  <p className="text-xs text-slate-400 font-medium group-hover:text-purple-400">寓教于乐，在游戏中消灭单词</p>
+                </div>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                  <span className="px-2 py-1 rounded-lg bg-purple-100 text-[10px] font-bold text-purple-600 uppercase">New</span>
+                </div>
+              </button>
+            </div>
+          </div>
         </div>
-      </section>
+      )}
     </div>
   );
 };

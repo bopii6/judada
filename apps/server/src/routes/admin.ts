@@ -22,6 +22,20 @@ const audioUpload = multer({
   }
 });
 
+const coverUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB
+  },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype && file.mimetype.toLowerCase().startsWith("image/")) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error("仅支持 PNG/JPG/WebP 图片作为封面"));
+  }
+});
+
 const createPackageSchema = z.object({
   title: z.string().min(1, "请填写课程包标题"),
   topic: z.string().min(1, "请填写课程主题"),
@@ -166,6 +180,24 @@ router.post(
         job,
         assets: assets || []
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.post(
+  "/course-packages/:id/cover",
+  coverUpload.single("cover"),
+  async (req, res, next) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "请上传封面图片" });
+        return;
+      }
+
+      const result = await coursePackageService.updateCoverImage(req.params.id, req.file);
+      res.json({ coverUrl: result.coverUrl });
     } catch (error) {
       next(error);
     }

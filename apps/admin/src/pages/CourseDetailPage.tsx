@@ -5,7 +5,8 @@ import {
   CoursePackageDetail,
   fetchCoursePackageDetail,
   uploadCoursePackageMaterial,
-  publishCoursePackage
+  publishCoursePackage,
+  uploadCoursePackageCover
 } from "../api/coursePackages";
 import "./CourseDetailPage.css";
 
@@ -19,15 +20,19 @@ const statusTextMap: Record<string, string> = {
 const formatDateTime = (value?: string | null) => (value ? new Date(value).toLocaleString() : "—");
 
 const MAX_UPLOAD_SIZE = 15 * 1024 * 1024;
+const MAX_COVER_SIZE = 5 * 1024 * 1024;
 
 export const CourseDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [publishSuccess, setPublishSuccess] = useState<string | null>(null);
+  const [coverError, setCoverError] = useState<string | null>(null);
+  const [coverSuccess, setCoverSuccess] = useState<string | null>(null);
 
   const {
     data,
@@ -90,6 +95,32 @@ export const CourseDetailPage = () => {
     }
   });
 
+  const coverMutation = useMutation({
+    mutationFn: async (file: File) => {
+      if (!id) {
+        throw new Error("当前页面缺少课程包标识，请刷新后重试。");
+      }
+      return uploadCoursePackageCover(id, file);
+    },
+    onMutate: () => {
+      setCoverError(null);
+      setCoverSuccess(null);
+    },
+    onSuccess: () => {
+      setCoverSuccess("封面更新成功");
+      void refetchDetail();
+      void queryClient.invalidateQueries({ queryKey: ["course-packages"] });
+    },
+    onError: failure => {
+      setCoverError((failure as Error).message);
+    },
+    onSettled: () => {
+      if (coverInputRef.current) {
+        coverInputRef.current.value = "";
+      }
+    }
+  });
+
   const detail = useMemo<CoursePackageDetail | null>(() => data?.package ?? null, [data]);
 
   if (!id) {
@@ -140,6 +171,25 @@ export const CourseDetailPage = () => {
     uploadMutation.mutate(files);
   };
 
+  const handleCoverButtonClick = () => {
+    setCoverError(null);
+    setCoverSuccess(null);
+    coverInputRef.current?.click();
+  };
+
+  const handleCoverFileChange: ChangeEventHandler<HTMLInputElement> = event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > MAX_COVER_SIZE) {
+      setCoverError("封面图片大小不能超过 5MB");
+      event.target.value = "";
+      return;
+    }
+
+    coverMutation.mutate(file);
+  };
+
   return (
     <div className="course-detail">
       <header className="course-detail-header">
@@ -164,6 +214,30 @@ export const CourseDetailPage = () => {
           </button>
         </div>
       </header>
+
+      <section className="course-cover-panel">
+        <div className="course-cover-preview">
+          {detail.coverUrl ? (
+            <img src={detail.coverUrl} alt={`${detail.title} 封面`} loading="lazy" />
+          ) : (
+            <div className="course-cover-placeholder">暂无封面</div>
+          )}
+        </div>
+        <div className="course-cover-content">
+          <h3>课程封面</h3>
+          <p className="course-cover-description">
+            学员端会在课程列表与详情页展示封面图，建议使用 4:3 比例且主题清晰的图片，大小控制在 5MB 以内。
+          </p>
+          <div className="course-cover-actions">
+            <button type="button" onClick={handleCoverButtonClick} disabled={coverMutation.isPending}>
+              {coverMutation.isPending ? "正在上传..." : detail.coverUrl ? "重新上传封面" : "上传封面"}
+            </button>
+            {detail.coverUrl && <span className="course-cover-meta">已设置封面</span>}
+          </div>
+          <p className="course-cover-hint">支持 JPG、PNG、WebP 格式 · 会自动裁剪并在学员端缓存</p>
+        </div>
+      </section>
+
       <input
         ref={fileInputRef}
         type="file"
@@ -172,7 +246,14 @@ export const CourseDetailPage = () => {
         hidden
         onChange={handleFileChange}
       />
-      {(uploadError || uploadSuccess || publishError || publishSuccess) && (
+      <input
+        ref={coverInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        hidden
+        onChange={handleCoverFileChange}
+      />
+      {(uploadError || uploadSuccess || publishError || publishSuccess || coverError || coverSuccess) && (
         <div className="course-detail-upload-feedback-stack">
           {(uploadError || uploadSuccess) && (
             <p className={`course-detail-upload-feedback ${uploadError ? "error" : "success"}`}>
@@ -182,6 +263,11 @@ export const CourseDetailPage = () => {
           {(publishError || publishSuccess) && (
             <p className={`course-detail-upload-feedback ${publishError ? "error" : "success"}`}>
               {publishError ?? publishSuccess}
+            </p>
+          )}
+          {(coverError || coverSuccess) && (
+            <p className={`course-detail-upload-feedback ${coverError ? "error" : "success"}`}>
+              {coverError ?? coverSuccess}
             </p>
           )}
         </div>

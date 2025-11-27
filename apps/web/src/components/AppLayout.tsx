@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { LogOut, Menu, LogIn, LayoutDashboard, BookOpen, UserRound, Sparkles, Sun, Music3 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 
@@ -16,6 +16,10 @@ export const AppLayout = () => {
   const navigate = useNavigate();
   const { isAuthenticated, logout, getUserAvatar, getUserDisplayName } = useAuth();
 
+  const location = useLocation();
+  // Hide sidebar on /courses (list) and /courses/:id (overview)
+  const isCoursesPage = location.pathname === "/courses" || location.pathname.startsWith("/courses/");
+
   return (
     <div className="flex min-h-screen bg-[#FFFBF5] text-slate-700 font-sans relative overflow-hidden">
       {/* Mobile Overlay */}
@@ -26,68 +30,70 @@ export const AppLayout = () => {
         />
       )}
 
-      {/* Sidebar */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)] transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
-      >
-        <div className="flex items-center justify-between px-8 py-8">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-orange-100 text-orange-500">
-              <Sun className="h-6 w-6" />
+      {/* Sidebar - Hidden on Courses Page */}
+      {!isCoursesPage && (
+        <aside
+          className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)] transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
+            }`}
+        >
+          <div className="flex items-center justify-between px-8 py-8">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-orange-100 text-orange-500">
+                <Sun className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-orange-400 font-bold">Jude English</p>
+                <h1 className="text-lg font-black text-slate-800 tracking-tight">Learning Studio</h1>
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-orange-400 font-bold">Jude English</p>
-              <h1 className="text-lg font-black text-slate-800 tracking-tight">Learning Studio</h1>
-            </div>
-          </div>
-          <button
-            className="lg:hidden text-slate-400 hover:text-slate-600 transition-colors"
-            onClick={() => setSidebarOpen(false)}
-            aria-label="关闭菜单"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        <nav className="flex flex-col px-6 py-4 space-y-2">
-          {links.map(link => (
-            <NavLink
-              key={link.to}
-              to={link.to}
+            <button
+              className="lg:hidden text-slate-400 hover:text-slate-600 transition-colors"
               onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `group flex items-center gap-4 rounded-[1.2rem] px-5 py-4 transition-all duration-300 ${isActive
-                  ? "bg-orange-50 text-orange-600 shadow-sm ring-1 ring-orange-100"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-                }`
-              }
+              aria-label="关闭菜单"
             >
-              <span className={`flex items-center justify-center transition-colors ${
-                // isActive logic handled by parent class
-                ""
-                } group-[.active]:text-orange-500`}>
-                {link.icon}
-              </span>
-              <span className="text-base font-bold">{link.label}</span>
-            </NavLink>
-          ))}
-        </nav>
-
-        <div className="absolute bottom-8 left-6 right-6">
-          <div className="rounded-[1.5rem] bg-gradient-to-br from-sky-50 to-indigo-50 px-6 py-5 border border-sky-100">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="h-4 w-4 text-sky-500" />
-              <p className="text-xs font-bold text-sky-600">每日小贴士</p>
-            </div>
-            <p className="text-xs text-slate-500 leading-relaxed font-medium">
-              保持好奇心，世界就是你的课堂。
-            </p>
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-        </div>
-      </aside>
+
+          <nav className="flex flex-col px-6 py-4 space-y-2">
+            {links.map(link => (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `group flex items-center gap-4 rounded-[1.2rem] px-5 py-4 transition-all duration-300 ${isActive
+                    ? "bg-orange-50 text-orange-600 shadow-sm ring-1 ring-orange-100"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                  }`
+                }
+              >
+                <span className={`flex items-center justify-center transition-colors ${
+                  // isActive logic handled by parent class
+                  ""
+                  } group-[.active]:text-orange-500`}>
+                  {link.icon}
+                </span>
+                <span className="text-base font-bold">{link.label}</span>
+              </NavLink>
+            ))}
+          </nav>
+
+          <div className="absolute bottom-8 left-6 right-6">
+            <div className="rounded-[1.5rem] bg-gradient-to-br from-sky-50 to-indigo-50 px-6 py-5 border border-sky-100">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="h-4 w-4 text-sky-500" />
+                <p className="text-xs font-bold text-sky-600">每日小贴士</p>
+              </div>
+              <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                保持好奇心，世界就是你的课堂。
+              </p>
+            </div>
+          </div>
+        </aside>
+      )}
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 lg:ml-0 relative z-10">

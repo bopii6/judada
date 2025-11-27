@@ -5,7 +5,7 @@ import { Map, Star, Lock, ArrowRight } from "lucide-react";
 
 interface AdventureMapProps {
   stages: CourseStage[];
-  onStart(stageId: string, mode?: "tiles" | "type"): void;
+  onStart(stageId: string): void;
 }
 
 export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
@@ -57,13 +57,13 @@ export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
             >
               {/* Node Circle */}
               <button
-                onClick={() => unlocked && onStart(stage.id, "tiles")}
+                onClick={() => unlocked && onStart(stage.id)}
                 disabled={!unlocked}
                 className={`w-20 h-20 rounded-[2rem] flex items-center justify-center text-2xl font-black shadow-lg transition-transform duration-300 mb-4 relative z-10 ${completed
-                    ? "bg-gradient-to-br from-emerald-400 to-teal-500 text-white scale-110 shadow-emerald-200"
-                    : unlocked
-                      ? "bg-white border-4 border-indigo-100 text-indigo-500 hover:scale-110 hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-100"
-                      : "bg-slate-100 text-slate-300 cursor-not-allowed"
+                  ? "bg-gradient-to-br from-emerald-400 to-teal-500 text-white scale-110 shadow-emerald-200"
+                  : unlocked
+                    ? "bg-white border-4 border-indigo-100 text-indigo-500 hover:scale-110 hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-100"
+                    : "bg-slate-100 text-slate-300 cursor-not-allowed"
                   }`}
               >
                 {unlocked ? (
@@ -87,27 +87,19 @@ export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
               </button>
 
               {/* Content */}
-              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm w-full md:w-56 group-hover:shadow-md transition-shadow">
+              <div
+                className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm w-full md:w-56 group-hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => unlocked && onStart(stage.id)}
+              >
                 <h3 className="font-bold text-slate-800 mb-1 truncate">{stage.lessonTitle}</h3>
                 <p className="text-xs text-slate-500 font-medium line-clamp-2 h-8 mb-3">
                   {stage.promptCn}
                 </p>
 
-                <div className="flex gap-2 justify-center">
-                  <button
-                    onClick={() => onStart(stage.id, "tiles")}
-                    disabled={!unlocked}
-                    className="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-600 text-xs font-bold hover:bg-indigo-100 transition-colors disabled:opacity-50"
-                  >
-                    点词
-                  </button>
-                  <button
-                    onClick={() => onStart(stage.id, "type")}
-                    disabled={!unlocked}
-                    className="px-3 py-1.5 rounded-lg bg-slate-50 text-slate-600 text-xs font-bold hover:bg-slate-100 transition-colors disabled:opacity-50"
-                  >
-                    拼写
-                  </button>
+                <div className="flex justify-center">
+                  <span className={`text-xs font-bold ${unlocked ? "text-indigo-500" : "text-slate-400"}`}>
+                    {unlocked ? "点击开始挑战" : "完成上一关解锁"}
+                  </span>
                 </div>
               </div>
 

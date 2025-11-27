@@ -8,6 +8,7 @@ import userProgressRoutes from "./user-progress";
 import deviceRoutes from "./device";
 import musicRoutes from "./music";
 import dictionaryRoutes from "./dictionary";
+import publicAssetsRoutes from "./publicAssets";
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use("/user", userProgressRoutes);
 router.use("/device", deviceRoutes);
 router.use("/music", musicRoutes);
 router.use("/dictionary", dictionaryRoutes);
+router.use("/", publicAssetsRoutes);
 
 export default router;
