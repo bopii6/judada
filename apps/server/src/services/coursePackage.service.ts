@@ -228,12 +228,15 @@ export const coursePackageService = {
         }
       });
 
+      const safeMimeType = asset.mimeType ?? contentType ?? "application/octet-stream";
+      const safeFileSize = asset.fileSize ?? currentFile.size ?? currentFile.buffer?.length ?? 0;
+
       assets.push({
         id: asset.id,
         storagePath: asset.storagePath,
         originalName: asset.originalName,
-        mimeType: asset.mimeType,
-        fileSize: asset.fileSize
+        mimeType: safeMimeType,
+        fileSize: safeFileSize
       });
     }
 
