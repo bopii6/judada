@@ -198,14 +198,27 @@ router.post(
   coverUpload.single("cover"),
   async (req, res, next) => {
     try {
+      console.info(
+        `[admin][cover-upload] ��ʼ���������ϴ� packageId=${req.params.id} method=${req.method} url=${req.originalUrl}`
+      );
+
       if (!req.file) {
-        res.status(400).json({ error: "请上传封面图片" });
+        console.warn(
+          `[admin][cover-upload] δ�յ��ļ� packageId=${req.params.id} headers=${JSON.stringify(req.headers)}`
+        );
+        res.status(400).json({ error: "���ϴ�����ͼ��" });
         return;
       }
 
       const result = await coursePackageService.updateCoverImage(req.params.id, req.file);
+      console.info(
+        `[admin][cover-upload] �ϴ��ɹ� packageId=${req.params.id} mime=${req.file.mimetype} size=${req.file.size}B url=${result.coverUrl}`
+      );
       res.json({ coverUrl: result.coverUrl });
     } catch (error) {
+      console.error(
+        `[admin][cover-upload] ����ʧ�� packageId=${req.params.id} message=${(error as Error).message}`
+      );
       next(error);
     }
   }
