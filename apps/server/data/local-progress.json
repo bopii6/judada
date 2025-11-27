@@ -214,6 +214,32 @@
         ],
         "createdAt": "2025-11-27T04:05:58.100Z",
         "updatedAt": "2025-11-27T04:05:58.100Z"
+      },
+      {
+        "userId": "guest-1763547891565-7fvezctmx",
+        "stageId": "e0e64cc6-3845-481b-97ea-fa36f66ea775-bfa548ee-12dc-4b04-b745-5fb04ceb0e10",
+        "courseId": "6012570c-2cdb-4e86-861c-c23c0ad6937a",
+        "bestStars": 3,
+        "attempts": 1,
+        "lastPlayedAt": "2025-11-27T12:53:31.286Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-11-27T12:53:31.286Z",
+        "updatedAt": "2025-11-27T12:53:31.286Z"
+      },
+      {
+        "userId": "guest-1763547891565-7fvezctmx",
+        "stageId": "f452ec98-57a4-4548-866b-902ce5252632-65589b93-6a58-4c74-98cb-cabac0ed6264",
+        "courseId": "6012570c-2cdb-4e86-861c-c23c0ad6937a",
+        "bestStars": 3,
+        "attempts": 1,
+        "lastPlayedAt": "2025-11-27T12:53:42.101Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-11-27T12:53:42.101Z",
+        "updatedAt": "2025-11-27T12:53:42.101Z"
       }
     ]
   },
@@ -375,13 +401,13 @@
     "guest-1763547891565-7fvezctmx": {
       "userId": "guest-1763547891565-7fvezctmx",
       "totalPlayTime": 0,
-      "totalStars": 12,
-      "completedStages": 4,
+      "totalStars": 18,
+      "completedStages": 6,
       "currentStreak": 0,
       "longestStreak": 0,
-      "lastActiveAt": "2025-11-27T04:05:58.100Z",
+      "lastActiveAt": "2025-11-27T12:53:42.101Z",
       "createdAt": "2025-11-27T02:08:59.713Z",
-      "updatedAt": "2025-11-27T04:05:58.100Z"
+      "updatedAt": "2025-11-27T12:53:42.101Z"
     }
   },
   "daily": {
@@ -443,11 +469,11 @@
       {
         "userId": "guest-1763547891565-7fvezctmx",
         "date": "2025-11-27",
-        "completedStages": 12,
-        "starsEarned": 29,
-        "typingStages": 6,
+        "completedStages": 14,
+        "starsEarned": 35,
+        "typingStages": 8,
         "createdAt": "2025-11-27T02:09:50.141Z",
-        "updatedAt": "2025-11-27T04:05:58.101Z"
+        "updatedAt": "2025-11-27T12:53:42.102Z"
       }
     ]
   }

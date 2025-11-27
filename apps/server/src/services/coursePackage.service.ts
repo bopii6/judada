@@ -84,6 +84,9 @@ export interface PackageOverview {
 export interface CreatePackagePayload extends CreateCoursePackageInput {
   label?: string | null;
   notes?: string | null;
+  grade?: string | null;      // 年级
+  publisher?: string | null;  // 出版社
+  semester?: string | null;   // 学期
 }
 
 export interface GenerateFromUploadInput {
@@ -91,12 +94,16 @@ export interface GenerateFromUploadInput {
   file?: Express.Multer.File;
   files?: Express.Multer.File[];
   triggeredById?: string | null;
+  unitId?: string | null; // 关联的单元ID
 }
 
 export interface UpdatePackagePayload {
   title?: string;
   topic?: string;
   description?: string | null;
+  grade?: string | null;      // 年级
+  publisher?: string | null;  // 出版社
+  semester?: string | null;   // 学期
 }
 
 export const coursePackageService = {
@@ -154,6 +161,9 @@ export const coursePackageService = {
           topic: input.topic,
           description: input.description ?? null,
           coverUrl: input.coverUrl ?? null,
+          grade: input.grade ?? null,
+          publisher: input.publisher ?? null,
+          semester: input.semester ?? null,
           createdById: input.createdById ?? null
         }
       });
@@ -180,7 +190,7 @@ export const coursePackageService = {
   },
 
   /**
-   * 更新课程包的基础信息（标题、主题、简介）
+   * 更新课程包的基础信息（标题、主题、简介、年级、出版社、学期）
    */
   updatePackageMetadata: async (packageId: string, input: UpdatePackagePayload) => {
     const pkg = await prisma.coursePackage.findUnique({ where: { id: packageId } });
@@ -212,6 +222,18 @@ export const coursePackageService = {
     if (input.description !== undefined) {
       const trimmedDescription = input.description?.trim();
       data.description = trimmedDescription && trimmedDescription.length > 0 ? trimmedDescription : null;
+    }
+    if (input.grade !== undefined) {
+      const trimmedGrade = input.grade?.trim();
+      data.grade = trimmedGrade && trimmedGrade.length > 0 ? trimmedGrade : null;
+    }
+    if (input.publisher !== undefined) {
+      const trimmedPublisher = input.publisher?.trim();
+      data.publisher = trimmedPublisher && trimmedPublisher.length > 0 ? trimmedPublisher : null;
+    }
+    if (input.semester !== undefined) {
+      const trimmedSemester = input.semester?.trim();
+      data.semester = trimmedSemester && trimmedSemester.length > 0 ? trimmedSemester : null;
     }
 
     if (Object.keys(data).length > 0) {
@@ -274,7 +296,7 @@ export const coursePackageService = {
    * 上传 PDF/图片并创建生成任务。
    * 支持单文件或多文件上传（最多10张图片）
    */
-  enqueueGenerationFromUpload: async ({ packageId, file, files, triggeredById = null }: GenerateFromUploadInput) => {
+  enqueueGenerationFromUpload: async ({ packageId, file, files, triggeredById = null, unitId = null }: GenerateFromUploadInput) => {
     // 支持单文件或多文件上传
     const filesToUpload = files && files.length > 0 ? files : (file ? [file] : []);
     
@@ -367,6 +389,7 @@ export const coursePackageService = {
       packageId,
       triggeredById,
       sourceType,
+      unitId, // 关联单元ID
       inputInfo: {
         assetIds: assets.map(a => a.id),
         assets: assets.map(a => ({
@@ -377,6 +400,7 @@ export const coursePackageService = {
           size: a.fileSize
         })),
         totalFiles: assets.length,
+        unitId, // 也存储在 inputInfo 中
         // 保持向后兼容
         assetId: assets[0].id,
         storagePath: assets[0].storagePath,

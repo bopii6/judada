@@ -131,6 +131,24 @@ export const lessonRepository = {
     prisma.lesson.update({
       where: { id },
       data: { deletedAt: new Date() }
+    }),
+
+  /**
+   * 更新关卡信息（包括单元信息）。
+   */
+  update: (id: string, data: Prisma.LessonUpdateInput) =>
+    prisma.lesson.update({
+      where: { id },
+      data
+    }),
+
+  /**
+   * 批量更新关卡。
+   */
+  updateMany: (where: Prisma.LessonWhereInput, data: Prisma.LessonUpdateInput) =>
+    prisma.lesson.updateMany({
+      where,
+      data
     })
 };
 

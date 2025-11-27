@@ -7,6 +7,7 @@ export interface CreateGenerationJobInput {
   jobType: JobType;
   packageId?: string | null;
   packageVersionId?: string | null;
+  unitId?: string | null;
   triggeredById?: string | null;
   sourceType?: SourceType | null;
   inputInfo?: Prisma.InputJsonValue | null;
@@ -23,6 +24,7 @@ export const generationJobRepository = {
         status: "queued",
         packageId: input.packageId ?? null,
         packageVersionId: input.packageVersionId ?? null,
+        unitId: input.unitId ?? null,
         triggeredById: input.triggeredById ?? null,
         sourceType: input.sourceType ?? null,
         inputInfo: input.inputInfo ?? undefined

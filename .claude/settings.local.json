@@ -6,7 +6,8 @@
       "Bash(pnpm install:*)",
       "Bash(npx:*)",
       "Bash(pnpm exec prisma db execute:*)",
-      "Bash(pnpm exec tsx:*)"
+      "Bash(pnpm exec tsx:*)",
+      "Bash(echo:*)"
     ],
     "deny": [],
     "ask": []

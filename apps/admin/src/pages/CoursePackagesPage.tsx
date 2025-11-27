@@ -27,6 +27,48 @@ const statusClassMap: Record<string, string> = {
 
 const formatDate = (value: string) => new Date(value).toLocaleString();
 
+// 年级选项
+const GRADE_OPTIONS = [
+  { value: "", label: "请选择年级" },
+  { value: "一年级", label: "一年级" },
+  { value: "二年级", label: "二年级" },
+  { value: "三年级", label: "三年级" },
+  { value: "四年级", label: "四年级" },
+  { value: "五年级", label: "五年级" },
+  { value: "六年级", label: "六年级" },
+  { value: "初一", label: "初一" },
+  { value: "初二", label: "初二" },
+  { value: "初三", label: "初三" },
+  { value: "高一", label: "高一" },
+  { value: "高二", label: "高二" },
+  { value: "高三", label: "高三" }
+];
+
+// 出版社选项
+const PUBLISHER_OPTIONS = [
+  { value: "", label: "请选择出版社" },
+  { value: "人教版（PEP）", label: "人教版（PEP）" },
+  { value: "人教版（一年级起点）", label: "人教版（一年级起点）" },
+  { value: "人教版（精通）", label: "人教版（精通）" },
+  { value: "北师大版", label: "北师大版" },
+  { value: "外研社版（一年级起点）", label: "外研社版（一年级起点）" },
+  { value: "外研社版（三年级起点）", label: "外研社版（三年级起点）" },
+  { value: "冀教版（一年级起点）", label: "冀教版（一年级起点）" },
+  { value: "冀教版（三年级起点）", label: "冀教版（三年级起点）" },
+  { value: "北京版", label: "北京版" },
+  { value: "川教版", label: "川教版" },
+  { value: "接力版", label: "接力版" },
+  { value: "教科版（EEC学院）", label: "教科版（EEC学院）" },
+  { value: "其他", label: "其他" }
+];
+
+// 学期选项
+const SEMESTER_OPTIONS = [
+  { value: "", label: "请选择学期" },
+  { value: "上册", label: "上册" },
+  { value: "下册", label: "下册" }
+];
+
 export const CoursePackagesPage = () => {
   const { user, adminKey } = useAuth();
   const queryClient = useQueryClient();
@@ -40,23 +82,34 @@ export const CoursePackagesPage = () => {
   const [formState, setFormState] = useState({
     title: "",
     topic: "",
-    description: ""
+    description: "",
+    grade: "",
+    publisher: "",
+    semester: ""
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBatchDeleteConfirm, setShowBatchDeleteConfirm] = useState(false);
+  
+  // 筛选状态
+  const [filterGrade, setFilterGrade] = useState("");
+  const [filterPublisher, setFilterPublisher] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
 
   const createMutation = useMutation({
     mutationFn: () =>
       createCoursePackage({
         title: formState.title.trim(),
         topic: formState.topic.trim(),
-        description: formState.description.trim() || undefined
+        description: formState.description.trim() || undefined,
+        grade: formState.grade || undefined,
+        publisher: formState.publisher || undefined,
+        semester: formState.semester || undefined
       }),
     onSuccess: () => {
       setShowForm(false);
-      setFormState({ title: "", topic: "", description: "" });
+      setFormState({ title: "", topic: "", description: "", grade: "", publisher: "", semester: "" });
       setFormError(null);
       queryClient.invalidateQueries({ queryKey: ["course-packages"] }).catch(() => {
         /* ignore */
@@ -66,6 +119,27 @@ export const CoursePackagesPage = () => {
       setFormError((failure as Error).message);
     }
   });
+  
+  // 筛选后的列表
+  const filteredItems = useMemo(() => {
+    return items.filter(item => {
+      if (filterGrade && item.grade !== filterGrade) return false;
+      if (filterPublisher && item.publisher !== filterPublisher) return false;
+      if (filterStatus && item.status !== filterStatus) return false;
+      return true;
+    });
+  }, [items, filterGrade, filterPublisher, filterStatus]);
+  
+  // 获取可用的筛选选项（从数据中动态获取）
+  const availableGrades = useMemo(() => {
+    const grades = new Set(items.map(item => item.grade).filter((g): g is string => !!g));
+    return Array.from(grades).sort();
+  }, [items]);
+  
+  const availablePublishers = useMemo(() => {
+    const publishers = new Set(items.map(item => item.publisher).filter((p): p is string => !!p));
+    return Array.from(publishers);
+  }, [items]);
 
   const deleteMutation = useMutation({
     mutationFn: (packageId: string) => deleteCoursePackage(packageId),
@@ -123,8 +197,8 @@ export const CoursePackagesPage = () => {
   });
 
   const handleInputChange =
-    (key: "title" | "topic" | "description") =>
-    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    (key: "title" | "topic" | "description" | "grade" | "publisher" | "semester") =>
+    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
       setFormState(prev => ({
         ...prev,
         [key]: event.target.value
@@ -153,7 +227,7 @@ export const CoursePackagesPage = () => {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const draftIds = items.filter(item => item.status !== 'published').map(item => item.id);
+      const draftIds = filteredItems.filter(item => item.status !== 'published').map(item => item.id);
       setSelectedIds(new Set(draftIds));
     } else {
       setSelectedIds(new Set());
@@ -227,17 +301,60 @@ export const CoursePackagesPage = () => {
               id="package-title"
               value={formState.title}
               onChange={handleInputChange("title")}
-              placeholder="例如：旅行口语入门"
+              placeholder="例如：人教版三年级英语上册"
               disabled={createMutation.isPending}
             />
           </div>
+          
+          <div className="packages-form-row-group">
+            <div className="packages-form-row">
+              <label htmlFor="package-grade">年级</label>
+              <select
+                id="package-grade"
+                value={formState.grade}
+                onChange={handleInputChange("grade")}
+                disabled={createMutation.isPending}
+              >
+                {GRADE_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="packages-form-row">
+              <label htmlFor="package-publisher">出版社</label>
+              <select
+                id="package-publisher"
+                value={formState.publisher}
+                onChange={handleInputChange("publisher")}
+                disabled={createMutation.isPending}
+              >
+                {PUBLISHER_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="packages-form-row">
+              <label htmlFor="package-semester">学期</label>
+              <select
+                id="package-semester"
+                value={formState.semester}
+                onChange={handleInputChange("semester")}
+                disabled={createMutation.isPending}
+              >
+                {SEMESTER_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          
           <div className="packages-form-row">
             <label htmlFor="package-topic">主题 *</label>
             <input
               id="package-topic"
               value={formState.topic}
               onChange={handleInputChange("topic")}
-              placeholder="例如：Travel / 旅行"
+              placeholder="例如：英语 / 词汇练习"
               disabled={createMutation.isPending}
             />
           </div>
@@ -304,6 +421,53 @@ export const CoursePackagesPage = () => {
         </section>
       )}
 
+      {/* 筛选栏 */}
+      <section className="packages-filters">
+        <div className="packages-filter-group">
+          <label>年级：</label>
+          <select value={filterGrade} onChange={(e) => setFilterGrade(e.target.value)}>
+            <option value="">全部年级</option>
+            {availableGrades.map(grade => (
+              <option key={grade} value={grade}>{grade}</option>
+            ))}
+          </select>
+        </div>
+        <div className="packages-filter-group">
+          <label>出版社：</label>
+          <select value={filterPublisher} onChange={(e) => setFilterPublisher(e.target.value)}>
+            <option value="">全部出版社</option>
+            {availablePublishers.map(publisher => (
+              <option key={publisher} value={publisher}>{publisher}</option>
+            ))}
+          </select>
+        </div>
+        <div className="packages-filter-group">
+          <label>状态：</label>
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+            <option value="">全部状态</option>
+            <option value="draft">草稿</option>
+            <option value="published">已发布</option>
+            <option value="archived">已归档</option>
+          </select>
+        </div>
+        {(filterGrade || filterPublisher || filterStatus) && (
+          <button
+            type="button"
+            className="packages-filter-clear"
+            onClick={() => {
+              setFilterGrade("");
+              setFilterPublisher("");
+              setFilterStatus("");
+            }}
+          >
+            清除筛选
+          </button>
+        )}
+        <span className="packages-filter-count">
+          共 {filteredItems.length} 个课程包
+        </span>
+      </section>
+
       <section>
         {isLoading ? (
           <div className="packages-hint">正在加载课程包...</div>
@@ -316,27 +480,27 @@ export const CoursePackagesPage = () => {
                 <th style={{ width: '40px' }}>
                   <input
                     type="checkbox"
-                    checked={items.filter(item => item.status !== 'published').length > 0 && selectedIds.size === items.filter(item => item.status !== 'published').length}
+                    checked={filteredItems.filter(item => item.status !== 'published').length > 0 && selectedIds.size === filteredItems.filter(item => item.status !== 'published').length}
                     onChange={(e) => handleSelectAll(e.target.checked)}
                     ref={el => {
                       if (el) {
-                        const draftCount = items.filter(item => item.status !== 'published').length;
+                        const draftCount = filteredItems.filter(item => item.status !== 'published').length;
                         el.indeterminate = selectedIds.size > 0 && selectedIds.size < draftCount;
                       }
                     }}
                   />
                 </th>
                 <th>课程包名称</th>
-                <th>主题</th>
+                <th>年级</th>
+                <th>出版社</th>
                 <th>状态</th>
                 <th>关卡数量</th>
-                <th>版本数量</th>
                 <th>最后更新</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
+              {filteredItems.map(item => (
                 <tr key={item.id} className={selectedIds.has(item.id) ? 'packages-selected-row' : ''}>
                   <td>
                     {item.status !== 'published' && (
@@ -347,15 +511,20 @@ export const CoursePackagesPage = () => {
                       />
                     )}
                   </td>
-                  <td>{item.title}</td>
-                  <td>{item.topic}</td>
+                  <td>
+                    <div className="packages-title-cell">
+                      <span className="packages-title">{item.title}</span>
+                      {item.semester && <span className="packages-semester-badge">{item.semester}</span>}
+                    </div>
+                  </td>
+                  <td>{item.grade || '-'}</td>
+                  <td>{item.publisher || '-'}</td>
                   <td>
                     <span className={`packages-status ${statusClassMap[item.status] ?? "draft"}`}>
                       {statusTextMap[item.status] ?? item.status}
                     </span>
                   </td>
                   <td>{item.lessonCount}</td>
-                  <td>{item.versionCount}</td>
                   <td>{formatDate(item.updatedAt)}</td>
                   <td>
                     <Link to={`/packages/${item.id}`} className="packages-link">

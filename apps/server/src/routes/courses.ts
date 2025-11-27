@@ -21,23 +21,39 @@ const lessonItemTypeMap: Record<LessonItemType, "type" | "tiles" | "listenTap" |
   custom: "type"
 };
 
-router.get("/", async (_req, res, next) => {
+router.get("/", async (req, res, next) => {
   try {
+    // 从查询参数获取筛选条件
+    const { grade, publisher } = req.query;
+
+    // 构建筛选条件
+    const whereCondition: any = {
+      status: CourseStatus.published,
+      deletedAt: null,
+      currentVersion: {
+        isNot: null
+      }
+    };
+
+    // 添加年级筛选
+    if (grade && typeof grade === "string" && grade.trim()) {
+      whereCondition.grade = grade.trim();
+    }
+
+    // 添加出版社筛选
+    if (publisher && typeof publisher === "string" && publisher.trim()) {
+      whereCondition.publisher = publisher.trim();
+    }
+
     const packages = await prisma.coursePackage.findMany({
-      where: {
-        status: CourseStatus.published,
-        deletedAt: null,
-        currentVersion: {
-          isNot: null
-        }
-      },
+      where: whereCondition,
       orderBy: { updatedAt: "desc" },
       include: {
         currentVersion: {
           select: {
             id: true,
             lessons: {
-              select: { id: true },
+              select: { id: true, unitNumber: true, unitName: true },
               where: { deletedAt: null }
             }
           }
@@ -51,17 +67,52 @@ router.get("/", async (_req, res, next) => {
         const lessonCount = pkg.currentVersion?.lessons.length ?? 0;
         return lessonCount >= 15;
       })
-      .map(pkg => ({
-        id: pkg.id,
-        title: pkg.title,
-        topic: pkg.topic,
-        description: pkg.description,
-        coverUrl: pkg.coverUrl,
-        updatedAt: pkg.updatedAt,
-        lessonCount: pkg.currentVersion?.lessons.length ?? 0
-      }));
+      .map(pkg => {
+        // 计算单元数量（根据 unitNumber 去重）
+        const unitNumbers = new Set(
+          pkg.currentVersion?.lessons
+            .map(l => l.unitNumber)
+            .filter((n): n is number => n !== null)
+        );
+        const unitCount = unitNumbers.size || 1; // 至少算1个单元
 
-    res.json({ courses: items });
+        return {
+          id: pkg.id,
+          title: pkg.title,
+          topic: pkg.topic,
+          description: pkg.description,
+          coverUrl: pkg.coverUrl,
+          grade: pkg.grade,
+          publisher: pkg.publisher,
+          semester: pkg.semester,
+          updatedAt: pkg.updatedAt,
+          lessonCount: pkg.currentVersion?.lessons.length ?? 0,
+          unitCount
+        };
+      });
+
+    // 获取所有可用的筛选选项（用于前端显示筛选器）
+    const allPackages = await prisma.coursePackage.findMany({
+      where: {
+        status: CourseStatus.published,
+        deletedAt: null
+      },
+      select: {
+        grade: true,
+        publisher: true
+      }
+    });
+
+    const availableGrades = [...new Set(allPackages.map(p => p.grade).filter((g): g is string => !!g))].sort();
+    const availablePublishers = [...new Set(allPackages.map(p => p.publisher).filter((p): p is string => !!p))];
+
+    res.json({
+      courses: items,
+      filters: {
+        grades: availableGrades,
+        publishers: availablePublishers
+      }
+    });
   } catch (error) {
     next(error);
   }
@@ -76,7 +127,10 @@ router.get("/:id/questions", async (req, res, next) => {
           include: {
             lessons: {
               where: { deletedAt: null },
-              orderBy: { sequence: "asc" },
+              orderBy: [
+                { unitNumber: "asc" },
+                { sequence: "asc" }
+              ],
               include: {
                 currentVersion: {
                   include: { items: true }
@@ -259,6 +313,8 @@ router.get("/:id/questions", async (req, res, next) => {
         lessonTitle: lesson.currentVersion?.title ?? lesson.title,
         lessonSequence: lesson.sequence,
         stageSequence: stageSequence++,
+        unitNumber: lesson.unitNumber,    // 单元序号
+        unitName: lesson.unitName,        // 单元名称
         promptCn: promptCn, // 中文翻译（确保始终有值）
         promptEn: promptEn, // 英文作为主要内容（必须，不能是中文）
         answerEn: answerEn, // 答案（英文）
@@ -270,6 +326,10 @@ router.get("/:id/questions", async (req, res, next) => {
       };
     });
 
+    // 计算单元数量
+    const unitNumbers = new Set(stages.map(s => s.unitNumber).filter((n): n is number => n !== null));
+    const unitCount = unitNumbers.size || 1;
+
     res.json({
       course: {
         id: course.id,
@@ -277,8 +337,12 @@ router.get("/:id/questions", async (req, res, next) => {
         topic: course.topic,
         description: course.description,
         coverUrl: course.coverUrl,
+        grade: course.grade,
+        publisher: course.publisher,
+        semester: course.semester,
         updatedAt: course.updatedAt,
-        stageCount: stages.length
+        stageCount: stages.length,
+        unitCount
       },
       stages
     });

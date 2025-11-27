@@ -104,9 +104,29 @@ export const CourseOverviewPage = () => {
           {/* Info */}
           <div className="flex-1 space-y-4">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
-                <BookOpen className="w-3 h-3" />
-                <span>{course.topic || "General Course"}</span>
+              {/* 标签区域 */}
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                {course.grade && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-600">
+                    {course.grade}
+                  </span>
+                )}
+                {course.publisher && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">
+                    {course.publisher}
+                  </span>
+                )}
+                {course.semester && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1 text-xs font-bold text-orange-500">
+                    {course.semester}
+                  </span>
+                )}
+                {!course.grade && !course.publisher && (
+                  <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <BookOpen className="w-3 h-3" />
+                    <span>{course.topic || "General Course"}</span>
+                  </div>
+                )}
               </div>
               <h1 className="text-3xl sm:text-4xl font-black text-slate-800 leading-tight">{course.title}</h1>
             </div>
@@ -116,6 +136,12 @@ export const CourseOverviewPage = () => {
             </p>
 
             <div className="flex flex-wrap gap-4 pt-2">
+              {course.unitCount && course.unitCount > 1 && (
+                <div className="flex items-center gap-2 text-sm font-bold text-slate-600 bg-slate-50 px-4 py-2 rounded-xl">
+                  <div className="w-2 h-2 rounded-full bg-indigo-400"></div>
+                  {course.unitCount} 个单元
+                </div>
+              )}
               <div className="flex items-center gap-2 text-sm font-bold text-slate-600 bg-slate-50 px-4 py-2 rounded-xl">
                 <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
                 {course.stageCount} 个关卡

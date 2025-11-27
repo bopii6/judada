@@ -1,23 +1,45 @@
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchPublishedCourses, type CourseSummary } from "../api/courses";
-import { BookOpen, ArrowRight, Layers } from "lucide-react";
+import { BookOpen, ArrowRight, Layers, Filter, X } from "lucide-react";
 
 export const Courses = () => {
   const navigate = useNavigate();
-  const { data: courses = [], isLoading } = useQuery({
+  const [selectedGrade, setSelectedGrade] = useState("");
+  const [selectedPublisher, setSelectedPublisher] = useState("");
+  
+  const { data, isLoading } = useQuery({
     queryKey: ["courses"],
-    queryFn: fetchPublishedCourses
+    queryFn: () => fetchPublishedCourses()
   });
+
+  const courses = data?.courses ?? [];
+  const filters = data?.filters ?? { grades: [], publishers: [] };
+
+  // 根据筛选条件过滤课程
+  const filteredCourses = useMemo(() => {
+    return courses.filter(course => {
+      if (selectedGrade && course.grade !== selectedGrade) return false;
+      if (selectedPublisher && course.publisher !== selectedPublisher) return false;
+      return true;
+    });
+  }, [courses, selectedGrade, selectedPublisher]);
 
   const handleEnterCourse = (course: CourseSummary) => {
     navigate(`/courses/${course.id}`);
   };
 
+  const hasFilters = selectedGrade || selectedPublisher;
+
+  const clearFilters = () => {
+    setSelectedGrade("");
+    setSelectedPublisher("");
+  };
+
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       <div className="flex flex-col gap-3">
-
         <div className="inline-flex items-center gap-2 self-start rounded-full bg-orange-50 px-4 py-1.5 text-xs font-bold text-orange-500 border border-orange-100/50">
           <Layers className="w-3 h-3" />
           <span>LEARNING PATHS</span>
@@ -28,8 +50,65 @@ export const Courses = () => {
         </p>
       </div>
 
+      {/* 筛选栏 */}
+      {(filters.grades.length > 0 || filters.publishers.length > 0) && (
+        <div className="flex flex-wrap items-center gap-4 p-4 rounded-2xl bg-slate-50/80 border border-slate-100">
+          <div className="flex items-center gap-2 text-slate-500">
+            <Filter className="w-4 h-4" />
+            <span className="text-sm font-medium">筛选</span>
+          </div>
+          
+          {filters.grades.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400 font-medium">年级：</span>
+              <select
+                value={selectedGrade}
+                onChange={(e) => setSelectedGrade(e.target.value)}
+                className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 cursor-pointer"
+              >
+                <option value="">全部年级</option>
+                {filters.grades.map(grade => (
+                  <option key={grade} value={grade}>{grade}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          
+          {filters.publishers.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400 font-medium">出版社：</span>
+              <select
+                value={selectedPublisher}
+                onChange={(e) => setSelectedPublisher(e.target.value)}
+                className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 cursor-pointer"
+              >
+                <option value="">全部出版社</option>
+                {filters.publishers.map(publisher => (
+                  <option key={publisher} value={publisher}>{publisher}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {hasFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+              清除筛选
+            </button>
+          )}
+
+          <span className="ml-auto text-xs text-slate-400">
+            共 {filteredCourses.length} 个课程
+          </span>
+        </div>
+      )}
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {courses.map((course, index) => (
+        {filteredCourses.map((course, index) => (
           <div
             key={course.id}
             className="group flex flex-col rounded-[2rem] bg-white p-2 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.05)] border border-slate-100/50 hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.1)] hover:-translate-y-1 transition-all duration-300"
@@ -51,6 +130,19 @@ export const Courses = () => {
                   <BookOpen className="w-16 h-16 opacity-50" />
                 </div>
               )}
+              {/* 标签区域 */}
+              <div className="absolute top-4 left-4 flex flex-wrap gap-2">
+                {course.grade && (
+                  <span className="rounded-full bg-white/90 backdrop-blur px-3 py-1 text-xs font-bold text-slate-700 shadow-sm">
+                    {course.grade}
+                  </span>
+                )}
+                {course.semester && (
+                  <span className="rounded-full bg-orange-500/90 backdrop-blur px-3 py-1 text-xs font-bold text-white shadow-sm">
+                    {course.semester}
+                  </span>
+                )}
+              </div>
               <div className="absolute top-4 right-4 rounded-full bg-white/90 backdrop-blur px-3 py-1 text-xs font-bold text-slate-700 shadow-sm">
                 {course.lessonCount} 节课
               </div>
@@ -61,13 +153,18 @@ export const Courses = () => {
               <h3 className="text-xl font-bold text-slate-800 mb-2 line-clamp-1 group-hover:text-indigo-600 transition-colors">
                 {course.title}
               </h3>
+              {course.publisher && (
+                <span className="inline-flex self-start mb-2 px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-500">
+                  {course.publisher}
+                </span>
+              )}
               <p className="text-sm text-slate-500 font-medium line-clamp-2 mb-4 flex-1 leading-relaxed">
                 {course.description || "暂无简介，快去探索吧！"}
               </p>
 
               <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-50">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  {course.topic || "General"}
+                  {course.unitCount ? `${course.unitCount} 个单元` : course.topic || "General"}
                 </span>
                 <button
                   type="button"
@@ -83,13 +180,26 @@ export const Courses = () => {
           </div>
         ))}
 
-        {!isLoading && !courses.length && (
+        {!isLoading && !filteredCourses.length && (
           <div className="col-span-full flex flex-col items-center justify-center py-20 text-center rounded-[2rem] bg-white border border-slate-100 border-dashed">
             <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4 text-slate-300">
               <BookOpen className="w-10 h-10" />
             </div>
-            <h3 className="text-lg font-bold text-slate-700">暂无课程</h3>
-            <p className="text-slate-500">管理员还没有发布任何课程哦。</p>
+            <h3 className="text-lg font-bold text-slate-700">
+              {hasFilters ? "没有匹配的课程" : "暂无课程"}
+            </h3>
+            <p className="text-slate-500">
+              {hasFilters ? "试试调整筛选条件" : "管理员还没有发布任何课程哦。"}
+            </p>
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="mt-4 px-4 py-2 rounded-xl bg-slate-100 text-slate-600 text-sm font-medium hover:bg-slate-200 transition-colors"
+              >
+                清除筛选
+              </button>
+            )}
           </div>
         )}
 

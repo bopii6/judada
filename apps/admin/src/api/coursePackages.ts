@@ -17,6 +17,9 @@ export interface CoursePackageListItem {
   topic: string;
   status: CourseStatus;
   coverUrl: string | null;
+  grade: string | null;      // 年级
+  publisher: string | null;  // 出版社
+  semester: string | null;   // 学期
   createdAt: string;
   updatedAt: string;
   versionCount: number;
@@ -33,6 +36,8 @@ export interface LessonSummary {
   id: string;
   title: string;
   sequence: number;
+  unitNumber: number | null;  // 单元序号
+  unitName: string | null;    // 单元名称
   status: CourseStatus;
   currentVersion: {
     id: string;
@@ -60,6 +65,9 @@ export interface CoursePackageDetail {
   description: string | null;
   status: CourseStatus;
   coverUrl: string | null;
+  grade: string | null;      // 年级
+  publisher: string | null;  // 出版社
+  semester: string | null;   // 学期
   createdAt: string;
   updatedAt: string;
   currentVersion: {
@@ -72,6 +80,8 @@ export interface CoursePackageDetail {
       id: string;
       title: string;
       sequence: number;
+      unitNumber: number | null;  // 单元序号
+      unitName: string | null;    // 单元名称
       currentVersion: {
         id: string;
         title: string;
@@ -133,6 +143,9 @@ export interface CreateCoursePackagePayload {
   coverUrl?: string;
   label?: string;
   notes?: string;
+  grade?: string;      // 年级
+  publisher?: string;  // 出版社
+  semester?: string;   // 学期
 }
 
 export const createCoursePackage = (payload: CreateCoursePackagePayload) =>
@@ -145,6 +158,9 @@ export interface UpdateCoursePackagePayload {
   title?: string;
   topic?: string;
   description?: string | null;
+  grade?: string | null;      // 年级
+  publisher?: string | null;  // 出版社
+  semester?: string | null;   // 学期
 }
 
 export const updateCoursePackage = (id: string, payload: UpdateCoursePackagePayload) =>
@@ -229,3 +245,136 @@ export const deleteCoursePackages = (packageIds: string[]) =>
       body: JSON.stringify({ packageIds })
     }
   );
+
+// 更新关卡单元信息
+export interface UpdateLessonPayload {
+  unitNumber?: number | null;
+  unitName?: string | null;
+}
+
+export const updateLesson = (packageId: string, lessonId: string, payload: UpdateLessonPayload) =>
+  apiFetch<{ lesson: LessonSummary }>(
+    `/admin/course-packages/${packageId}/lessons/${lessonId}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(payload)
+    }
+  );
+
+// 批量更新关卡单元信息
+export interface BatchUpdateLessonsPayload {
+  lessonIds: string[];
+  unitNumber?: number | null;
+  unitName?: string | null;
+}
+
+export const batchUpdateLessons = (packageId: string, payload: BatchUpdateLessonsPayload) =>
+  apiFetch<{ success: boolean; updatedCount: number }>(
+    `/admin/course-packages/${packageId}/lessons`,
+    {
+      method: "PUT",
+      body: JSON.stringify(payload)
+    }
+  );
+
+// ==================== 单元管理 API ====================
+
+export interface UnitSummary {
+  id: string;
+  packageId: string;
+  sequence: number;
+  title: string;
+  description: string | null;
+  coverUrl: string | null;
+  status: CourseStatus;
+  createdAt: string;
+  updatedAt: string;
+  lessons: LessonSummary[];
+  _count: {
+    lessons: number;
+  };
+}
+
+export interface CreateUnitPayload {
+  title: string;
+  description?: string;
+  sequence?: number;
+}
+
+export interface UpdateUnitPayload {
+  title?: string;
+  description?: string | null;
+  coverUrl?: string | null;
+  status?: CourseStatus;
+}
+
+// 获取课程包下的所有单元
+export const fetchUnits = (packageId: string) =>
+  apiFetch<{ units: UnitSummary[] }>(`/admin/course-packages/${packageId}/units`);
+
+// 获取单个单元详情
+export const fetchUnitDetail = (unitId: string) =>
+  apiFetch<{ unit: UnitSummary }>(`/admin/units/${unitId}`);
+
+// 创建新单元
+export const createUnit = (packageId: string, payload: CreateUnitPayload) =>
+  apiFetch<{ unit: UnitSummary }>(`/admin/course-packages/${packageId}/units`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+
+// 更新单元信息
+export const updateUnit = (unitId: string, payload: UpdateUnitPayload) =>
+  apiFetch<{ unit: UnitSummary }>(`/admin/units/${unitId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+
+// 发布单元
+export const publishUnit = (unitId: string) =>
+  apiFetch<{ success: boolean; unitId: string; lessonCount: number }>(
+    `/admin/units/${unitId}/publish`,
+    { method: "POST" }
+  );
+
+// 下架单元
+export const unpublishUnit = (unitId: string) =>
+  apiFetch<{ success: boolean; unitId: string; lessonCount: number }>(
+    `/admin/units/${unitId}/unpublish`,
+    { method: "POST" }
+  );
+
+// 删除单元
+export const deleteUnit = (unitId: string) =>
+  apiFetch<{ success: boolean; message: string }>(
+    `/admin/units/${unitId}`,
+    { method: "DELETE" }
+  );
+
+// 为单元上传素材并生成关卡
+export const uploadUnitMaterial = (unitId: string, files: File[]) => {
+  const formData = new FormData();
+  files.forEach((f) => {
+    formData.append("files", f);
+  });
+  return apiFetch<{ success: boolean; job: GenerationJob; assets: PackageAssetSummary[]; message: string }>(
+    `/admin/units/${unitId}/generate`,
+    {
+      method: "POST",
+      body: formData
+    }
+  );
+};
+
+// 上传单元封面
+export const uploadUnitCover = (unitId: string, file: File) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiFetch<{ unit: UnitSummary; coverUrl: string }>(
+    `/admin/units/${unitId}/cover`,
+    {
+      method: "POST",
+      body: formData
+    }
+  );
+};

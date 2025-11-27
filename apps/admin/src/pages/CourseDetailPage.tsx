@@ -11,12 +11,23 @@ import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CoursePackageDetail,
+  UnitSummary,
+  LessonSummary,
   fetchCoursePackageDetail,
-  uploadCoursePackageMaterial,
-  publishCoursePackage,
   uploadCoursePackageCover,
   updateCoursePackage,
-  type UpdateCoursePackagePayload
+  fetchUnits,
+  createUnit,
+  updateUnit,
+  publishUnit,
+  unpublishUnit,
+  deleteUnit,
+  uploadUnitMaterial,
+  uploadUnitCover,
+  publishCoursePackage,
+  type UpdateCoursePackagePayload,
+  type CreateUnitPayload,
+  type UpdateUnitPayload
 } from "../api/coursePackages";
 import "./CourseDetailPage.css";
 
@@ -29,18 +40,13 @@ const statusTextMap: Record<string, string> = {
 
 const formatDateTime = (value?: string | null) => (value ? new Date(value).toLocaleString() : "—");
 
-const MAX_UPLOAD_SIZE = 15 * 1024 * 1024;
 const MAX_COVER_SIZE = 5 * 1024 * 1024;
+const MAX_UPLOAD_SIZE = 15 * 1024 * 1024;
 
 export const CourseDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
-  const [publishError, setPublishError] = useState<string | null>(null);
-  const [publishSuccess, setPublishSuccess] = useState<string | null>(null);
   const [coverError, setCoverError] = useState<string | null>(null);
   const [coverSuccess, setCoverSuccess] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
@@ -50,6 +56,11 @@ export const CourseDetailPage = () => {
     topic: "",
     description: ""
   });
+
+  // 新增单元弹窗
+  const [showCreateUnit, setShowCreateUnit] = useState(false);
+  const [newUnitTitle, setNewUnitTitle] = useState("");
+  const [newUnitDescription, setNewUnitDescription] = useState("");
 
   const {
     data,
@@ -62,55 +73,17 @@ export const CourseDetailPage = () => {
     enabled: Boolean(id)
   });
 
-  const uploadMutation = useMutation({
-    mutationFn: async (files: File[]) => {
-      if (!id) {
-        throw new Error("当前页面缺少课程包标识，请刷新后重试。");
-      }
-      // 支持单文件或多文件上传
-      return uploadCoursePackageMaterial(id, files.length === 1 ? files[0] : files);
-    },
-    onMutate: () => {
-      setUploadError(null);
-      setUploadSuccess(null);
-    },
-    onSuccess: ({ job, assets }) => {
-      const fileNames = assets?.map(a => a.originalName).join("、") || "文件";
-      setUploadSuccess(`已创建生成任务（${job.id}），正在分析 ${assets?.length || 1} 个文件：${fileNames}。`);
-      void refetchDetail();
-      void queryClient.invalidateQueries({ queryKey: ["generation-jobs"] });
-    },
-    onError: failure => {
-      setUploadError((failure as Error).message);
-    },
-    onSettled: () => {
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    }
+  // 获取单元列表
+  const {
+    data: unitsData,
+    refetch: refetchUnits
+  } = useQuery({
+    queryKey: ["course-packages", id, "units"],
+    queryFn: () => fetchUnits(id!),
+    enabled: Boolean(id)
   });
 
-  const publishMutation = useMutation({
-    mutationFn: async () => {
-      if (!id) {
-        throw new Error("当前页面缺少课程包标识，请刷新后重试。");
-      }
-      return publishCoursePackage(id);
-    },
-    onMutate: () => {
-      setPublishError(null);
-      setPublishSuccess(null);
-    },
-    onSuccess: ({ result }) => {
-      setPublishSuccess(`发布成功，版本包含 ${result.lessonCount} 个关卡。`);
-      void refetchDetail();
-      void queryClient.invalidateQueries({ queryKey: ["course-packages"] });
-      void queryClient.invalidateQueries({ queryKey: ["courses"] });
-    },
-    onError: failure => {
-      setPublishError((failure as Error).message);
-    }
-  });
+  const units = useMemo(() => unitsData?.units ?? [], [unitsData]);
 
   const coverMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -167,6 +140,31 @@ export const CourseDetailPage = () => {
     }
   });
 
+  const createUnitMutation = useMutation({
+    mutationFn: async (payload: CreateUnitPayload) => {
+      if (!id) throw new Error("课程包ID缺失");
+      return createUnit(id, payload);
+    },
+    onSuccess: () => {
+      setShowCreateUnit(false);
+      setNewUnitTitle("");
+      setNewUnitDescription("");
+      void refetchUnits();
+    }
+  });
+
+  const publishPackageMutation = useMutation({
+    mutationFn: async () => {
+      if (!id) throw new Error("课程包ID缺失");
+      return publishCoursePackage(id);
+    },
+    onSuccess: () => {
+      void refetchDetail();
+      void refetchUnits();
+      void queryClient.invalidateQueries({ queryKey: ["course-packages"] });
+    }
+  });
+
   const detail = useMemo<CoursePackageDetail | null>(() => data?.package ?? null, [data]);
 
   useEffect(() => {
@@ -203,38 +201,6 @@ export const CourseDetailPage = () => {
   if (!detail) {
     return <div className="course-detail">没有找到这个课程包，可能已被删除。</div>;
   }
-
-  const latestVersion = detail.currentVersion;
-
-  const handleUploadButtonClick = () => {
-    setUploadError(null);
-    setUploadSuccess(null);
-    setPublishError(null);
-    setPublishSuccess(null);
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange: ChangeEventHandler<HTMLInputElement> = event => {
-    const files = Array.from(event.target.files || []);
-    if (files.length === 0) return;
-
-    // 检查文件数量限制（最多10张）
-    if (files.length > 10) {
-      setUploadError("最多只能上传10张图片，请重新选择。");
-      event.target.value = "";
-      return;
-    }
-
-    // 检查每个文件大小
-    const oversizedFiles = files.filter(f => f.size > MAX_UPLOAD_SIZE);
-    if (oversizedFiles.length > 0) {
-      setUploadError(`文件大小不能超过 15MB，请重新选择。超出限制的文件：${oversizedFiles.map(f => f.name).join("、")}`);
-      event.target.value = "";
-      return;
-    }
-
-    uploadMutation.mutate(files);
-  };
 
   const handleCoverButtonClick = () => {
     setCoverError(null);
@@ -303,36 +269,87 @@ export const CourseDetailPage = () => {
     updateMutation.mutate(payload);
   };
 
+  const handleCreateUnit = () => {
+    if (!newUnitTitle.trim()) {
+      alert("请填写单元标题");
+      return;
+    }
+    createUnitMutation.mutate({
+      title: newUnitTitle.trim(),
+      description: newUnitDescription.trim() || undefined
+    });
+  };
+
+  const totalLessons = units.reduce((sum, u) => sum + (u._count?.lessons ?? 0), 0);
+  const publishedUnits = units.filter(u => u.status === "published").length;
+
   return (
     <div className="course-detail">
+      {/* 课程包头部信息 */}
       <header className="course-detail-header">
-        <div>
-          <h1>{detail.title}</h1>
-          <p>{detail.description || "暂时没有填写描述。"}</p>
-          <p className="course-detail-meta-info">
-            创建于 {formatDateTime(detail.createdAt)} · 最近更新 {formatDateTime(detail.updatedAt)}
-          </p>
+        <div className="course-header-left">
+          <div className="course-cover-small" onClick={handleCoverButtonClick}>
+            {detail.coverUrl ? (
+              <img src={detail.coverUrl} alt={detail.title} />
+            ) : (
+              <div className="cover-placeholder">点击上传封面</div>
+            )}
+          </div>
+          <div className="course-header-info">
+            <h1>{detail.title}</h1>
+            <p className="course-meta-tags">
+              {detail.grade && <span className="meta-tag grade">{detail.grade}</span>}
+              {detail.publisher && <span className="meta-tag publisher">{detail.publisher}</span>}
+              {detail.semester && <span className="meta-tag semester">{detail.semester}</span>}
+              <span className={`meta-tag status-${detail.status}`}>{statusTextMap[detail.status]}</span>
+            </p>
+            <p className="course-description">{detail.description || "暂无描述"}</p>
+            <p className="course-detail-meta-info">
+              共 {units.length} 个单元 · {totalLessons} 个关卡 · {publishedUnits} 个已发布
+            </p>
+          </div>
         </div>
         <div className="course-detail-actions">
-          <button type="button" onClick={handleUploadButtonClick} disabled={uploadMutation.isPending}>
-            {uploadMutation.isPending ? "正在上传..." : "上传素材并重新生成（最多10张图片）"}
-          </button>
           <button
             type="button"
             className="primary"
-            disabled={detail.status !== "draft" || publishMutation.isPending}
-            onClick={() => publishMutation.mutate()}
+            disabled={detail.status === "published" || publishPackageMutation.isPending}
+            onClick={() => publishPackageMutation.mutate()}
           >
-            {publishMutation.isPending ? "正在发布..." : "发布当前草稿"}
+            {publishPackageMutation.isPending ? "发布中..." : "发布整个课程包"}
           </button>
         </div>
       </header>
 
+      <input
+        ref={coverInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        hidden
+        onChange={handleCoverFileChange}
+      />
+
+      {(coverError || coverSuccess || updateError || updateSuccess) && (
+        <div className="course-detail-upload-feedback-stack">
+          {(coverError || coverSuccess) && (
+            <p className={`course-detail-upload-feedback ${coverError ? "error" : "success"}`}>
+              {coverError ?? coverSuccess}
+            </p>
+          )}
+          {(updateError || updateSuccess) && (
+            <p className={`course-detail-upload-feedback ${updateError ? "error" : "success"}`}>
+              {updateError ?? updateSuccess}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* 基础信息编辑 */}
       <form className="course-basic-editor" onSubmit={handleBasicInfoSubmit}>
         <div className="course-basic-editor-header">
           <div>
             <h2>基础信息</h2>
-            <p>可以随时修改课程包的对外展示名称、主题和简介，方便快速纠错或补充上下文。</p>
+            <p>修改课程包的名称、主题和简介</p>
           </div>
           <div className="course-basic-editor-actions">
             <button
@@ -369,7 +386,7 @@ export const CourseDetailPage = () => {
               value={editState.topic}
               maxLength={30}
               onChange={handleBasicInfoChange("topic")}
-              placeholder="例如：词汇练习 / 语法闯关"
+              placeholder="例如：跟着教材练英语"
             />
           </label>
           <label className="course-basic-editor-full">
@@ -378,147 +395,371 @@ export const CourseDetailPage = () => {
               value={editState.description}
               maxLength={400}
               onChange={handleBasicInfoChange("description")}
-              placeholder="可选：补充一句介绍，帮助同事快速识别。"
+              placeholder="可选：补充一句介绍"
             />
           </label>
         </div>
       </form>
 
-      <section className="course-cover-panel">
-        <div className="course-cover-preview">
-          {detail.coverUrl ? (
-            <img src={detail.coverUrl} alt={`${detail.title} 封面`} loading="lazy" />
-          ) : (
-            <div className="course-cover-placeholder">暂无封面</div>
-          )}
+      {/* 单元管理区域 */}
+      <section className="units-section">
+        <div className="units-section-header">
+          <h2>单元管理</h2>
+          <button
+            type="button"
+            className="add-unit-btn"
+            onClick={() => setShowCreateUnit(true)}
+          >
+            + 新增单元
+          </button>
         </div>
-        <div className="course-cover-content">
-          <h3>课程封面</h3>
-          <p className="course-cover-description">
-            学员端会在课程列表与详情页展示封面图，建议使用 4:3 比例且主题清晰的图片，大小控制在 5MB 以内。
-          </p>
-          <div className="course-cover-actions">
-            <button type="button" onClick={handleCoverButtonClick} disabled={coverMutation.isPending}>
-              {coverMutation.isPending ? "正在上传..." : detail.coverUrl ? "重新上传封面" : "上传封面"}
-            </button>
-            {detail.coverUrl && <span className="course-cover-meta">已设置封面</span>}
+
+        {units.length === 0 ? (
+          <div className="units-empty">
+            <p>还没有创建单元</p>
+            <p className="hint">点击上方「新增单元」按钮创建第一个单元</p>
           </div>
-          <p className="course-cover-hint">支持 JPG、PNG、WebP 格式 · 会自动裁剪并在学员端缓存</p>
-        </div>
+        ) : (
+          <div className="units-list">
+            {units.map(unit => (
+              <UnitCard
+                key={unit.id}
+                unit={unit}
+                packageId={id}
+                onUpdate={() => {
+                  void refetchUnits();
+                  void refetchDetail();
+                }}
+              />
+            ))}
+          </div>
+        )}
       </section>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".pdf,image/*"
-        multiple
-        hidden
-        onChange={handleFileChange}
-      />
-      <input
-        ref={coverInputRef}
-        type="file"
-        accept="image/png,image/jpeg,image/webp"
-        hidden
-        onChange={handleCoverFileChange}
-      />
-      {(uploadError ||
-        uploadSuccess ||
-        publishError ||
-        publishSuccess ||
-        coverError ||
-        coverSuccess ||
-        updateError ||
-        updateSuccess) && (
-        <div className="course-detail-upload-feedback-stack">
-          {(uploadError || uploadSuccess) && (
-            <p className={`course-detail-upload-feedback ${uploadError ? "error" : "success"}`}>
-              {uploadError ?? uploadSuccess}
-            </p>
-          )}
-          {(publishError || publishSuccess) && (
-            <p className={`course-detail-upload-feedback ${publishError ? "error" : "success"}`}>
-              {publishError ?? publishSuccess}
-            </p>
-          )}
-          {(coverError || coverSuccess) && (
-            <p className={`course-detail-upload-feedback ${coverError ? "error" : "success"}`}>
-              {coverError ?? coverSuccess}
-            </p>
-          )}
-          {(updateError || updateSuccess) && (
-            <p className={`course-detail-upload-feedback ${updateError ? "error" : "success"}`}>
-              {updateError ?? updateSuccess}
-            </p>
-          )}
+      {/* 新增单元弹窗 */}
+      {showCreateUnit && (
+        <div className="modal-overlay" onClick={() => setShowCreateUnit(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h3>新增单元</h3>
+            <div className="modal-form">
+              <label>
+                <span>单元标题 *</span>
+                <input
+                  type="text"
+                  value={newUnitTitle}
+                  onChange={e => setNewUnitTitle(e.target.value)}
+                  placeholder="例如：Unit 1: Hello"
+                  autoFocus
+                />
+              </label>
+              <label>
+                <span>单元简介</span>
+                <textarea
+                  value={newUnitDescription}
+                  onChange={e => setNewUnitDescription(e.target.value)}
+                  placeholder="可选：描述这个单元的学习内容"
+                  rows={3}
+                />
+              </label>
+            </div>
+            <div className="modal-actions">
+              <button type="button" onClick={() => setShowCreateUnit(false)}>
+                取消
+              </button>
+              <button
+                type="button"
+                className="primary"
+                onClick={handleCreateUnit}
+                disabled={createUnitMutation.isPending}
+              >
+                {createUnitMutation.isPending ? "创建中..." : "创建单元"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
+    </div>
+  );
+};
 
-      <section className="course-detail-meta">
-        <div>
-          <span className="meta-label">课程主题</span>
-          <span className="meta-value">{detail.topic}</span>
-        </div>
-        <div>
-          <span className="meta-label">关卡数量</span>
-          <span className="meta-value">{latestVersion?.lessons.length ?? detail.lessons.length}</span>
-        </div>
-        <div>
-          <span className="meta-label">当前状态</span>
-          <span className="meta-value highlight">{statusTextMap[detail.status] ?? detail.status}</span>
-        </div>
-      </section>
+// 单元卡片组件
+interface UnitCardProps {
+  unit: UnitSummary;
+  packageId: string;
+  onUpdate: () => void;
+}
 
-      <section className="course-detail-versions">
-        <h2>版本记录</h2>
-        <div className="version-list">
-          {detail.versions.map(version => (
-            <div key={version.id} className="version-card">
-              <div>
-                <strong>{version.label || `版本 #${version.versionNumber}`}</strong>
-                <span className={`version-status status-${version.status}`}>
-                  {statusTextMap[version.status] ?? version.status}
-                </span>
-              </div>
-              <div className="version-meta">
-                <span>创建时间：{formatDateTime(version.createdAt)}</span>
-                <span>包含关卡：{version._count.lessons}</span>
+const UnitCard = ({ unit, packageId, onUpdate }: UnitCardProps) => {
+  const queryClient = useQueryClient();
+  const [expanded, setExpanded] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(unit.title);
+  const [editDescription, setEditDescription] = useState(unit.description ?? "");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const [uploadMessage, setUploadMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const updateMutation = useMutation({
+    mutationFn: (payload: UpdateUnitPayload) => updateUnit(unit.id, payload),
+    onSuccess: () => {
+      setIsEditing(false);
+      onUpdate();
+    }
+  });
+
+  const publishMutation = useMutation({
+    mutationFn: () => publishUnit(unit.id),
+    onSuccess: () => {
+      onUpdate();
+      void queryClient.invalidateQueries({ queryKey: ["course-packages"] });
+    }
+  });
+
+  const unpublishMutation = useMutation({
+    mutationFn: () => unpublishUnit(unit.id),
+    onSuccess: () => {
+      onUpdate();
+      void queryClient.invalidateQueries({ queryKey: ["course-packages"] });
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteUnit(unit.id),
+    onSuccess: () => {
+      onUpdate();
+    }
+  });
+
+  const uploadMaterialMutation = useMutation({
+    mutationFn: (files: File[]) => uploadUnitMaterial(unit.id, files),
+    onSuccess: (result) => {
+      setUploadMessage({ type: "success", text: result.message || "素材上传成功，正在生成关卡..." });
+      onUpdate();
+      void queryClient.invalidateQueries({ queryKey: ["generation-jobs"] });
+    },
+    onError: (error) => {
+      setUploadMessage({ type: "error", text: (error as Error).message });
+    }
+  });
+
+  const uploadCoverMutation = useMutation({
+    mutationFn: (file: File) => uploadUnitCover(unit.id, file),
+    onSuccess: () => {
+      setUploadMessage({ type: "success", text: "封面上传成功" });
+      onUpdate();
+    },
+    onError: (error) => {
+      setUploadMessage({ type: "error", text: (error as Error).message });
+    }
+  });
+
+  const handleUploadClick = () => {
+    setUploadMessage(null);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    if (files.length > 10) {
+      setUploadMessage({ type: "error", text: "最多只能上传10张图片" });
+      return;
+    }
+    const oversized = files.filter(f => f.size > MAX_UPLOAD_SIZE);
+    if (oversized.length > 0) {
+      setUploadMessage({ type: "error", text: "文件大小不能超过15MB" });
+      return;
+    }
+    uploadMaterialMutation.mutate(files);
+    e.target.value = "";
+  };
+
+  const handleCoverClick = () => {
+    coverInputRef.current?.click();
+  };
+
+  const handleCoverChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_COVER_SIZE) {
+      setUploadMessage({ type: "error", text: "封面图片大小不能超过5MB" });
+      return;
+    }
+    uploadCoverMutation.mutate(file);
+    e.target.value = "";
+  };
+
+  const handleSaveEdit = () => {
+    updateMutation.mutate({
+      title: editTitle.trim(),
+      description: editDescription.trim() || null
+    });
+  };
+
+  const handleDelete = () => {
+    if (confirm(`确定要删除单元「${unit.title}」吗？该单元下的所有关卡也会被删除。`)) {
+      deleteMutation.mutate();
+    }
+  };
+
+  const lessonCount = unit._count?.lessons ?? unit.lessons?.length ?? 0;
+  const isPublished = unit.status === "published";
+
+  return (
+    <div className={`unit-card ${isPublished ? "published" : "draft"}`}>
+      <div className="unit-card-header" onClick={() => setExpanded(!expanded)}>
+        <div className="unit-header-left">
+          <span className="unit-expand-icon">{expanded ? "▼" : "▶"}</span>
+          {unit.coverUrl && (
+            <img src={unit.coverUrl} alt="" className="unit-cover-thumb" />
+          )}
+          <div className="unit-header-info">
+            <h3>
+              <span className="unit-sequence">单元 {unit.sequence}</span>
+              {unit.title}
+            </h3>
+            {unit.description && <p className="unit-description">{unit.description}</p>}
+          </div>
+        </div>
+        <div className="unit-header-right">
+          <span className="unit-lesson-count">{lessonCount} 个关卡</span>
+          <span className={`unit-status status-${unit.status}`}>
+            {statusTextMap[unit.status]}
+          </span>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="unit-card-body">
+          {/* 操作按钮区 */}
+          <div className="unit-actions-bar">
+            <button type="button" onClick={handleUploadClick} disabled={uploadMaterialMutation.isPending}>
+              {uploadMaterialMutation.isPending ? "上传中..." : "📤 上传素材生成关卡"}
+            </button>
+            <button type="button" onClick={handleCoverClick} disabled={uploadCoverMutation.isPending}>
+              {uploadCoverMutation.isPending ? "上传中..." : "🖼️ 上传封面"}
+            </button>
+            <button type="button" onClick={() => setIsEditing(true)}>
+              ✏️ 编辑单元
+            </button>
+            {isPublished ? (
+              <button
+                type="button"
+                className="warning"
+                onClick={() => unpublishMutation.mutate()}
+                disabled={unpublishMutation.isPending}
+              >
+                {unpublishMutation.isPending ? "下架中..." : "⬇️ 下架单元"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="success"
+                onClick={() => publishMutation.mutate()}
+                disabled={publishMutation.isPending || lessonCount === 0}
+              >
+                {publishMutation.isPending ? "发布中..." : "🚀 发布单元"}
+              </button>
+            )}
+            <button type="button" className="danger" onClick={handleDelete} disabled={deleteMutation.isPending}>
+              🗑️ 删除
+            </button>
+          </div>
+
+          {uploadMessage && (
+            <p className={`unit-message ${uploadMessage.type}`}>{uploadMessage.text}</p>
+          )}
+
+          {/* 编辑表单 */}
+          {isEditing && (
+            <div className="unit-edit-form">
+              <label>
+                <span>单元标题</span>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                />
+              </label>
+              <label>
+                <span>单元简介</span>
+                <textarea
+                  value={editDescription}
+                  onChange={e => setEditDescription(e.target.value)}
+                  rows={2}
+                />
+              </label>
+              <div className="unit-edit-actions">
+                <button type="button" onClick={() => setIsEditing(false)}>取消</button>
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={handleSaveEdit}
+                  disabled={updateMutation.isPending}
+                >
+                  {updateMutation.isPending ? "保存中..." : "保存"}
+                </button>
               </div>
             </div>
-          ))}
-        </div>
-      </section>
+          )}
 
-      <section className="course-detail-lessons">
-        <h2>关卡列表</h2>
-        {latestVersion && latestVersion.lessons.length === 0 && (
-          <p className="course-detail-empty">当前草稿还没有关卡，可以先上传素材或手动新建。</p>
-        )}
-        <div className="lesson-grid">
-          {(latestVersion?.lessons ?? detail.lessons).map(lesson => {
-            const statusLabel = statusTextMap[lesson.status] ?? lesson.status;
-            return (
-              <div key={lesson.id} className="lesson-card">
-                <div className="lesson-header">
-                  <h3>
-                    #{lesson.sequence} {lesson.title}
-                  </h3>
-                  <span className={`lesson-status status-${lesson.status}`}>{statusLabel}</span>
-                </div>
-                <p className="lesson-summary">{lesson.currentVersion?.summary || "暂未填写关卡简介。"}</p>
-                <div className="lesson-actions">
-                  <button type="button" disabled>
-                    编辑
-                  </button>
-                  <button type="button" className="text" disabled>
-                    预览互动体验
-                  </button>
-                </div>
+          {/* 关卡列表 */}
+          <div className="unit-lessons">
+            <h4>关卡列表</h4>
+            {lessonCount === 0 ? (
+              <p className="lessons-empty">暂无关卡，请上传素材自动生成</p>
+            ) : (
+              <div className="lessons-grid">
+                {unit.lessons?.map(lesson => (
+                  <LessonCard key={lesson.id} lesson={lesson} />
+                ))}
               </div>
-            );
-          })}
+            )}
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,image/*"
+            multiple
+            hidden
+            onChange={handleFileChange}
+          />
+          <input
+            ref={coverInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            hidden
+            onChange={handleCoverChange}
+          />
         </div>
-      </section>
+      )}
+    </div>
+  );
+};
+
+// 关卡卡片组件
+interface LessonCardProps {
+  lesson: LessonSummary;
+}
+
+const LessonCard = ({ lesson }: LessonCardProps) => {
+  const statusLabel = statusTextMap[lesson.status] ?? lesson.status;
+
+  return (
+    <div className="lesson-card-mini">
+      <div className="lesson-mini-header">
+        <span className="lesson-sequence">#{lesson.sequence}</span>
+        <span className={`lesson-status-mini status-${lesson.status}`}>{statusLabel}</span>
+      </div>
+      <h5>{lesson.title}</h5>
+      {lesson.currentVersion?.summary && (
+        <p className="lesson-summary-mini">{lesson.currentVersion.summary}</p>
+      )}
+      <div className="lesson-mini-actions">
+        <button type="button" disabled>编辑关卡</button>
+        <button type="button" className="text" disabled>预览</button>
+      </div>
     </div>
   );
 };
