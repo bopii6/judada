@@ -280,7 +280,7 @@ export const CourseDetailPage = () => {
   const handleBasicInfoSubmit: FormEventHandler<HTMLFormElement> = event => {
     event.preventDefault();
     if (!id) {
-      setUpdateError("当前页面缺少课程包标识，请刷新后重试�?);
+      setUpdateError("当前页面缺少课程包标识，请刷新后重试。");
       setUpdateSuccess(null);
       return;
     }
