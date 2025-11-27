@@ -141,7 +141,7 @@ export const CourseDetailPage = () => {
   const updateMutation = useMutation({
     mutationFn: async (payload: UpdateCoursePackagePayload) => {
       if (!id) {
-        throw new Error("当前页面缺少课程包标识，请刷新后重试�?);
+        throw new Error("当前页面缺少课程包标识，请刷新后重试");
       }
       return updateCoursePackage(id, payload);
     },
