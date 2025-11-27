@@ -60,6 +60,9 @@ model CoursePackage {
   topic            String
   description      String?
   coverUrl         String?
+  grade            String?                // 年级：如 "1", "2", "3"... "初一", "高一"
+  publisher        String?                // 出版社：如 "人教版", "北师大版", "外研社版"
+  semester         String?                // 学期：如 "上册", "下册"
   status           CourseStatus           @default(draft)
   createdById      String?
   currentVersionId String?                @unique
@@ -72,7 +75,31 @@ model CoursePackage {
   versions         CoursePackageVersion[]
   jobs             GenerationJob[]
   lessons          Lesson[]
+  units            Unit[]                 // 课程包下的单元列表
 
+  @@index([status])
+  @@index([grade])
+  @@index([publisher])
+}
+
+// 单元模型 - 课程包下的章节/单元
+model Unit {
+  id          String       @id @default(uuid())
+  packageId   String
+  sequence    Int          // 单元序号：1, 2, 3...
+  title       String       // 单元标题：如 "Unit 1: Hello"
+  description String?      // 单元简介
+  coverUrl    String?      // 单元封面
+  status      CourseStatus @default(draft)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+  package     CoursePackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  lessons     Lesson[]     // 单元下的关卡列表
+  jobs        GenerationJob[] @relation("UnitJobs")
+
+  @@unique([packageId, sequence])
+  @@index([packageId])
   @@index([status])
 }
 
@@ -112,8 +139,11 @@ model Lesson {
   id               String                @id @default(uuid())
   packageId        String
   packageVersionId String?
+  unitId           String?               // 所属单元ID
   title            String
-  sequence         Int
+  sequence         Int                   // 在单元内的序号
+  unitNumber       Int?                  // 单元序号（冗余字段，方便查询）
+  unitName         String?               // 单元名称（冗余字段，方便查询）
   status           CourseStatus          @default(draft)
   currentVersionId String?               @unique
   createdById      String?
@@ -124,10 +154,13 @@ model Lesson {
   currentVersion   LessonVersion?        @relation("LessonCurrentVersion", fields: [currentVersionId], references: [id])
   package          CoursePackage         @relation(fields: [packageId], references: [id], onDelete: Cascade)
   packageVersion   CoursePackageVersion? @relation("PackageVersionLessons", fields: [packageVersionId], references: [id])
+  unit             Unit?                 @relation(fields: [unitId], references: [id], onDelete: SetNull)
   versions         LessonVersion[]
 
   @@unique([packageId, sequence])
   @@index([packageId])
+  @@index([unitId])
+  @@index([packageId, unitNumber])
   @@index([status])
 }
 
@@ -223,6 +256,7 @@ model GenerationJob {
   status           JobStatus             @default(queued)
   packageId        String?
   packageVersionId String?
+  unitId           String?               // 关联的单元ID
   triggeredById    String?
   sourceType       SourceType?
   inputInfo        Json?
@@ -235,11 +269,13 @@ model GenerationJob {
   updatedAt        DateTime              @updatedAt
   package          CoursePackage?        @relation(fields: [packageId], references: [id])
   packageVersion   CoursePackageVersion? @relation(fields: [packageVersionId], references: [id])
+  unit             Unit?                 @relation("UnitJobs", fields: [unitId], references: [id])
   triggeredBy      User?                 @relation("JobTrigger", fields: [triggeredById], references: [id])
   logs             JobLog[]
 
   @@index([status])
   @@index([jobType])
+  @@index([unitId])
 }
 
 model JobLog {
