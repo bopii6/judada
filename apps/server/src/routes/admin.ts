@@ -45,6 +45,13 @@ const createPackageSchema = z.object({
   notes: z.string().optional()
 });
 
+
+const updatePackageSchema = z.object({
+  title: z.string().min(1, "请填写课程包标题").optional(),
+  topic: z.string().min(1, "请填写课程主题").optional(),
+  description: z.string().optional().nullable()
+});
+
 const generateRequestSchema = z.object({
   triggeredById: z.string().uuid().optional()
 });
@@ -207,6 +214,16 @@ router.post(
 router.get("/course-packages/:id", async (req, res, next) => {
   try {
     const detail = await coursePackageService.getPackageDetail(req.params.id);
+    res.json({ package: detail });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put("/course-packages/:id", async (req, res, next) => {
+  try {
+    const payload = updatePackageSchema.parse(req.body ?? {});
+    const detail = await coursePackageService.updatePackageMetadata(req.params.id, payload);
     res.json({ package: detail });
   } catch (error) {
     next(error);

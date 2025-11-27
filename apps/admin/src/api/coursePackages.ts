@@ -141,6 +141,18 @@ export const createCoursePackage = (payload: CreateCoursePackagePayload) =>
     body: JSON.stringify(payload)
   });
 
+export interface UpdateCoursePackagePayload {
+  title?: string;
+  topic?: string;
+  description?: string | null;
+}
+
+export const updateCoursePackage = (id: string, payload: UpdateCoursePackagePayload) =>
+  apiFetch<{ package: CoursePackageDetail }>(`/admin/course-packages/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+
 export interface PackageAssetSummary {
   id: string;
   packageId: string | null;

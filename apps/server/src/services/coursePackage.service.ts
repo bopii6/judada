@@ -18,6 +18,7 @@ const COURSE_COVER_FOLDER = "course-covers";
 const COURSE_COVER_ROUTE_PREFIX = "/api/course-covers";
 const ALLOWED_COVER_MIME = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 const COVER_PATH_REGEX = /course-covers\/.+$/;
+let hasEnsuredCoverBucket = false;
 
 const sanitizeCoverFileName = (name: string) => {
   if (!name) return "cover";
@@ -48,6 +49,31 @@ const getCoverStoragePath = (coverUrl?: string | null) => {
   return match[0];
 };
 
+const ensureCoverBucket = async () => {
+  if (hasEnsuredCoverBucket) return;
+  const { SUPABASE_STORAGE_BUCKET } = getEnv();
+  const supabase = getSupabase();
+
+  const { data, error } = await supabase.storage.getBucket(SUPABASE_STORAGE_BUCKET);
+  if (error && error.message && !error.message.toLowerCase().includes("not found")) {
+    throw new Error(`封面存储空间暂不可用：${error.message}`);
+  }
+
+  if (!data) {
+    const { error: createError } = await supabase.storage.createBucket(SUPABASE_STORAGE_BUCKET, {
+      public: false,
+      allowedMimeTypes: Array.from(ALLOWED_COVER_MIME),
+      fileSizeLimit: "5242880"
+    });
+
+    if (createError && !createError.message.toLowerCase().includes("already exists")) {
+      throw new Error(`封面存储空间初始化失败：${createError.message}`);
+    }
+  }
+
+  hasEnsuredCoverBucket = true;
+};
+
 export interface PackageOverview {
   packagesTotal: number;
   lessonsTotal: number;
@@ -65,6 +91,12 @@ export interface GenerateFromUploadInput {
   file?: Express.Multer.File;
   files?: Express.Multer.File[];
   triggeredById?: string | null;
+}
+
+export interface UpdatePackagePayload {
+  title?: string;
+  topic?: string;
+  description?: string | null;
 }
 
 export const coursePackageService = {
@@ -145,6 +177,54 @@ export const coursePackageService = {
 
       return { pkg, version };
     });
+  },
+
+  /**
+   * 更新课程包的基础信息（标题、主题、简介）
+   */
+  updatePackageMetadata: async (packageId: string, input: UpdatePackagePayload) => {
+    const pkg = await prisma.coursePackage.findUnique({ where: { id: packageId } });
+    if (!pkg) {
+      const error = new Error("课程包不存在");
+      (error as any).status = 404;
+      throw error;
+    }
+
+    const data: Prisma.CoursePackageUpdateInput = {};
+    if (input.title !== undefined) {
+      const trimmedTitle = input.title.trim();
+      if (!trimmedTitle) {
+        const error = new Error("课程包名称不能为空");
+        (error as any).status = 400;
+        throw error;
+      }
+      data.title = trimmedTitle;
+    }
+    if (input.topic !== undefined) {
+      const trimmedTopic = input.topic.trim();
+      if (!trimmedTopic) {
+        const error = new Error("课程主题不能为空");
+        (error as any).status = 400;
+        throw error;
+      }
+      data.topic = trimmedTopic;
+    }
+    if (input.description !== undefined) {
+      const trimmedDescription = input.description?.trim();
+      data.description = trimmedDescription && trimmedDescription.length > 0 ? trimmedDescription : null;
+    }
+
+    if (Object.keys(data).length > 0) {
+      await coursePackageRepository.update(packageId, data);
+    }
+
+    const detail = await coursePackageRepository.findDetailById(packageId);
+    if (!detail) {
+      const error = new Error("课程包不存在");
+      (error as any).status = 404;
+      throw error;
+    }
+    return detail;
   },
 
   /**
@@ -343,9 +423,20 @@ export const coursePackageService = {
     const storagePath = `${COURSE_COVER_FOLDER}/${packageId}/${safeFileName}`;
     const contentType = file.mimetype || "image/jpeg";
 
-    const uploadResult = await supabase.storage
-      .from(SUPABASE_STORAGE_BUCKET)
-      .upload(storagePath, file.buffer, { contentType, upsert: false });
+    await ensureCoverBucket();
+
+    const uploadOnce = () =>
+      supabase.storage.from(SUPABASE_STORAGE_BUCKET).upload(storagePath, file.buffer, {
+        contentType,
+        upsert: false
+      });
+
+    let uploadResult = await uploadOnce();
+    if (uploadResult.error && uploadResult.error.message?.toLowerCase().includes("not found")) {
+      hasEnsuredCoverBucket = false;
+      await ensureCoverBucket();
+      uploadResult = await uploadOnce();
+    }
 
     if (uploadResult.error) {
       throw new Error(`上传封面失败：${uploadResult.error.message}`);

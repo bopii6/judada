@@ -17,14 +17,8 @@ export const Courses = () => {
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       <div className="flex flex-col gap-3">
-        <button
-          onClick={() => navigate("/")}
-          className="self-start inline-flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors mb-2"
-        >
-          <ArrowRight className="w-4 h-4 rotate-180" />
-          <span>返回首页</span>
-        </button>
-        <div className="inline-flex items-center gap-2 self-start rounded-full bg-indigo-50 px-4 py-1.5 text-xs font-bold text-indigo-500">
+
+        <div className="inline-flex items-center gap-2 self-start rounded-full bg-orange-50 px-4 py-1.5 text-xs font-bold text-orange-500 border border-orange-100/50">
           <Layers className="w-3 h-3" />
           <span>LEARNING PATHS</span>
         </div>
@@ -38,7 +32,7 @@ export const Courses = () => {
         {courses.map((course, index) => (
           <div
             key={course.id}
-            className="group flex flex-col rounded-[2rem] bg-white p-2 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300"
+            className="group flex flex-col rounded-[2rem] bg-white p-2 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.05)] border border-slate-100/50 hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.1)] hover:-translate-y-1 transition-all duration-300"
           >
             {/* Cover Image Area */}
             <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[1.5rem] bg-slate-100">
@@ -77,11 +71,11 @@ export const Courses = () => {
                 </span>
                 <button
                   type="button"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition-all hover:bg-indigo-600 hover:gap-3 disabled:opacity-50 disabled:hover:bg-slate-900"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white transition-all hover:bg-orange-500 hover:shadow-lg hover:shadow-orange-500/30 hover:gap-3 disabled:opacity-50 disabled:hover:bg-slate-900 disabled:hover:shadow-none"
                   onClick={() => handleEnterCourse(course)}
                   disabled={course.lessonCount === 0}
                 >
-                  <span>开始</span>
+                  <span>开始学习</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>

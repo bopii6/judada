@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { LogOut, Menu, LogIn, LayoutDashboard, BookOpen, UserRound, Sparkles, Sun, Music3 } from "lucide-react";
+import { LogOut, Menu, LogIn, LayoutDashboard, BookOpen, UserRound, Sparkles, Sun, Music3, ArrowRight } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 
 const links = [
@@ -100,16 +100,28 @@ export const AppLayout = () => {
         <header className="sticky top-0 z-30 bg-[#FFFBF5]/80 backdrop-blur-md border-b border-slate-200/50">
           <div className="flex items-center justify-between px-6 py-5 sm:px-8">
             <div className="flex items-center gap-4">
-              <button
-                className="lg:hidden p-2 -ml-2 text-slate-500 hover:text-slate-800 rounded-xl hover:bg-white transition-colors"
-                onClick={() => setSidebarOpen(true)}
-                aria-label="打开菜单"
-              >
-                <Menu className="w-6 h-6" />
-              </button>
-              <div className="lg:hidden">
-                <span className="text-base font-bold text-slate-800">Jude English</span>
-              </div>
+              {location.pathname === "/courses" ? (
+                <button
+                  onClick={() => navigate("/")}
+                  className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
+                >
+                  <ArrowRight className="w-4 h-4 rotate-180" />
+                  <span>返回首页</span>
+                </button>
+              ) : (
+                <>
+                  <button
+                    className="lg:hidden p-2 -ml-2 text-slate-500 hover:text-slate-800 rounded-xl hover:bg-white transition-colors"
+                    onClick={() => setSidebarOpen(true)}
+                    aria-label="打开菜单"
+                  >
+                    <Menu className="w-6 h-6" />
+                  </button>
+                  <div className="lg:hidden">
+                    <span className="text-base font-bold text-slate-800">Jude English</span>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="flex items-center gap-5">

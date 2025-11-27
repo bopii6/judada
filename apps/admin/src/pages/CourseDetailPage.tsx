@@ -1,4 +1,12 @@
-import { useMemo, useRef, useState, type ChangeEventHandler } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ChangeEventHandler,
+  type FormEventHandler
+} from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -6,7 +14,9 @@ import {
   fetchCoursePackageDetail,
   uploadCoursePackageMaterial,
   publishCoursePackage,
-  uploadCoursePackageCover
+  uploadCoursePackageCover,
+  updateCoursePackage,
+  type UpdateCoursePackagePayload
 } from "../api/coursePackages";
 import "./CourseDetailPage.css";
 
@@ -33,6 +43,13 @@ export const CourseDetailPage = () => {
   const [publishSuccess, setPublishSuccess] = useState<string | null>(null);
   const [coverError, setCoverError] = useState<string | null>(null);
   const [coverSuccess, setCoverSuccess] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
+  const [editState, setEditState] = useState({
+    title: "",
+    topic: "",
+    description: ""
+  });
 
   const {
     data,
@@ -121,7 +138,55 @@ export const CourseDetailPage = () => {
     }
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async (payload: UpdateCoursePackagePayload) => {
+      if (!id) {
+        throw new Error("当前页面缺少课程包标识，请刷新后重试�?);
+      }
+      return updateCoursePackage(id, payload);
+    },
+    onMutate: () => {
+      setUpdateError(null);
+      setUpdateSuccess(null);
+    },
+    onSuccess: ({ package: updated }) => {
+      setUpdateSuccess("基础信息更新成功");
+      setEditState({
+        title: updated.title,
+        topic: updated.topic,
+        description: updated.description ?? ""
+      });
+      void refetchDetail();
+      if (id) {
+        queryClient.setQueryData<{ package: CoursePackageDetail }>(["course-packages", id], { package: updated });
+      }
+      void queryClient.invalidateQueries({ queryKey: ["course-packages"] });
+    },
+    onError: failure => {
+      setUpdateError((failure as Error).message);
+    }
+  });
+
   const detail = useMemo<CoursePackageDetail | null>(() => data?.package ?? null, [data]);
+
+  useEffect(() => {
+    if (detail) {
+      setEditState({
+        title: detail.title,
+        topic: detail.topic,
+        description: detail.description ?? ""
+      });
+    }
+  }, [detail]);
+
+  const normalizedDetailDescription = (detail?.description ?? "").trim();
+  const normalizedEditDescription = editState.description.trim();
+  const isBasicInfoDirty = Boolean(
+    detail &&
+      (detail.title !== editState.title.trim() ||
+        detail.topic !== editState.topic.trim() ||
+        normalizedDetailDescription !== normalizedEditDescription)
+  );
 
   if (!id) {
     return <div className="course-detail">未提供课程包 ID。</div>;
@@ -190,6 +255,54 @@ export const CourseDetailPage = () => {
     coverMutation.mutate(file);
   };
 
+  const handleBasicInfoChange =
+    (key: "title" | "topic" | "description") =>
+    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const value = event.target.value;
+      setEditState(prev => ({
+        ...prev,
+        [key]: value
+      }));
+    };
+
+  const handleBasicInfoReset = () => {
+    if (detail) {
+      setEditState({
+        title: detail.title,
+        topic: detail.topic,
+        description: detail.description ?? ""
+      });
+    }
+    setUpdateError(null);
+    setUpdateSuccess(null);
+  };
+
+  const handleBasicInfoSubmit: FormEventHandler<HTMLFormElement> = event => {
+    event.preventDefault();
+    if (!id) {
+      setUpdateError("当前页面缺少课程包标识，请刷新后重试�?);
+      setUpdateSuccess(null);
+      return;
+    }
+
+    const title = editState.title.trim();
+    const topic = editState.topic.trim();
+    const description = editState.description.trim();
+
+    if (!title || !topic) {
+      setUpdateError("请填写课程包名称和主题");
+      setUpdateSuccess(null);
+      return;
+    }
+
+    const payload: UpdateCoursePackagePayload = {
+      title,
+      topic,
+      description: description.length > 0 ? description : null
+    };
+    updateMutation.mutate(payload);
+  };
+
   return (
     <div className="course-detail">
       <header className="course-detail-header">
@@ -214,6 +327,62 @@ export const CourseDetailPage = () => {
           </button>
         </div>
       </header>
+
+      <form className="course-basic-editor" onSubmit={handleBasicInfoSubmit}>
+        <div className="course-basic-editor-header">
+          <div>
+            <h2>基础信息</h2>
+            <p>可以随时修改课程包的对外展示名称、主题和简介，方便快速纠错或补充上下文。</p>
+          </div>
+          <div className="course-basic-editor-actions">
+            <button
+              type="button"
+              onClick={handleBasicInfoReset}
+              disabled={!isBasicInfoDirty || updateMutation.isPending}
+            >
+              重置
+            </button>
+            <button
+              type="submit"
+              className="primary"
+              disabled={!isBasicInfoDirty || updateMutation.isPending}
+            >
+              {updateMutation.isPending ? "保存中..." : "保存修改"}
+            </button>
+          </div>
+        </div>
+        <div className="course-basic-editor-grid">
+          <label>
+            <span>课程包名称</span>
+            <input
+              type="text"
+              value={editState.title}
+              maxLength={60}
+              onChange={handleBasicInfoChange("title")}
+              placeholder="例如：5年级英语上册"
+            />
+          </label>
+          <label>
+            <span>课程主题</span>
+            <input
+              type="text"
+              value={editState.topic}
+              maxLength={30}
+              onChange={handleBasicInfoChange("topic")}
+              placeholder="例如：词汇练习 / 语法闯关"
+            />
+          </label>
+          <label className="course-basic-editor-full">
+            <span>课程简介</span>
+            <textarea
+              value={editState.description}
+              maxLength={400}
+              onChange={handleBasicInfoChange("description")}
+              placeholder="可选：补充一句介绍，帮助同事快速识别。"
+            />
+          </label>
+        </div>
+      </form>
 
       <section className="course-cover-panel">
         <div className="course-cover-preview">
@@ -253,7 +422,14 @@ export const CourseDetailPage = () => {
         hidden
         onChange={handleCoverFileChange}
       />
-      {(uploadError || uploadSuccess || publishError || publishSuccess || coverError || coverSuccess) && (
+      {(uploadError ||
+        uploadSuccess ||
+        publishError ||
+        publishSuccess ||
+        coverError ||
+        coverSuccess ||
+        updateError ||
+        updateSuccess) && (
         <div className="course-detail-upload-feedback-stack">
           {(uploadError || uploadSuccess) && (
             <p className={`course-detail-upload-feedback ${uploadError ? "error" : "success"}`}>
@@ -268,6 +444,11 @@ export const CourseDetailPage = () => {
           {(coverError || coverSuccess) && (
             <p className={`course-detail-upload-feedback ${coverError ? "error" : "success"}`}>
               {coverError ?? coverSuccess}
+            </p>
+          )}
+          {(updateError || updateSuccess) && (
+            <p className={`course-detail-upload-feedback ${updateError ? "error" : "success"}`}>
+              {updateError ?? updateSuccess}
             </p>
           )}
         </div>
