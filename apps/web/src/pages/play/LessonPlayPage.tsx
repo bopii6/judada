@@ -2,9 +2,11 @@
 import type { SVGProps } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import classNames from "classnames";
 import { fetchCourseContent, type CourseStage } from "../../api/courses";
 import { TilesLessonExperience } from "../../components/play/TilesLessonExperience";
 import { TypingLessonExperience } from "../../components/play/TypingLessonExperience";
+import { StagesProgressSidebar } from "../../components/StagesProgressSidebar";
 import { progressStore } from "../../store/progressStore";
 import { ArrowLeft, Star, Keyboard, MousePointer2 } from "lucide-react";
 
@@ -193,8 +195,27 @@ export const LessonPlayPage = () => {
 
       {/* Main Content */}
       <main className="relative z-10 mx-auto flex w-full flex-1 items-center justify-center px-4 pb-10 min-h-[calc(100vh-100px)]">
-        {/* Game Card */}
-        <section className="relative w-full max-w-4xl overflow-hidden rounded-[3rem] bg-white p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border border-slate-100">
+        {/* Content Container with Sidebar (for typing mode) */}
+        <div className={classNames(
+          "flex w-full max-w-6xl gap-8 overflow-hidden",
+          activeMode === "type" ? "flex-row" : "flex-col"
+        )}>
+          {/* Stages Progress Sidebar (Desktop, only for typing mode) */}
+          {activeMode === "type" && (
+            <div className="hidden lg:block w-72 shrink-0 h-[calc(100vh-140px)] sticky top-0">
+              <StagesProgressSidebar
+                stages={stages}
+                currentIndex={stageIndex}
+                className="rounded-3xl border border-white/60 shadow-sm overflow-hidden h-full"
+              />
+            </div>
+          )}
+
+          {/* Game Card */}
+          <section className={classNames(
+            "relative overflow-hidden rounded-[3rem] bg-white p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border border-slate-100",
+            activeMode === "type" ? "flex-1 min-w-0" : "w-full max-w-4xl"
+          )}>
 
           {completed ? (
             <div className="relative z-10 flex h-full flex-col items-center justify-center text-center py-20">
@@ -276,6 +297,7 @@ export const LessonPlayPage = () => {
             </div>
           )}
         </section>
+        </div>
       </main>
 
       {/* Celebration Overlay */}

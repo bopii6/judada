@@ -135,13 +135,19 @@ router.post("/course-packages", async (req, res, next) => {
 
 router.post(
   "/course-packages/:id/generate",
-  upload.single("file"),
+  upload.array("files", 10), // 支持最多10张图片
   async (req, res, next) => {
     try {
-      if (!req.file) {
-        const message = "请先上传 PDF 或图片文件";
-        res.status(400).json({ error: message });
-        return;
+      const files = req.files as Express.Multer.File[] | undefined;
+      const file = req.file as Express.Multer.File | undefined;
+
+      // 支持单文件或多文件上传
+      if (!files || files.length === 0) {
+        if (!file) {
+          const message = "请先上传 PDF 或图片文件（最多10张）";
+          res.status(400).json({ error: message });
+          return;
+        }
       }
 
       const parsed = generateRequestSchema.safeParse(req.body);
@@ -150,15 +156,15 @@ router.post(
         return;
       }
 
-      const { job, asset } = await coursePackageService.enqueueGenerationFromUpload({
+      const { job, assets } = await coursePackageService.enqueueGenerationFromUpload({
         packageId: req.params.id,
-        file: req.file,
+        files: files && files.length > 0 ? files : (file ? [file] : []),
         triggeredById: parsed.data.triggeredById ?? null
       });
 
       res.status(202).json({
         job,
-        asset
+        assets: assets || []
       });
     } catch (error) {
       next(error);

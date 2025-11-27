@@ -29,8 +29,12 @@ const envSchema = z.object({
   SUPABASE_ANON_KEY: z.string().min(1, "SUPABASE_ANON_KEY is required"),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, "SUPABASE_SERVICE_ROLE_KEY is required"),
   SUPABASE_STORAGE_BUCKET: z.string().min(1, "SUPABASE_STORAGE_BUCKET is required"),
-  OPENAI_API_KEY: z.string().min(1, "OPENAI_API_KEY is required"),
+  OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL_NAME: z.string().default("gpt-4.1-mini"),
+  ZHIPU_API_KEY: z.string().min(1, "ZHIPU_API_KEY is required"),
+  ZHIPU_MODEL: z.string().default("glm-4-flash"),
+  ZHIPU_BASE_URL: z.string().default("https://open.bigmodel.cn/api/paas/v4"),
+  ZHIPU_TIMEOUT: z.coerce.number().default(150000),
   TENCENT_SECRET_ID: z.string().min(1, "TENCENT_SECRET_ID is required"),
   TENCENT_SECRET_KEY: z.string().min(1, "TENCENT_SECRET_KEY is required"),
   TENCENT_ASR_REGION: z.string().default("ap-guangzhou"),
@@ -50,6 +54,10 @@ const envSchema = z.object({
 export type Env = z.infer<typeof envSchema>;
 
 export const getEnv = (): Env => {
-  // 每次都重新解析环境变量，确保配置变更能立即生效
-  return envSchema.parse(process.env);
+  const parsed = envSchema.parse(process.env);
+
+  return {
+    ...parsed,
+    OPENAI_MODEL_NAME: parsed.ZHIPU_MODEL ?? parsed.OPENAI_MODEL_NAME
+  };
 };

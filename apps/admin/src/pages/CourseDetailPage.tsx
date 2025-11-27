@@ -41,18 +41,20 @@ export const CourseDetailPage = () => {
   });
 
   const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async (files: File[]) => {
       if (!id) {
         throw new Error("当前页面缺少课程包标识，请刷新后重试。");
       }
-      return uploadCoursePackageMaterial(id, file);
+      // 支持单文件或多文件上传
+      return uploadCoursePackageMaterial(id, files.length === 1 ? files[0] : files);
     },
     onMutate: () => {
       setUploadError(null);
       setUploadSuccess(null);
     },
-    onSuccess: ({ job, asset }) => {
-      setUploadSuccess(`已创建生成任务（${job.id}），正在分析 “${asset.originalName}”。`);
+    onSuccess: ({ job, assets }) => {
+      const fileNames = assets?.map(a => a.originalName).join("、") || "文件";
+      setUploadSuccess(`已创建生成任务（${job.id}），正在分析 ${assets?.length || 1} 个文件：${fileNames}。`);
       void refetchDetail();
       void queryClient.invalidateQueries({ queryKey: ["generation-jobs"] });
     },
@@ -117,16 +119,25 @@ export const CourseDetailPage = () => {
   };
 
   const handleFileChange: ChangeEventHandler<HTMLInputElement> = event => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
 
-    if (file.size > MAX_UPLOAD_SIZE) {
-      setUploadError("文件大小不能超过 15MB，请重新选择。");
+    // 检查文件数量限制（最多10张）
+    if (files.length > 10) {
+      setUploadError("最多只能上传10张图片，请重新选择。");
       event.target.value = "";
       return;
     }
 
-    uploadMutation.mutate(file);
+    // 检查每个文件大小
+    const oversizedFiles = files.filter(f => f.size > MAX_UPLOAD_SIZE);
+    if (oversizedFiles.length > 0) {
+      setUploadError(`文件大小不能超过 15MB，请重新选择。超出限制的文件：${oversizedFiles.map(f => f.name).join("、")}`);
+      event.target.value = "";
+      return;
+    }
+
+    uploadMutation.mutate(files);
   };
 
   return (
@@ -141,7 +152,7 @@ export const CourseDetailPage = () => {
         </div>
         <div className="course-detail-actions">
           <button type="button" onClick={handleUploadButtonClick} disabled={uploadMutation.isPending}>
-            {uploadMutation.isPending ? "正在上传..." : "上传素材并重新生成"}
+            {uploadMutation.isPending ? "正在上传..." : "上传素材并重新生成（最多10张图片）"}
           </button>
           <button
             type="button"
@@ -157,6 +168,7 @@ export const CourseDetailPage = () => {
         ref={fileInputRef}
         type="file"
         accept=".pdf,image/*"
+        multiple
         hidden
         onChange={handleFileChange}
       />
@@ -182,7 +194,7 @@ export const CourseDetailPage = () => {
         </div>
         <div>
           <span className="meta-label">关卡数量</span>
-          <span className="meta-value">{detail.lessons.length}</span>
+          <span className="meta-value">{latestVersion?.lessons.length ?? detail.lessons.length}</span>
         </div>
         <div>
           <span className="meta-label">当前状态</span>

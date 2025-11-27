@@ -29,7 +29,8 @@ export interface CreatePackagePayload extends CreateCoursePackageInput {
 
 export interface GenerateFromUploadInput {
   packageId: string;
-  file: Express.Multer.File;
+  file?: Express.Multer.File;
+  files?: Express.Multer.File[];
   triggeredById?: string | null;
 }
 
@@ -158,72 +159,120 @@ export const coursePackageService = {
 
   /**
    * 上传 PDF/图片并创建生成任务。
+   * 支持单文件或多文件上传（最多10张图片）
    */
-  enqueueGenerationFromUpload: async ({ packageId, file, triggeredById = null }: GenerateFromUploadInput) => {
-    if (!file || !file.buffer?.length) {
+  enqueueGenerationFromUpload: async ({ packageId, file, files, triggeredById = null }: GenerateFromUploadInput) => {
+    // 支持单文件或多文件上传
+    const filesToUpload = files && files.length > 0 ? files : (file ? [file] : []);
+    
+    if (filesToUpload.length === 0) {
       throw new Error("请上传有效的文件");
+    }
+
+    // 限制最多10张图片
+    if (filesToUpload.length > 10) {
+      throw new Error("最多只能上传10张图片");
     }
 
     const { SUPABASE_STORAGE_BUCKET } = getEnv();
     const supabase = getSupabase();
     const now = Date.now();
-    const originalName = file.originalname || "upload.bin";
-    const ext = path.extname(originalName).toLowerCase();
-    const baseName = path.basename(originalName, ext);
-    const normalizedBase = baseName
-      .normalize("NFKD")
-      .replace(/[^\w.-]+/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "")
-      .toLowerCase();
-    const safeBaseName = normalizedBase || "upload";
-    const safeFileName = `${now}-${safeBaseName}${ext || ".bin"}`;
-    const storagePath = `packages/${packageId}/${safeFileName}`;
-    const contentType = file.mimetype || "application/octet-stream";
+    const assets: Array<{ id: string; storagePath: string; originalName: string; mimeType: string; fileSize: number }> = [];
 
-    const uploadResult = await supabase.storage
-      .from(SUPABASE_STORAGE_BUCKET)
-      .upload(storagePath, file.buffer, { contentType, upsert: false });
+    // 批量上传文件
+    for (let i = 0; i < filesToUpload.length; i++) {
+      const currentFile = filesToUpload[i];
+      if (!currentFile || !currentFile.buffer?.length) {
+        continue;
+      }
 
-    if (uploadResult.error) {
-      throw new Error(`上传文件到存储失败：${uploadResult.error.message}`);
+      const originalName = currentFile.originalname || `upload-${i}.bin`;
+      const ext = path.extname(originalName).toLowerCase();
+      const baseName = path.basename(originalName, ext);
+      const normalizedBase = baseName
+        .normalize("NFKD")
+        .replace(/[^\w.-]+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "")
+        .toLowerCase();
+      const safeBaseName = normalizedBase || `upload-${i}`;
+      const safeFileName = `${now}-${i}-${safeBaseName}${ext || ".bin"}`;
+      const storagePath = `packages/${packageId}/${safeFileName}`;
+      const contentType = currentFile.mimetype || "application/octet-stream";
+
+      const uploadResult = await supabase.storage
+        .from(SUPABASE_STORAGE_BUCKET)
+        .upload(storagePath, currentFile.buffer, { contentType, upsert: false });
+
+      if (uploadResult.error) {
+        throw new Error(`上传文件 ${originalName} 到存储失败：${uploadResult.error.message}`);
+      }
+
+      const sourceType: SourceType =
+        contentType.includes("pdf") || originalName.toLowerCase().endsWith(".pdf") ? "pdf_upload" : "image_ocr";
+
+      const asset = await prisma.asset.create({
+        data: {
+          packageId,
+          storagePath,
+          originalName: safeFileName,
+          mimeType: contentType,
+          fileSize: currentFile.size,
+          sourceType,
+          metadata: {
+            uploadedAt: new Date().toISOString(),
+            originalFileName: originalName,
+            fileIndex: i,
+            totalFiles: filesToUpload.length
+          }
+        }
+      });
+
+      assets.push({
+        id: asset.id,
+        storagePath: asset.storagePath,
+        originalName: asset.originalName,
+        mimeType: asset.mimeType,
+        fileSize: asset.fileSize
+      });
     }
 
-    const sourceType: SourceType =
-      contentType.includes("pdf") || file.originalname.toLowerCase().endsWith(".pdf") ? "pdf_upload" : "image_ocr";
+    if (assets.length === 0) {
+      throw new Error("没有成功上传任何文件");
+    }
 
-    const asset = await prisma.asset.create({
-      data: {
-        packageId,
-        storagePath,
-        originalName: safeFileName,
-        mimeType: contentType,
-        fileSize: file.size,
-        sourceType,
-        metadata: {
-          uploadedAt: new Date().toISOString(),
-          originalFileName: originalName
-        }
-      }
-    });
+    // 确定sourceType：如果有PDF则优先使用pdf_upload，否则使用image_ocr
+    const hasPdf = assets.some(a => a.mimeType.includes("pdf") || a.originalName.toLowerCase().endsWith(".pdf"));
+    const sourceType: SourceType = hasPdf ? "pdf_upload" : "image_ocr";
 
+    // 创建生成任务，包含所有文件信息
     const job = await generationJobRepository.create({
       jobType: "package_generation",
       packageId,
       triggeredById,
       sourceType,
       inputInfo: {
-        assetId: asset.id,
-        storagePath: asset.storagePath,
-        originalName: asset.originalName,
-        mimeType: asset.mimeType,
-        size: asset.fileSize
+        assetIds: assets.map(a => a.id),
+        assets: assets.map(a => ({
+          assetId: a.id,
+          storagePath: a.storagePath,
+          originalName: a.originalName,
+          mimeType: a.mimeType,
+          size: a.fileSize
+        })),
+        totalFiles: assets.length,
+        // 保持向后兼容
+        assetId: assets[0].id,
+        storagePath: assets[0].storagePath,
+        originalName: assets[0].originalName,
+        mimeType: assets[0].mimeType,
+        size: assets[0].fileSize
       }
     });
 
     await enqueuePackageGenerationJob(job.id);
 
-    return { job, asset };
+    return { job, assets };
   },
 
   /**
@@ -343,12 +392,7 @@ export const coursePackageService = {
           throw error;
         }
 
-        // 检查是否已发布，已发布的课程包不能删除
-        if (pkg.status === 'published') {
-          const error = new Error("已发布的课程包不能删除");
-          (error as any).status = 400;
-          throw error;
-        }
+        // 允许删除任何状态的课程包（包括已发布的）
 
         // 递归删除所有相关数据
         // 1. 删除所有课程版本

@@ -1,9 +1,9 @@
-﻿import { useEffect, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import classNames from "classnames";
 import type { CourseStage } from "../../api/courses";
 import { speak } from "../../hooks/useTTS";
 import { playClickSound, playErrorSound, playSuccessSound } from "../../hooks/useFeedbackSound";
-import { Volume2, Trash2, ArrowRight } from "lucide-react";
+import { Volume2, Trash2, ArrowRight, CheckCircle2, XCircle } from "lucide-react";
 
 export interface TypingLessonExperienceProps {
   stage: CourseStage;
@@ -13,34 +13,239 @@ export interface TypingLessonExperienceProps {
   onMistake: () => void;
 }
 
+interface WordSlot {
+  id: string;
+  core: string;
+  suffix: string;
+  length: number;
+  prefill: string;
+  fillableLength: number;
+}
+
+const sanitizeLetters = (value: string) => value.replace(/[^A-Za-z']/g, "");
+
+const buildWordSlots = (text: string): WordSlot[] => {
+  if (!text.trim()) return [];
+
+  const tokens = text.split(/\s+/).filter(Boolean);
+  const slots: WordSlot[] = tokens.map((token, index) => {
+    const match = token.match(/^([A-Za-z']+)(.*)$/);
+    const core = match ? match[1] : token;
+    const suffix = match ? match[2] : "";
+
+    return {
+      id: `${index}-${token}`,
+      core,
+      suffix,
+      length: core.length,
+      prefill: "",
+      fillableLength: core.length
+    };
+  });
+
+  return slots;
+};
+
+const assembleWordInputs = (slots: WordSlot[], inputs: string[]): string =>
+  slots
+    .map((slot, index) => {
+      if (!slot.length) return slot.core;
+      const typedPart = (inputs[index] ?? "").trim();
+      const combined = typedPart;
+      if (!combined.trim()) return "";
+      return slot.suffix ? `${combined}${slot.suffix}` : combined;
+    })
+    .filter(Boolean)
+    .join(" ");
+
+// 与音乐闯关保持一致的文本标准化逻辑
+const normalizeForCompare = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/['"`""'']/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
 export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLessonExperienceProps) => {
-  const [input, setInput] = useState("");
+  const answerText = stage.answerEn || stage.promptEn || "";
+  const wordSlots = useMemo(() => buildWordSlots(answerText), [answerText]);
+  
+  const [wordInputs, setWordInputs] = useState<string[]>([]);
+  const [wordErrors, setWordErrors] = useState<Record<number, boolean>>({});
   const [status, setStatus] = useState<"idle" | "error" | "success">("idle");
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [feedback, setFeedback] = useState<{ type: "correct" | "incorrect" | null; message?: string }>({ type: null });
+  
+  const blockRefs = useRef<Array<HTMLInputElement | null>>([]);
   const successTimeoutRef = useRef<number | null>(null);
   const statusResetRef = useRef<number | null>(null);
+  
+  // 输入锁定：当答案正确时锁定输入（与音乐闯关保持一致）
+  const isInputLocked = feedback.type === "correct";
 
+  // 初始化wordInputs
   useEffect(() => {
-    if (successTimeoutRef.current) {
-      window.clearTimeout(successTimeoutRef.current);
-      successTimeoutRef.current = null;
-    }
-    if (statusResetRef.current) {
-      window.clearTimeout(statusResetRef.current);
-      statusResetRef.current = null;
-    }
-    setInput("");
+    setWordInputs(wordSlots.map(() => ""));
+    setWordErrors({});
     setStatus("idle");
+    setFeedback({ type: null });
+    blockRefs.current = [];
     speak(stage.answerEn, { rate: 0.95, preferredLocales: ["en-US", "en-GB"] });
-    textareaRef.current?.focus();
-  }, [stage]);
+    
+    // 自动聚焦第一个可输入框
+    setTimeout(() => {
+      focusFirstWritableBlock();
+    }, 100);
+  }, [stage, wordSlots]);
 
+  // 聚焦函数
+  const focusBlock = useCallback((index: number) => {
+    if (index < 0 || index >= wordSlots.length) return;
+    if (wordSlots[index]?.fillableLength === 0) return;
+    const input = blockRefs.current[index];
+    if (input) {
+      const position = input.value.length;
+      input.focus();
+      input.setSelectionRange(position, position);
+    }
+  }, [wordSlots]);
+
+  const focusFirstWritableBlock = useCallback(() => {
+    for (let i = 0; i < wordSlots.length; i += 1) {
+      if (wordSlots[i]?.fillableLength > 0) {
+        focusBlock(i);
+        break;
+      }
+    }
+  }, [focusBlock, wordSlots]);
+
+  const focusNextBlock = useCallback((currentIndex: number) => {
+    for (let i = currentIndex + 1; i < wordSlots.length; i += 1) {
+      if (wordSlots[i]?.fillableLength > 0) {
+        focusBlock(i);
+        break;
+      }
+    }
+  }, [focusBlock, wordSlots]);
+
+  // 键盘事件处理
+  const handleWordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+    if (e.key === "Enter" && !isInputLocked) {
+      checkAnswer();
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      focusBlock(index - 1);
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      focusBlock(index + 1);
+    } else if (e.key === "Backspace" && !wordInputs[index]) {
+      e.preventDefault();
+      focusBlock(index - 1);
+    }
+  };
+
+  // 单词输入变化处理
+  const handleWordInputChange = (index: number, rawValue: string) => {
+    const slot = wordSlots[index];
+    if (!slot) return;
+    if (slot.fillableLength === 0) return;
+    if (isInputLocked) return;
+
+    const sanitized = sanitizeLetters(rawValue)
+      .slice(0, slot.fillableLength || undefined)
+      .toLowerCase();
+
+    if (sanitized !== wordInputs[index]) {
+      playClickSound();
+    }
+
+    setWordInputs(prev => {
+      const next = [...prev];
+      next[index] = sanitized;
+      return next;
+    });
+
+    // 清除错误状态
+    if (wordErrors[index]) {
+      setWordErrors(prev => {
+        const next = { ...prev };
+        delete next[index];
+        return next;
+      });
+    }
+
+    // 清除反馈
+    if (feedback.type === "incorrect") {
+      setFeedback({ type: null });
+    }
+
+    // 如果填满了，自动移到下一个
+    if (slot.fillableLength && sanitized.length >= slot.fillableLength) {
+      const fullWord = sanitized.toLowerCase();
+      const expected = slot.core.toLowerCase();
+
+      if (fullWord !== expected) {
+        playErrorSound();
+        setWordErrors(prev => ({ ...prev, [index]: true }));
+      } else {
+        focusNextBlock(index);
+      }
+    }
+  };
+
+  // 检查答案
+  const checkAnswer = useCallback(() => {
+    if (!answerText || !wordSlots.length || isInputLocked) return;
+
+    const typedSentence = assembleWordInputs(wordSlots, wordInputs);
+    const normalized = normalizeForCompare(typedSentence);
+    const expected = normalizeForCompare(answerText);
+    const variants = (stage.variants || []).map(v => normalizeForCompare(v));
+    const allCorrectOptions = [expected, ...variants];
+
+    if (allCorrectOptions.includes(normalized)) {
+      setStatus("success");
+      setFeedback({ type: "correct", message: "Perfect!" });
+      playSuccessSound();
+      
+      successTimeoutRef.current = window.setTimeout(() => {
+        setStatus("idle");
+        setWordInputs(wordSlots.map(() => ""));
+        setWordErrors({});
+        setFeedback({ type: null });
+        onSuccess();
+      }, 1000);
+    } else {
+      setStatus("error");
+      setFeedback({ type: "incorrect", message: "Not quite. Listen again." });
+      onMistake();
+      playErrorSound();
+      statusResetRef.current = window.setTimeout(() => {
+        setStatus("idle");
+        setFeedback({ type: null });
+      }, 360);
+    }
+  }, [answerText, wordSlots, wordInputs, isInputLocked, stage.variants, onSuccess, onMistake]);
+
+  // 自动检查（当所有单词填满时）
+  useEffect(() => {
+    const requiredWordCount = wordSlots.filter(slot => slot.fillableLength > 0).length;
+    const completedWordCount = wordSlots.filter(
+      (slot, index) => slot.fillableLength === 0 || (wordInputs[index]?.length ?? 0) === slot.fillableLength
+    ).length;
+
+    if (requiredWordCount > 0 && completedWordCount === requiredWordCount && !isInputLocked && !feedback.type) {
+      const timer = setTimeout(() => {
+        checkAnswer();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [wordInputs, wordSlots, isInputLocked, feedback.type, checkAnswer]);
+
+  // 全局键盘事件
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.code === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        handleSubmit();
-      }
       if (event.ctrlKey && event.code === "Space") {
         event.preventDefault();
         speak(stage.answerEn, { rate: 0.95, preferredLocales: ["en-US", "en-GB"] });
@@ -57,89 +262,124 @@ export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLe
         window.clearTimeout(statusResetRef.current);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage.answerEn, input]);
+  }, [stage.answerEn]);
 
-  const evaluateAnswer = () => {
-    const normalizedAnswer = normalizeForCompare(input);
-    const correctOptions = [stage.answerEn, ...(stage.variants ?? [])].map(entry => normalizeForCompare(entry));
-    return correctOptions.includes(normalizedAnswer);
-  };
-
-  const handleSubmit = () => {
-    if (!input.trim()) {
-      setStatus("error");
-      statusResetRef.current = window.setTimeout(() => setStatus("idle"), 280);
-      return;
-    }
-
-    if (evaluateAnswer()) {
-      setStatus("success");
-      playSuccessSound();
-      successTimeoutRef.current = window.setTimeout(() => {
-        setStatus("idle");
-        setInput("");
-        onSuccess();
-      }, 420);
-    } else {
-      setStatus("error");
-      onMistake();
-      playErrorSound();
-      statusResetRef.current = window.setTimeout(() => setStatus("idle"), 360);
-    }
-  };
-
-  const inputClass = classNames(
-    "mt-8 w-full rounded-[2rem] border-2 px-8 py-6 text-2xl font-bold text-slate-800 shadow-sm outline-none transition-all duration-300 resize-none placeholder:text-slate-300",
-    {
-      "border-slate-200 bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100": status === "idle",
-      "lesson-animate-shake border-red-300 bg-red-50 focus:ring-4 focus:ring-red-100": status === "error",
-      "lesson-animate-pop border-emerald-300 bg-emerald-50 focus:ring-4 focus:ring-emerald-100": status === "success"
-    }
-  );
+  const requiredWordCount = wordSlots.filter(slot => slot.fillableLength > 0).length;
+  const completedWordCount = wordSlots.filter(
+    (slot, index) => slot.fillableLength === 0 || (wordInputs[index]?.length ?? 0) === slot.fillableLength
+  ).length;
+  const isSubmitDisabled = isInputLocked || !requiredWordCount || completedWordCount !== requiredWordCount;
 
   return (
     <div className="flex h-full w-full flex-col items-center justify-between gap-8">
       <div className="flex-1 flex flex-col items-center justify-center w-full max-w-3xl">
         <div className="text-center space-y-2">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Type the translation</p>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Listen and type</p>
           <h3 className="text-2xl sm:text-3xl font-black text-slate-800 leading-relaxed drop-shadow-sm">
-            {stage.promptCn}
+            {stage.promptEn || stage.answerEn || "Loading..."}
           </h3>
+          {/* 显示英文句子的中文翻译 */}
+          {stage.promptCn && (stage.promptEn || stage.answerEn) && (
+            <p className="text-sm text-slate-500 mt-2">{stage.promptCn}</p>
+          )}
         </div>
 
-        <div className="w-full relative">
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={event => setInput(event.target.value)}
-            className={inputClass}
-            rows={3}
-            placeholder="输入对应的英文句子..."
-          />
-          <div className="absolute bottom-4 right-4 flex gap-2">
-            {status === "error" && (
-              <span className="text-sm font-bold text-red-500 bg-white px-3 py-1 rounded-full shadow-sm animate-in fade-in slide-in-from-bottom-1">
-                再试一次 💪
-              </span>
-            )}
-            {status === "success" && (
-              <span className="text-sm font-bold text-emerald-500 bg-white px-3 py-1 rounded-full shadow-sm animate-in fade-in slide-in-from-bottom-1">
-                太棒了！ ✨
-              </span>
-            )}
+        {/* Word Slots Input Area - 与音乐闯关一致的布局 */}
+        <div className="mt-8 w-full">
+          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-4 px-8 min-h-[120px]">
+            {wordSlots.map((slot, index) => {
+              return (
+                <div key={slot.id} className="flex flex-col items-center">
+                  <div className="flex items-end gap-0.5">
+                    <div
+                      className={classNames(
+                        "relative group/input",
+                        wordErrors[index] && "lesson-animate-shake"
+                      )}
+                    >
+                      {/* Hint Overlay */}
+                      {!wordInputs[index] && slot.prefill && (
+                        <span className="absolute -left-3 bottom-1 text-lg font-bold text-slate-300 pointer-events-none select-none">
+                          {slot.prefill}
+                        </span>
+                      )}
+
+                      <input
+                        ref={element => {
+                          blockRefs.current[index] = element;
+                        }}
+                        value={wordInputs[index] ?? ""}
+                        onChange={event => handleWordInputChange(index, event.target.value)}
+                        onKeyDown={(e) => handleWordKeyDown(e, index)}
+                        maxLength={slot.fillableLength || undefined}
+                        disabled={isInputLocked || slot.fillableLength === 0}
+                        style={{ width: `${Math.max(slot.fillableLength || slot.length || 1, 1.5) * 0.7}em` }}
+                        className={classNames(
+                          "bg-transparent text-3xl font-bold tracking-wide text-center outline-none transition-colors relative z-10",
+                          slot.fillableLength === 0
+                            ? "text-slate-300 cursor-default"
+                            : wordErrors[index]
+                              ? "text-rose-500"
+                              : "text-slate-900",
+                          "placeholder-transparent"
+                        )}
+                      />
+                      {/* Animated Underline */}
+                      <div
+                        className={classNames(
+                          "absolute bottom-0 left-0 right-0 h-0.5 transition-all duration-300 rounded-full",
+                          slot.fillableLength === 0
+                            ? "bg-slate-200"
+                            : wordErrors[index]
+                              ? "bg-rose-400 h-1"
+                              : "bg-slate-300 group-focus-within/input:bg-indigo-500 group-focus-within/input:h-1"
+                        )}
+                      />
+                    </div>
+
+                    {/* Suffix */}
+                    {slot.suffix && (
+                      <span className="text-4xl font-bold text-slate-300 mb-1">{slot.suffix}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
+
+          {/* Feedback Message */}
+          {feedback.type && (
+            <div className="mt-6 flex justify-center">
+              <div
+                className={classNames(
+                  "flex items-center gap-3 px-5 py-3 rounded-full text-sm font-bold uppercase tracking-wider shadow-lg border animate-in fade-in zoom-in duration-300",
+                  feedback.type === "correct"
+                    ? "bg-emerald-50 text-emerald-600 border-emerald-100 shadow-emerald-100"
+                    : "bg-rose-50 text-rose-600 border-rose-100 shadow-rose-100"
+                )}
+              >
+                {feedback.type === "correct" ? (
+                  <CheckCircle2 className="w-5 h-5" />
+                ) : (
+                  <XCircle className="w-5 h-5" />
+                )}
+                {feedback.message}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
+      {/* Bottom Action Bar */}
       <div className="flex items-center gap-4 w-full justify-center border-t border-slate-100 pt-6">
         <button
           type="button"
-          className="group flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-white font-bold shadow-lg shadow-slate-200 hover:bg-indigo-600 hover:scale-105 transition-all active:scale-95"
+          className="group flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-white font-bold shadow-lg shadow-slate-200 hover:bg-indigo-600 hover:scale-105 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           onClick={() => {
             playClickSound();
-            handleSubmit();
+            checkAnswer();
           }}
+          disabled={isSubmitDisabled}
         >
           <span>提交</span>
           <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -165,7 +405,10 @@ export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLe
           title="清空"
           onClick={() => {
             playClickSound();
-            setInput("");
+            setWordInputs(wordSlots.map(() => ""));
+            setWordErrors({});
+            setFeedback({ type: null });
+            focusFirstWritableBlock();
           }}
         >
           <Trash2 className="w-5 h-5" />
@@ -174,9 +417,3 @@ export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLe
     </div>
   );
 };
-const normalizeForCompare = (value: string) =>
-  value
-    .trim()
-    .replace(/[.!?]/g, "")
-    .replace(/\s+/g, " ")
-    .toLowerCase();

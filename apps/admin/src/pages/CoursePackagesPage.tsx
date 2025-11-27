@@ -82,8 +82,6 @@ export const CoursePackagesPage = () => {
       let errorMessage = error.message;
       if (error.message.includes('Unauthorized') || error.message.includes('401')) {
         errorMessage = '认证失败，请重新登录管理后台';
-      } else if (error.message.includes('已发布的课程包不能删除')) {
-        errorMessage = '已发布的课程包不能删除，请先取消发布状态';
       } else if (error.message.includes('课程包不存在')) {
         errorMessage = '课程包不存在或已被删除，请刷新页面';
       }
@@ -363,37 +361,33 @@ export const CoursePackagesPage = () => {
                     <Link to={`/packages/${item.id}`} className="packages-link">
                       查看详情
                     </Link>
-                    {item.status !== 'published' && (
-                      <>
-                        <span className="packages-link-separator">|</span>
-                        {deleteConfirmId === item.id ? (
-                          <span className="packages-delete-confirm">
-                            确认删除？
-                            <button
-                              className="packages-delete-yes"
-                              onClick={() => handleDeleteConfirm(item.id)}
-                              disabled={deleteMutation.isPending}
-                            >
-                              是
-                            </button>
-                            <button
-                              className="packages-delete-no"
-                              onClick={handleDeleteCancel}
-                              disabled={deleteMutation.isPending}
-                            >
-                              否
-                            </button>
-                          </span>
-                        ) : (
-                          <button
-                            className="packages-delete"
-                            onClick={() => handleDeleteClick(item.id)}
-                            disabled={deleteMutation.isPending}
-                          >
-                            删除
-                          </button>
-                        )}
-                      </>
+                    <span className="packages-link-separator">|</span>
+                    {deleteConfirmId === item.id ? (
+                      <span className="packages-delete-confirm">
+                        确认删除？
+                        <button
+                          className="packages-delete-yes"
+                          onClick={() => handleDeleteConfirm(item.id)}
+                          disabled={deleteMutation.isPending}
+                        >
+                          是
+                        </button>
+                        <button
+                          className="packages-delete-no"
+                          onClick={handleDeleteCancel}
+                          disabled={deleteMutation.isPending}
+                        >
+                          否
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        className="packages-delete"
+                        onClick={() => handleDeleteClick(item.id)}
+                        disabled={deleteMutation.isPending}
+                      >
+                        删除
+                      </button>
                     )}
                   </td>
                 </tr>
@@ -410,7 +404,7 @@ export const CoursePackagesPage = () => {
             <p>
               确定要删除选中的 {selectedIds.size} 个课程包吗？
               <br />
-              <small>注意：已发布的课程包不会被删除</small>
+              <small>注意：删除操作不可恢复，请谨慎操作</small>
             </p>
             <div className="packages-batch-delete-actions">
               <button

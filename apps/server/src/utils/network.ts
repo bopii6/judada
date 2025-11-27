@@ -1,3 +1,5 @@
+import { getEnv } from "../config/env";
+
 /**
  * 网络连接诊断和监控工具
  */
@@ -6,13 +8,16 @@
  * 检查各种网络连接状态
  */
 export const diagnoseNetworkIssues = async (): Promise<{
-  openai: boolean;
+  aiService: boolean;
   dns: boolean;
   internet: boolean;
   details: string[];
 }> => {
+  const { ZHIPU_BASE_URL } = getEnv();
+  const aiHost = resolveHost(ZHIPU_BASE_URL);
+
   const results = {
-    openai: false,
+    aiService: false,
     dns: false,
     internet: false,
     details: [] as string[]
@@ -24,12 +29,12 @@ export const diagnoseNetworkIssues = async (): Promise<{
     results.details.push(`互联网连接: ${results.internet ? '正常' : '异常'}`);
 
     // 检查DNS解析
-    results.dns = await checkDNSResolution();
+    results.dns = await checkDNSResolution(aiHost);
     results.details.push(`DNS解析: ${results.dns ? '正常' : '异常'}`);
 
-    // 检查OpenAI连接
-    results.openai = await checkOpenAIConnection();
-    results.details.push(`OpenAI连接: ${results.openai ? '正常' : '异常'}`);
+    // 检查AI服务连接
+    results.aiService = await checkAIConnection(ZHIPU_BASE_URL);
+    results.details.push(`AI服务连接: ${results.aiService ? '正常' : '异常'}`);
 
   } catch (error: any) {
     results.details.push(`网络诊断失败: ${error.message}`);
@@ -59,23 +64,24 @@ const checkInternetConnection = async (): Promise<boolean> => {
 /**
  * 检查DNS解析
  */
-const checkDNSResolution = async (): Promise<boolean> => {
+const checkDNSResolution = async (host: string): Promise<boolean> => {
   return new Promise((resolve) => {
     const dns = require('dns');
-    dns.lookup('api.openai.com', (err: any) => {
+    dns.lookup(host, (err: any) => {
       resolve(!err);
     });
   });
 };
 
 /**
- * 检查OpenAI连接
+ * 检查AI服务连接
  */
-const checkOpenAIConnection = async (): Promise<boolean> => {
+const checkAIConnection = async (baseUrl: string): Promise<boolean> => {
   return new Promise((resolve) => {
     const https = require('https');
-    const request = https.get('https://api.openai.com/v1/models', (res: any) => {
-      resolve(res.statusCode === 200 || res.statusCode === 401);
+    const target = `${sanitizeBaseUrl(baseUrl)}/models`;
+    const request = https.get(target, (res: any) => {
+      resolve(Boolean(res.statusCode && res.statusCode < 500));
     });
 
     request.on('error', () => resolve(false));
@@ -114,8 +120,18 @@ export const getNetworkErrorSuggestion = (error: any): string => {
   }
 
   if (error.status >= 500) {
-    return `OpenAI服务器错误。建议:\n- 稍后重试\n- 检查OpenAI状态页面\n- 等待服务器恢复`;
+    return `AI服务端错误。建议:\n- 稍后重试\n- 检查服务状态页面\n- 等待服务器恢复`;
   }
 
   return `未知网络错误。建议:\n- 检查网络连接\n- 重新启动应用\n- 联系技术支持`;
+};
+
+const sanitizeBaseUrl = (url: string) => url.replace(/\/$/, '');
+
+const resolveHost = (url: string): string => {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "open.bigmodel.cn";
+  }
 };

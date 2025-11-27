@@ -23,6 +23,7 @@ export interface CourseStage {
   lessonSequence: number;
   stageSequence: number;
   promptCn: string;
+  promptEn?: string; // 英文句子（主要显示内容）
   answerEn: string;
   variants: string[];
   type: LessonInteractionType;

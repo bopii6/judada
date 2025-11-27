@@ -156,16 +156,22 @@ export interface PackageAssetSummary {
 
 export const uploadCoursePackageMaterial = (
   packageId: string,
-  file: File,
+  file: File | File[],
   options?: { triggeredById?: string }
 ) => {
   const formData = new FormData();
-  formData.append("file", file);
+  
+  // 支持单文件或多文件上传
+  const files = Array.isArray(file) ? file : [file];
+  files.forEach((f) => {
+    formData.append("files", f);
+  });
+  
   if (options?.triggeredById) {
     formData.append("triggeredById", options.triggeredById);
   }
 
-  return apiFetch<{ job: GenerationJob; asset: PackageAssetSummary }>(
+  return apiFetch<{ job: GenerationJob; assets: PackageAssetSummary[] }>(
     `/admin/course-packages/${packageId}/generate`,
     {
       method: "POST",

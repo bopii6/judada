@@ -150,3 +150,4 @@ echo "4. 临时测试: 在服务器上运行:"
 echo "   psql \"$DATABASE_URL\" -c \"SELECT 1;\""
 echo ""
 
+

@@ -70,3 +70,4 @@ echo "运行完整诊断: bash /var/www/judada/apps/server/check-db-config.sh"
 echo "查看 PM2 日志: pm2 logs judada-server --lines 50"
 echo ""
 
+

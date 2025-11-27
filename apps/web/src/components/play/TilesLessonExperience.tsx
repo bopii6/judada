@@ -170,10 +170,13 @@ export const TilesLessonExperience = ({ stage, onSuccess, onMistake }: TilesLess
     <div className="flex h-full w-full flex-col items-center justify-between gap-8">
       <div className="flex-1 flex flex-col items-center justify-center gap-8 w-full max-w-3xl">
         <div className="text-center space-y-2">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Translate this sentence</p>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Listen and practice</p>
           <h3 className="text-2xl sm:text-3xl font-black text-slate-800 leading-relaxed">
-            {stage.promptCn}
+            {stage.promptEn || stage.answerEn || "Loading..."}
           </h3>
+          {stage.promptCn && (stage.promptEn || stage.answerEn) && (
+            <p className="text-sm text-slate-500 mt-2">{stage.promptCn}</p>
+          )}
         </div>
 
         <div className={answerBoxClass}>
