@@ -199,25 +199,25 @@ router.post(
   async (req, res, next) => {
     try {
       console.info(
-        `[admin][cover-upload] ��ʼ���������ϴ� packageId=${req.params.id} method=${req.method} url=${req.originalUrl}`
+        `[admin][cover-upload] 开始处理封面上传 packageId=${req.params.id} method=${req.method} url=${req.originalUrl}`
       );
 
       if (!req.file) {
         console.warn(
-          `[admin][cover-upload] δ�յ��ļ� packageId=${req.params.id} headers=${JSON.stringify(req.headers)}`
+          `[admin][cover-upload] 未收到文件 packageId=${req.params.id} headers=${JSON.stringify(req.headers)}`
         );
-        res.status(400).json({ error: "���ϴ�����ͼ��" });
+        res.status(400).json({ error: "请上传封面图像" });
         return;
       }
 
       const result = await coursePackageService.updateCoverImage(req.params.id, req.file);
       console.info(
-        `[admin][cover-upload] �ϴ��ɹ� packageId=${req.params.id} mime=${req.file.mimetype} size=${req.file.size}B url=${result.coverUrl}`
+        `[admin][cover-upload] 上传成功 packageId=${req.params.id} mime=${req.file.mimetype} size=${req.file.size}B url=${result.coverUrl}`
       );
       res.json({ coverUrl: result.coverUrl });
     } catch (error) {
       console.error(
-        `[admin][cover-upload] ����ʧ�� packageId=${req.params.id} message=${(error as Error).message}`
+        `[admin][cover-upload] 处理失败 packageId=${req.params.id} message=${(error as Error).message}`
       );
       next(error);
     }
