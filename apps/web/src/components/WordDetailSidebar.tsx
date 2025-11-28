@@ -109,7 +109,7 @@ export const WordDetailSidebar = ({ word, definition, isOpen, isLoading, onClose
                                         Example
                                     </p>
                                     <p className="text-slate-600 italic border-l-2 border-indigo-200 pl-3 py-1">
-                                        "{definition.example}"
+                                        &ldquo;{definition.example}&rdquo;
                                     </p>
                                 </div>
                             )}

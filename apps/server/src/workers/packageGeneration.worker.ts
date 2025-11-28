@@ -7,7 +7,7 @@ import { getPrisma } from "../lib/prisma";
 import { getSupabase } from "../lib/supabase";
 import { getEnv } from "../config/env";
 import { parsePdfToQuestions, ParsedQuestion } from "../utils/pdf";
-import { recognizeImageByUrl, recognizeImagesBatch } from "../lib/ocr";
+import { recognizeImagesBatch } from "../lib/ocr";
 import { getOpenAI, callOpenAIWithRetry } from "../lib/openai";
 import { generationJobRepository } from "../repositories/generationJob.repository";
 
@@ -168,6 +168,7 @@ const extractEnglishSentences = (text: string, logContext?: { generationJobId?: 
   return result;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const extractOcrText = (raw: unknown): string => {
   const visited = new Set<unknown>();
 
@@ -311,6 +312,7 @@ const extractOcrText = (raw: unknown): string => {
   return extractRecursive(data);
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const buildAiInstructions = () =>
   [
     "You are an experienced ESL curriculum designer for Chinese learners aged 16-30.",
@@ -562,7 +564,6 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
     size: number;
   }> | undefined;
   
-  const totalFiles = jobInput.totalFiles as number | undefined || 1;
   const originalName = jobInput.originalName ?? "上传文件";
   const storagePath = jobInput.storagePath; // 向后兼容单文件
 
@@ -594,7 +595,7 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
   });
 
   let extractedText = "";
-  let parsedQuestions: ParsedQuestion[] = [];
+  const parsedQuestions: ParsedQuestion[] = [];
   const allOcrTexts: string[] = [];
 
   // 处理PDF文件（通常只有一个PDF）
@@ -1241,7 +1242,7 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
       );
     }
 
-    const removedLessons = await prisma.lesson.deleteMany({
+    const removedLessons = await (prisma as any).lesson.deleteMany({
       where: {
         packageVersionId: version.id,
         unitId: targetUnit.id
@@ -1256,7 +1257,7 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
       );
     }
   } else {
-    if (existingDraftVersion) {
+  if (existingDraftVersion) {
       await generationJobRepository.appendLog(
         generationJobId,
         `发现已有草稿版本（#${existingDraftVersion.versionNumber}），删除旧草稿以创建新草稿`,
@@ -1276,7 +1277,7 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
         });
       }
 
-      await prisma.lesson.deleteMany({
+      await (prisma as any).lesson.deleteMany({
         where: {
           packageVersionId: existingDraftVersion.id
         }

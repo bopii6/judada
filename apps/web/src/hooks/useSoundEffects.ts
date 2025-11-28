@@ -1,11 +1,19 @@
 import { useCallback, useRef } from 'react';
 
+type ExtendedWindow = Window & typeof globalThis & {
+    webkitAudioContext?: typeof AudioContext;
+};
+
 export const useSoundEffects = () => {
     const audioContextRef = useRef<AudioContext | null>(null);
 
     const getContext = useCallback(() => {
         if (!audioContextRef.current) {
-            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            const extendedWindow = window as ExtendedWindow;
+            const AudioContextClass = window.AudioContext ?? extendedWindow.webkitAudioContext;
+            if (!AudioContextClass) {
+                throw new Error("Web Audio API is not supported in this browser.");
+            }
             audioContextRef.current = new AudioContextClass();
         }
         if (audioContextRef.current.state === 'suspended') {

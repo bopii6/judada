@@ -10,7 +10,6 @@ interface WordHoverCardProps {
 }
 
 export const WordHoverCard: React.FC<WordHoverCardProps> = ({ word, children, onClick }) => {
-    const [isHovered, setIsHovered] = useState(false);
     const [showTooltip, setShowTooltip] = useState(false);
     const hoverTimeoutRef = useRef<number | null>(null);
 
@@ -27,7 +26,6 @@ export const WordHoverCard: React.FC<WordHoverCardProps> = ({ word, children, on
     });
 
     const handleMouseEnter = () => {
-        setIsHovered(true);
         // Delay showing tooltip to prevent flashing during quick mouse movement
         hoverTimeoutRef.current = window.setTimeout(() => {
             setShowTooltip(true);
@@ -35,7 +33,6 @@ export const WordHoverCard: React.FC<WordHoverCardProps> = ({ word, children, on
     };
 
     const handleMouseLeave = () => {
-        setIsHovered(false);
         setShowTooltip(false);
         if (hoverTimeoutRef.current) {
             clearTimeout(hoverTimeoutRef.current);

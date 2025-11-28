@@ -1,12 +1,11 @@
 import { Router, type Router as ExpressRouter } from "express";
 import multer from "multer";
 import { z } from "zod";
-import { CourseStatus, MusicTrackStatus } from "@prisma/client";
+import { MusicTrackStatus } from "@prisma/client";
 import { requireAdmin } from "../middleware/adminAuth";
 import { coursePackageService, musicTrackService, unitService } from "../services";
 import { lessonRepository } from "../repositories";
 import { getPrisma } from "../lib/prisma";
-import type { MusicWord, MusicPhrase } from "../services/musicTrack.service";
 
 const prisma = getPrisma();
 
@@ -65,22 +64,6 @@ const updatePackageSchema = z.object({
 const generateRequestSchema = z.object({
   triggeredById: z.string().uuid().optional()
 });
-
-const numericString = z.preprocess(
-  value => {
-    if (typeof value === "string") {
-      const trimmed = value.trim();
-      if (!trimmed) return undefined;
-      const parsed = Number(trimmed);
-      return Number.isFinite(parsed) ? parsed : undefined;
-    }
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return value;
-    }
-    return undefined;
-  },
-  z.number().int().positive().optional()
-);
 
 const createTrackMetadataSchema = z.object({
   title: z.string().trim().optional(),

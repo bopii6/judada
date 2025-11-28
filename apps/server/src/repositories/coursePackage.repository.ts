@@ -1,17 +1,5 @@
 import { Prisma, SourceType, VersionStatus } from "@prisma/client";
-import {
-  SourceType as ST,
-  VersionStatus as VS,
-  CoursePackageVersionGetPayload,
-  LessonGetPayload,
-  InputJsonValue,
-  CoursePackageGetPayload,
-  CoursePackageUpdateInput
-} from "../types/prisma-temp";
-
-// 使用类型别名以避免冲突
-type LocalSourceType = ST;
-type LocalVersionStatus = VS;
+import { CoursePackageVersionGetPayload, LessonGetPayload, InputJsonValue } from "../types/prisma-temp";
 import { getPrisma } from "../lib/prisma";
 
 const prisma = getPrisma();

@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { useProgressStore } from "../store/progressStore";
 import { SyncStatus } from "../components/SyncStatus";
-import { Sparkles, Star, Zap, Play } from "lucide-react";
+import { Sparkles, Star, Play } from "lucide-react";
 import { StickerAlbum } from "../components/StickerAlbum";
 import { Link } from "react-router-dom";
 

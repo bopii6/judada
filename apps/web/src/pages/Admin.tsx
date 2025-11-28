@@ -92,7 +92,7 @@ export const Admin = () => {
     try {
       // 验证ADMIN_KEY是否正确
       api.defaults.headers.common["x-admin-key"] = trimmedKey;
-      const response = await api.get("/admin/overview");
+      await api.get("/admin/overview");
 
       // 验证成功
       localStorage.setItem(ADMIN_KEY_STORAGE, trimmedKey);

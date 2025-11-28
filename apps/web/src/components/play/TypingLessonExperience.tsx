@@ -74,30 +74,13 @@ export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLe
   
   const [wordInputs, setWordInputs] = useState<string[]>([]);
   const [wordErrors, setWordErrors] = useState<Record<number, boolean>>({});
-  const [status, setStatus] = useState<"idle" | "error" | "success">("idle");
   const [feedback, setFeedback] = useState<{ type: "correct" | "incorrect" | null; message?: string }>({ type: null });
   
   const blockRefs = useRef<Array<HTMLInputElement | null>>([]);
   const successTimeoutRef = useRef<number | null>(null);
-  const statusResetRef = useRef<number | null>(null);
   
   // 输入锁定：当答案正确时锁定输入（与音乐闯关保持一致）
   const isInputLocked = feedback.type === "correct";
-
-  // 初始化wordInputs
-  useEffect(() => {
-    setWordInputs(wordSlots.map(() => ""));
-    setWordErrors({});
-    setStatus("idle");
-    setFeedback({ type: null });
-    blockRefs.current = [];
-    speak(stage.answerEn, { rate: 0.95, preferredLocales: ["en-US", "en-GB"] });
-    
-    // 自动聚焦第一个可输入框
-    setTimeout(() => {
-      focusFirstWritableBlock();
-    }, 100);
-  }, [stage, wordSlots]);
 
   // 聚焦函数
   const focusBlock = useCallback((index: number) => {
@@ -128,6 +111,20 @@ export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLe
       }
     }
   }, [focusBlock, wordSlots]);
+
+  // 初始化wordInputs（依赖聚焦函数，因此放在其定义之后）
+  useEffect(() => {
+    setWordInputs(wordSlots.map(() => ""));
+    setWordErrors({});
+    setFeedback({ type: null });
+    blockRefs.current = [];
+    speak(stage.answerEn, { rate: 0.95, preferredLocales: ["en-US", "en-GB"] });
+
+    // 自动聚焦第一个可输入框
+    setTimeout(() => {
+      focusFirstWritableBlock();
+    }, 100);
+  }, [stage, wordSlots, focusFirstWritableBlock]);
 
   // 键盘事件处理
   const handleWordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
@@ -210,19 +207,16 @@ export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLe
       playSuccessSound();
       
       successTimeoutRef.current = window.setTimeout(() => {
-        setStatus("idle");
         setWordInputs(wordSlots.map(() => ""));
         setWordErrors({});
         setFeedback({ type: null });
         onSuccess();
       }, 1000);
     } else {
-      setStatus("error");
       setFeedback({ type: "incorrect", message: "Not quite. Listen again." });
       onMistake();
       playErrorSound();
-      statusResetRef.current = window.setTimeout(() => {
-        setStatus("idle");
+      window.setTimeout(() => {
         setFeedback({ type: null });
       }, 360);
     }
@@ -257,9 +251,6 @@ export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLe
       window.removeEventListener("keydown", handleKeyDown);
       if (successTimeoutRef.current) {
         window.clearTimeout(successTimeoutRef.current);
-      }
-      if (statusResetRef.current) {
-        window.clearTimeout(statusResetRef.current);
       }
     };
   }, [stage.answerEn]);

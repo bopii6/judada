@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
 import { HttpError } from "../utils/errors";
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunction) => {
   // 记录详细错误信息
   console.error('请求错误:', {
@@ -72,8 +73,10 @@ export const errorHandler = (err: unknown, req: Request, res: Response, _next: N
   });
 };
 
+type AsyncHandler = (req: Request, res: Response, next: NextFunction) => Promise<unknown> | unknown;
+
 // 异步错误处理包装器
-export const asyncHandler = (fn: Function) => {
+export const asyncHandler = (fn: AsyncHandler) => {
   return (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };

@@ -3,8 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchCourseContent, type CourseStage } from "../api/courses";
 import { AdventureMap } from "../components/AdventureMap";
-import { useProgressStore } from "../store/progressStore";
-import { BookOpen, Clock, Star, Play, Lock, CheckCircle2, ArrowRight } from "lucide-react";
+import { BookOpen, Clock, Star, Play, CheckCircle2 } from "lucide-react";
 
 export const CourseOverviewPage = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -26,8 +25,6 @@ export const CourseOverviewPage = () => {
     if (!data?.stages) return [];
     return [...data.stages].sort((a, b) => a.stageSequence - b.stageSequence);
   }, [data]);
-
-  const progress = useProgressStore();
 
   const selectedStage = useMemo(() =>
     stages.find(s => s.id === selectedStageId),

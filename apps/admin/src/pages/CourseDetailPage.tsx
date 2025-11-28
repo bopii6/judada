@@ -37,8 +37,6 @@ const statusTextMap: Record<string, string> = {
   archived: "已归档"
 };
 
-const formatDateTime = (value?: string | null) => (value ? new Date(value).toLocaleString() : "—");
-
 const MAX_COVER_SIZE = 5 * 1024 * 1024;
 const MAX_UPLOAD_SIZE = 15 * 1024 * 1024;
 
@@ -410,7 +408,6 @@ export const CourseDetailPage = () => {
               <UnitCard
                 key={unit.id}
                 unit={unit}
-                packageId={id}
                 onUpdate={() => {
                   void refetchUnits();
                   void refetchDetail();
@@ -470,11 +467,10 @@ export const CourseDetailPage = () => {
 // 单元卡片组件
 interface UnitCardProps {
   unit: UnitSummary;
-  packageId: string;
   onUpdate: () => void;
 }
 
-const UnitCard = ({ unit, packageId, onUpdate }: UnitCardProps) => {
+const UnitCard = ({ unit, onUpdate }: UnitCardProps) => {
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);

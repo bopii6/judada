@@ -5,7 +5,6 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchMusicTracks } from "../../api/music";
 import { MusicCover } from "../../components/MusicCover";
 import { SAMPLE_TRACK } from "../../data/songs";
-import classNames from "classnames";
 
 export const MusicLevelSelectionPage = () => {
     const navigate = useNavigate();
@@ -14,7 +13,7 @@ export const MusicLevelSelectionPage = () => {
     // Force refresh: Horizontal Adventure Layout
     console.log("MusicLevelSelectionPage loaded");
 
-    const { data: tracks = [], isLoading } = useQuery({
+    const { data: tracks = [] } = useQuery({
         queryKey: ["lab-music-tracks"],
         queryFn: fetchMusicTracks
     });

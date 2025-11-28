@@ -93,7 +93,7 @@ router.get("/", async (req, res, next) => {
     });
 
     // 获取所有可用的筛选选项（基于有已发布单元的课程包）
-    const packagesWithPublishedUnits = await prisma.coursePackage.findMany({
+    const packagesWithPublishedUnits: Array<{ grade: string | null; publisher: string | null }> = await (prisma as any).coursePackage.findMany({
       where: {
         deletedAt: null,
         units: {
@@ -177,15 +177,6 @@ router.get("/:id/questions", async (req, res, next) => {
     }
 
     let stageSequence = 1;
-
-    // 判断文本是否主要是中文
-    const isMainlyChinese = (text: string): boolean => {
-      if (!text) return false;
-      const chineseChars = text.match(/[\u4e00-\u9fff]/g);
-      const totalChars = text.replace(/\s/g, '').length;
-      if (totalChars === 0) return false;
-      return chineseChars ? chineseChars.length / totalChars > 0.5 : false;
-    };
 
     // 翻译函数：确保始终返回英文句子的中文翻译
     // 严格禁止使用课程描述、课程标题等非翻译内容

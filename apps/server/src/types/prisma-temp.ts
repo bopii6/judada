@@ -63,6 +63,7 @@ export type JsonObject = Record<string, any>;
 export type JsonArray = any[];
 
 // 通用 Payload 类型
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export interface CoursePackageVersionGetPayload<T extends { include?: any; select?: any }> {
   id: string;
   packageId: string;
@@ -82,6 +83,7 @@ export interface CoursePackageVersionGetPayload<T extends { include?: any; selec
   deletedAt?: Date | null;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export interface LessonGetPayload<T extends { include?: any; select?: any }> {
   id: string;
   packageId: string;

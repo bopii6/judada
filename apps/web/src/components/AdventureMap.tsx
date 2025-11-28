@@ -1,7 +1,7 @@
 import type { CourseStage } from "../api/courses";
 import { useMemo, useState } from "react";
 import { useProgressStore } from "../store/progressStore";
-import { Map as MapIcon, Star, Lock, ArrowRight, ChevronDown, ChevronRight, BookOpen } from "lucide-react";
+import { Map as MapIcon, Star, Lock, ArrowRight, ChevronDown, ChevronRight } from "lucide-react";
 
 interface AdventureMapProps {
   stages: CourseStage[];
@@ -84,7 +84,7 @@ export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
   // 获取单元内关卡的状态
   const getUnitProgress = (unitStages: CourseStage[]) => {
     let completed = 0;
-    let total = unitStages.length;
+    const total = unitStages.length;
     unitStages.forEach(stage => {
       if (progress.stages[stage.id]) {
         completed++;

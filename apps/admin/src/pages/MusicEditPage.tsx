@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import type { MusicTrackDetail, MusicTrackStatus } from "@judada/shared";
 import { fetchMusicTrackDetail, updateMusicTrack, parseLrcFile } from "../api/musicTracks";
-import { MusicSegmentEditor } from "../components/MusicSegmentEditor";
+import { MusicSegmentEditor, type MusicPhrase as EditorMusicPhrase } from "../components/MusicSegmentEditor";
 
 const statusTextMap: Record<MusicTrackStatus, string> = {
   draft: "草稿",
@@ -22,27 +22,21 @@ interface EditorState {
   phrasesText: string;
 }
 
-const convertMsToSeconds = (phrases: MusicTrackDetail["phrases"]) => {
-  return (phrases ?? []).map(phrase => ({
-    ...phrase,
+const convertMsToSeconds = (phrases: MusicTrackDetail["phrases"]): EditorMusicPhrase[] =>
+  (phrases ?? []).map(phrase => ({
     start: phrase.start / 1000,
     end: phrase.end / 1000,
-    // 将数据库的 zh 字段映射为 cn 字段给前端使用
-    cn: phrase.zh,
-    zh: undefined // 移除原有的 zh 字段
+    en: phrase.en,
+    cn: phrase.zh ?? ""
   }));
-};
 
-const convertSecondsToMs = (phrases: any[]) => {
-  return phrases.map(phrase => ({
-    ...phrase,
+const convertSecondsToMs = (phrases: EditorMusicPhrase[]): MusicTrackDetail["phrases"] =>
+  phrases.map(phrase => ({
     start: phrase.start * 1000,
     end: phrase.end * 1000,
-    // 将前端的 cn 字段映射回数据库的 zh 字段
-    zh: phrase.cn,
-    cn: undefined // 移除原有的 cn 字段
+    en: phrase.en,
+    zh: phrase.cn ?? undefined
   }));
-};
 
 const buildEditorState = (track: MusicTrackDetail): EditorState => ({
   title: track.title,
@@ -108,12 +102,11 @@ export const MusicEditPage = () => {
   const handleSaveDetail = () => {
     if (!editorState || !id) return;
     try {
-      const parsedPhrases = editorState.phrasesText.trim()
-        ? JSON.parse(editorState.phrasesText)
-        : [];
-      if (!Array.isArray(parsedPhrases)) {
+      const parsedValue = editorState.phrasesText.trim() ? JSON.parse(editorState.phrasesText) : [];
+      if (!Array.isArray(parsedValue)) {
         throw new Error("歌词片段需要是数组");
       }
+      const parsedPhrases = parsedValue as EditorMusicPhrase[];
 
       // Convert seconds back to milliseconds for storage
       const phrasesInMs = convertSecondsToMs(parsedPhrases);
@@ -144,7 +137,7 @@ export const MusicEditPage = () => {
 
       if (result.success && result.phrases) {
         // 将LRC解析结果转换为MusicSegmentEditor需要的格式
-        const convertedPhrases = result.phrases.map(phrase => ({
+        const convertedPhrases: EditorMusicPhrase[] = result.phrases.map(phrase => ({
           start: phrase.start,
           end: phrase.end,
           en: phrase.english || '',
@@ -337,7 +330,7 @@ export const MusicEditPage = () => {
                   audioRef={audioRef}
                   phrases={(() => {
                     try {
-                      return JSON.parse(editorState.phrasesText || '[]');
+                      return JSON.parse(editorState.phrasesText || '[]') as EditorMusicPhrase[];
                     } catch {
                       return [];
                     }
@@ -391,7 +384,7 @@ export const MusicEditPage = () => {
         )}
       </div>
 
-      <style jsx>{`
+      <style>{`
         .music-edit-page {
           padding: 24px;
         }

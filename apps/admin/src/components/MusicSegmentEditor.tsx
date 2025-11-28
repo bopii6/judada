@@ -60,7 +60,7 @@ export const MusicSegmentEditor: React.FC<MusicSegmentEditorProps> = ({
     }
   };
 
-  const updatePhrase = (index: number, field: keyof MusicPhrase, value: any) => {
+  const updatePhrase = <TKey extends keyof MusicPhrase>(index: number, field: TKey, value: MusicPhrase[TKey]) => {
     const newPhrases = [...phrases];
     newPhrases[index] = { ...newPhrases[index], [field]: value };
     onChange(newPhrases);

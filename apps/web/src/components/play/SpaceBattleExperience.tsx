@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { Rocket, Zap, Crosshair, Target } from "lucide-react";
+import { Rocket, Crosshair, Target } from "lucide-react";
 import { CourseStage } from "../../api/courses";
 import classNames from "classnames";
 import { useSoundEffects } from "../../hooks/useSoundEffects";
@@ -139,7 +139,7 @@ export const SpaceBattleExperience: React.FC<SpaceBattleExperienceProps> = ({
         if (gameActive) {
             requestRef.current = requestAnimationFrame(updateGame);
         }
-    }, [gameActive, onSuccess, playSuccess]);
+    }, [gameActive, playSuccess]);
 
     useEffect(() => {
         if (gameActive) {
@@ -159,8 +159,7 @@ export const SpaceBattleExperience: React.FC<SpaceBattleExperienceProps> = ({
             if (!/^[a-z0-9]$/.test(key)) return;
 
             setTargets(prevTargets => {
-                let newTargets = [...prevTargets];
-                let hit = false;
+                const newTargets = [...prevTargets];
                 let targetIdToUpdate = currentTargetId;
 
                 // If no current target, find one that starts with the key
@@ -183,7 +182,6 @@ export const SpaceBattleExperience: React.FC<SpaceBattleExperienceProps> = ({
                         const expectedChar = target.word[target.matchedIndex].toLowerCase();
 
                         if (key === expectedChar) {
-                            hit = true;
                             const newMatchedIndex = target.matchedIndex + 1;
 
                             playLaser();
@@ -237,7 +235,7 @@ export const SpaceBattleExperience: React.FC<SpaceBattleExperienceProps> = ({
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [gameActive, currentTargetId, onMistake, playLaser, playExplosion, playError, combo, triggerShake]);
+    }, [gameActive, currentTargetId, onMistake, playLaser, playExplosion, playError, triggerShake, combo]);
 
 
     return (

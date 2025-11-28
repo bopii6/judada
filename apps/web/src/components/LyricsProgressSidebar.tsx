@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import classNames from "classnames";
-import { CheckCircle2, Lock, Music, PlayCircle } from "lucide-react";
+import { CheckCircle2, Music, PlayCircle } from "lucide-react";
 import type { MusicPhrase } from "@judada/shared";
 
 interface LyricsProgressSidebarProps {

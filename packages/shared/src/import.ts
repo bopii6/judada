@@ -1,4 +1,5 @@
 import Papa from "papaparse";
+import type { ParseError, ParseResult } from "papaparse";
 import { z } from "zod";
 import { questionImportSchema } from "./schemas";
 import type { QuestionInput } from "./types";
@@ -18,7 +19,7 @@ export const parseCsvQuestions = async (fileBuffer: Buffer): Promise<QuestionInp
       header: true,
       skipEmptyLines: true,
       transformHeader: (header: string) => header.trim().toLowerCase(),
-      complete: (results: Papa.ParseResult<any>) => {
+      complete: (results: ParseResult<Record<string, string>>) => {
         try {
           const rows = (results.data as Record<string, string>[]).map(raw => {
             const parsed = csvHeaderSchema.parse(raw);
@@ -36,7 +37,7 @@ export const parseCsvQuestions = async (fileBuffer: Buffer): Promise<QuestionInp
           reject(error);
         }
       },
-      error: (error: any) => reject(error)
+      error: (error: ParseError) => reject(error)
     });
   });
 

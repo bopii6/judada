@@ -141,7 +141,7 @@ export const MusicUploadPage = () => {
         </form>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .music-upload-page {
           padding: 24px;
           max-width: 800px;

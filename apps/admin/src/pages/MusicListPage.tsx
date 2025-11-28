@@ -1,22 +1,7 @@
-import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import type { MusicTrackSummary, MusicTrackStatus } from "@judada/shared";
 import { fetchMusicTracks, updateMusicTrack, deleteMusicTrack } from "../api/musicTracks";
-
-const statusTextMap: Record<MusicTrackStatus, string> = {
-  draft: "草稿",
-  processing: "处理中",
-  published: "已上架",
-  archived: "已归档"
-};
-
-const statusClassMap: Record<MusicTrackStatus, string> = {
-  draft: "draft",
-  processing: "pending",
-  published: "published",
-  archived: "archived"
-};
 
 const formatDuration = (durationMs?: number | null) => {
   if (!durationMs) return "--";
@@ -209,7 +194,7 @@ export const MusicListPage = () => {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .music-list-page {
           padding: 24px;
         }

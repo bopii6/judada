@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Play, RefreshCw, Music, CheckCircle2, XCircle, ArrowRight, ArrowLeft, Pause, Volume2, Keyboard, MousePointerClick } from "lucide-react";
+import { Play, RefreshCw, CheckCircle2, XCircle, ArrowLeft, Keyboard, MousePointerClick } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import classNames from "classnames";
 import type { MusicTrackDetail } from "@judada/shared";
@@ -100,7 +100,6 @@ export const MusicDemoPage = () => {
     }, [isLoading, publishedTracks, activeTrack]);
 
     const song = activeTrack ?? SAMPLE_TRACK;
-    const usingSample = !activeTrack;
     const audioSource = useMemo(() => getCachedAudioUrl(song.audioUrl) ?? song.audioUrl ?? "", [song.audioUrl]);
 
     const [gameState, setGameState] = useState<GameState>("idle");
@@ -258,9 +257,9 @@ export const MusicDemoPage = () => {
         });
 
         playClick();
-    }, [wordInputs, wordBank, usedBankIndices, isInputLocked]);
+    }, [wordInputs, wordBank, usedBankIndices, isInputLocked, playClick]);
 
-    const playPhraseAtIndex = async (phraseIndex: number) => {
+    const playPhraseAtIndex = useCallback(async (phraseIndex: number) => {
         const audio = audioRef.current;
         const targetPhrase = song.phrases[phraseIndex];
         if (!audio || !targetPhrase) return;
@@ -283,7 +282,7 @@ export const MusicDemoPage = () => {
         } finally {
             setIsLoadingAudio(false);
         }
-    };
+    }, [song, waitForAudioReady, playClick]);
 
     const playPhrase = () => {
         void playPhraseAtIndex(currentPhraseIndex);
@@ -310,7 +309,7 @@ export const MusicDemoPage = () => {
             .replace(/\s+/g, " ")
             .trim();
 
-    const checkAnswer = () => {
+    const checkAnswer = useCallback(() => {
         if (!currentPhrase || !wordSlots.length) return;
 
         const typedSentence = assembleWordInputs(wordSlots, wordInputs);
@@ -341,7 +340,17 @@ export const MusicDemoPage = () => {
             setFeedback({ type: "incorrect", message: "Not quite. Listen again." });
         }
         setTotalAttempts(prev => prev + 1);
-    };
+    }, [
+        currentPhrase,
+        wordSlots,
+        wordInputs,
+        playSuccess,
+        isLastPhrase,
+        playLevelComplete,
+        currentPhraseIndex,
+        playPhraseAtIndex,
+        playError
+    ]);
 
 
     // Typing Mode Logic
@@ -456,7 +465,7 @@ export const MusicDemoPage = () => {
             }, 500);
             return () => clearTimeout(timer);
         }
-    }, [wordInputs, wordSlots, isInputLocked, feedback.type]);
+    }, [wordInputs, wordSlots, isInputLocked, feedback.type, checkAnswer]);
 
     const resetGame = () => {
         playClick();
@@ -474,11 +483,6 @@ export const MusicDemoPage = () => {
         setFeedback({ type: null });
     };
 
-    const requiredWordCount = wordSlots.filter(slot => slot.fillableLength > 0).length;
-    const completedWordCount = wordSlots.filter(
-        (slot, index) => slot.fillableLength === 0 || (wordInputs[index]?.length ?? 0) === slot.fillableLength
-    ).length;
-    const isSubmitDisabled = isInputLocked || !requiredWordCount || completedWordCount !== requiredWordCount;
 
     return (
         <div className="min-h-screen w-full bg-cream text-slate-800 font-sans selection:bg-bubblegum/30 selection:text-slate-900 overflow-hidden">

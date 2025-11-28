@@ -161,6 +161,8 @@ export const LessonPlayPage = () => {
   const progressRatio = stages.length ? Math.min(stageIndex + (completed ? 1 : 0), stages.length) / stages.length : 0;
   const progressPercent = Math.round(progressRatio * 100);
 
+  const showSidebar = activeMode !== "game";
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#FFFBF5] text-slate-800 font-sans">
       {/* Playful Background Blobs */}
@@ -201,12 +203,14 @@ export const LessonPlayPage = () => {
       {/* Main Content */}
       <main className="relative z-10 mx-auto flex w-full flex-1 items-center justify-center px-4 pb-10 min-h-[calc(100vh-100px)]">
         {/* Content Container with Sidebar (for typing mode) */}
-        <div className={classNames(
-          "flex w-full max-w-6xl gap-8 overflow-hidden",
-          activeMode === "type" ? "flex-row" : "flex-col"
-        )}>
-          {/* Stages Progress Sidebar (Desktop, only for typing mode) */}
-          {activeMode === "type" && (
+        <div
+          className={classNames(
+            "flex w-full max-w-6xl gap-8 overflow-hidden",
+            showSidebar ? "flex-row" : "flex-col"
+          )}
+        >
+          {/* Stages Progress Sidebar (Desktop) */}
+          {showSidebar && (
             <div className="hidden lg:block w-72 shrink-0 h-[calc(100vh-140px)] sticky top-0">
               <StagesProgressSidebar
                 stages={stages}
@@ -217,10 +221,12 @@ export const LessonPlayPage = () => {
           )}
 
           {/* Game Card */}
-          <section className={classNames(
-            "relative overflow-hidden rounded-3xl bg-white p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border border-slate-100",
-            activeMode === "type" ? "flex-1 min-w-0" : "w-full max-w-4xl"
-          )}>
+          <section
+            className={classNames(
+              "relative overflow-hidden rounded-3xl bg-white p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border border-slate-100",
+              showSidebar ? "flex-1 min-w-0" : "w-full max-w-4xl"
+            )}
+          >
 
             {completed ? (
               <div className="relative z-10 flex h-full flex-col items-center justify-center text-center py-20">

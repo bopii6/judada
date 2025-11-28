@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { useSoundEffects } from '../../hooks/useSoundEffects';
 
 // 世界城市数据 - 包含丰富的文化信息
