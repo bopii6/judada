@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Router as ExpressRouter } from "express";
 import multer from "multer";
 import { z } from "zod";
 import { CourseStatus, MusicTrackStatus } from "@prisma/client";
@@ -10,7 +10,7 @@ import type { MusicWord, MusicPhrase } from "../services/musicTrack.service";
 
 const prisma = getPrisma();
 
-const router = Router();
+const router: ExpressRouter = Router();
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -417,12 +417,12 @@ router.post("/course-packages/:packageId/units", async (req, res, next) => {
       return;
     }
 
-    // 获取下一个序号
-    const maxSeq = await prisma.unit.aggregate({
-      where: { packageId, deletedAt: null },
+    // 获取下一个序号（包括软删除的记录，因为sequence有唯一约束）
+    const maxSeq = await (prisma as any).unit.aggregate({
+      where: { packageId },
       _max: { sequence: true }
     });
-    const sequence = payload.sequence ?? (maxSeq._max.sequence ?? 0) + 1;
+    const sequence = payload.sequence ?? (maxSeq._max?.sequence ?? 0) + 1;
 
     const unit = await unitService.create({
       packageId,
@@ -500,7 +500,7 @@ router.post(
       }
 
       // 获取单元信息
-      const unit = await prisma.unit.findUnique({
+      const unit = await (prisma as any).unit.findUnique({
         where: { id: unitId },
         include: { package: true }
       });
@@ -545,7 +545,7 @@ router.post(
       }
 
       // 获取单元
-      const unit = await prisma.unit.findUnique({
+      const unit = await (prisma as any).unit.findUnique({
         where: { id: unitId }
       });
 

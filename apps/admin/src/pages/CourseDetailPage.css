@@ -145,6 +145,23 @@
   cursor: not-allowed;
 }
 
+.publish-hint {
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.publish-hint.success {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.publish-hint.warning {
+  background: #fef3c7;
+  color: #b45309;
+}
+
 /* 反馈消息 */
 .course-detail-upload-feedback-stack {
   display: flex;

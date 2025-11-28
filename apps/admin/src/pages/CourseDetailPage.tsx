@@ -24,7 +24,6 @@ import {
   deleteUnit,
   uploadUnitMaterial,
   uploadUnitCover,
-  publishCoursePackage,
   type UpdateCoursePackagePayload,
   type CreateUnitPayload,
   type UpdateUnitPayload
@@ -153,17 +152,6 @@ export const CourseDetailPage = () => {
     }
   });
 
-  const publishPackageMutation = useMutation({
-    mutationFn: async () => {
-      if (!id) throw new Error("课程包ID缺失");
-      return publishCoursePackage(id);
-    },
-    onSuccess: () => {
-      void refetchDetail();
-      void refetchUnits();
-      void queryClient.invalidateQueries({ queryKey: ["course-packages"] });
-    }
-  });
 
   const detail = useMemo<CoursePackageDetail | null>(() => data?.package ?? null, [data]);
 
@@ -310,14 +298,11 @@ export const CourseDetailPage = () => {
           </div>
         </div>
         <div className="course-detail-actions">
-          <button
-            type="button"
-            className="primary"
-            disabled={detail.status === "published" || publishPackageMutation.isPending}
-            onClick={() => publishPackageMutation.mutate()}
-          >
-            {publishPackageMutation.isPending ? "发布中..." : "发布整个课程包"}
-          </button>
+          {publishedUnits > 0 ? (
+            <span className="publish-hint success">✓ 已有 {publishedUnits} 个单元发布，用户端可见</span>
+          ) : (
+            <span className="publish-hint warning">⚠ 尚未发布任何单元，用户端不可见</span>
+          )}
         </div>
       </header>
 

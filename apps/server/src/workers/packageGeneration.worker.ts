@@ -73,7 +73,7 @@ const normalizePayload = (payload: unknown): Prisma.InputJsonValue => {
   if (typeof payload === "object") {
     return payload as Prisma.JsonObject | Prisma.JsonArray;
   }
-  return { value: payload };
+  return { value: payload } as Prisma.JsonObject;
 };
 
 /**
@@ -532,7 +532,7 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
     include: {
       package: true
     }
-  });
+  }) as any;
 
   if (!generationJob) {
     throw new Error(`GenerationJob ${generationJobId} 不存在`);
@@ -543,6 +543,15 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
   }
 
   const jobInput = (generationJob.inputInfo ?? {}) as Record<string, any>;
+  
+  // 获取关联的单元ID（如果有）
+  const unitId = generationJob.unitId || jobInput.unitId as string | null;
+  let targetUnit: { id: string; sequence: number | null; title: string | null } | null = null;
+  
+  // 调试日志，帮助定位未绑定到单元的问题
+  console.log(`[Worker] generationJob.unitId: ${generationJob.unitId}`);
+  console.log(`[Worker] jobInput.unitId: ${jobInput.unitId}`);
+  console.log(`[Worker] 最终 unitId: ${unitId}`);
   
   // 支持多文件上传：优先使用assets数组，否则使用单个文件信息（向后兼容）
   const assets = jobInput.assets as Array<{
@@ -1121,6 +1130,53 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
   const packageId = generationJob.packageId;
   const existingDescription = generationJob.package?.description ?? null;
 
+  const isUnitGeneration = Boolean(unitId);
+
+  if (isUnitGeneration) {
+    const unitRecord = await (prisma as any).unit.findFirst({
+      where: {
+        id: unitId,
+        deletedAt: null
+      },
+      select: {
+        id: true,
+        title: true,
+        sequence: true,
+        packageId: true
+      }
+    });
+
+    if (!unitRecord) {
+      await generationJobRepository.appendLog(
+        generationJobId,
+        `未找到ID为 ${unitId} 的单元，生成的关卡将不会绑定到任何单元`,
+        "warning"
+      );
+    } else if (unitRecord.packageId !== packageId) {
+      await generationJobRepository.appendLog(
+        generationJobId,
+        `单元 ${unitId} 不属于课程包 ${packageId}，跳过单元绑定`,
+        "warning",
+        { unitPackageId: unitRecord.packageId }
+      );
+    } else {
+      targetUnit = {
+        id: unitRecord.id,
+        sequence: unitRecord.sequence,
+        title: unitRecord.title
+      };
+      await generationJobRepository.appendLog(
+        generationJobId,
+        `将生成的关卡绑定到单元「${unitRecord.title ?? unitRecord.id}」`,
+        "info",
+        {
+          unitId: unitRecord.id,
+          unitSequence: unitRecord.sequence
+        }
+      );
+    }
+  }
+
   // 分步骤创建，避免大事务超时
   // 1. 如果已有草稿版本，先删除它（包括关联的关卡），确保只有一个草稿
   const existingDraftVersion = await prisma.coursePackageVersion.findFirst({
@@ -1135,67 +1191,124 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
     }
   });
 
-  if (existingDraftVersion) {
-    await generationJobRepository.appendLog(
-      generationJobId,
-      `发现已有草稿版本（#${existingDraftVersion.versionNumber}），删除旧草稿以创建新草稿`,
-      "info",
-      { oldVersionId: existingDraftVersion.id, oldLessonCount: existingDraftVersion.lessons.length }
-    );
+  let version = existingDraftVersion;
+  let versionNumber = existingDraftVersion?.versionNumber ?? null;
 
-    // 如果这个草稿版本是当前版本，先解除关联
-    const currentPackage = await prisma.coursePackage.findUnique({
-      where: { id: packageId },
-      select: { currentVersionId: true }
-    });
+  const createNewDraftVersion = async () => {
+    const versionCount = await prisma.coursePackageVersion.count({ where: { packageId } });
+    const nextVersionNumber = versionCount + 1;
 
-    if (currentPackage?.currentVersionId === existingDraftVersion.id) {
-      await prisma.coursePackage.update({
-        where: { id: packageId },
-        data: { currentVersionId: null }
-      });
-    }
-
-    // 删除关联的关卡（级联删除会自动处理）
-    await prisma.lesson.deleteMany({
-      where: {
-        packageVersionId: existingDraftVersion.id
+    const newVersion = await prisma.coursePackageVersion.create({
+      data: {
+        packageId,
+        versionNumber: nextVersionNumber,
+        label: `AI Draft #${nextVersionNumber}`,
+        notes: `生成自 ${originalName}`,
+        status: "draft",
+        sourceType: "ai_generated",
+        payload: plan as unknown as Prisma.JsonObject,
+        createdById: triggerUserId
+      },
+      include: {
+        lessons: {
+          select: { id: true }
+        }
       }
     });
 
-    // 删除草稿版本
-    await prisma.coursePackageVersion.delete({
-      where: { id: existingDraftVersion.id }
+    await generationJobRepository.appendLog(generationJobId, "课程包版本创建成功，开始创建课程", "info", {
+      versionId: newVersion.id,
+      versionNumber: nextVersionNumber
     });
 
-    await generationJobRepository.appendLog(generationJobId, "旧草稿版本已删除", "info");
+    versionNumber = nextVersionNumber;
+    return newVersion;
+  };
+
+  if (isUnitGeneration) {
+    if (!targetUnit) {
+      throw new Error(`未能解析到目标单元 ${unitId}，为防止误删其它单元内容，任务已中止`);
+    }
+
+    if (!version) {
+      version = await createNewDraftVersion();
+    } else {
+      await generationJobRepository.appendLog(
+        generationJobId,
+        `复用草稿版本（#${version.versionNumber}）以更新单元 ${targetUnit.title ?? targetUnit.id}`,
+        "info",
+        { versionId: version.id, unitId: targetUnit.id }
+      );
+    }
+
+    const removedLessons = await prisma.lesson.deleteMany({
+      where: {
+        packageVersionId: version.id,
+        unitId: targetUnit.id
+      }
+    });
+
+    if (removedLessons.count > 0) {
+      await generationJobRepository.appendLog(
+        generationJobId,
+        `删除了单元 ${targetUnit.title ?? targetUnit.id} 旧的 ${removedLessons.count} 个关卡，准备重新生成`,
+        "info"
+      );
+    }
+  } else {
+    if (existingDraftVersion) {
+      await generationJobRepository.appendLog(
+        generationJobId,
+        `发现已有草稿版本（#${existingDraftVersion.versionNumber}），删除旧草稿以创建新草稿`,
+        "info",
+        { oldVersionId: existingDraftVersion.id, oldLessonCount: existingDraftVersion.lessons.length }
+      );
+
+      const currentPackage = await prisma.coursePackage.findUnique({
+        where: { id: packageId },
+        select: { currentVersionId: true }
+      });
+
+      if (currentPackage?.currentVersionId === existingDraftVersion.id) {
+        await prisma.coursePackage.update({
+          where: { id: packageId },
+          data: { currentVersionId: null }
+        });
+      }
+
+      await prisma.lesson.deleteMany({
+        where: {
+          packageVersionId: existingDraftVersion.id
+        }
+      });
+
+      await prisma.coursePackageVersion.delete({
+        where: { id: existingDraftVersion.id }
+      });
+
+      await generationJobRepository.appendLog(generationJobId, "旧草稿版本已删除", "info");
+    }
+
+    version = await createNewDraftVersion();
   }
 
-  // 2. 创建新的草稿版本
-  const versionCount = await prisma.coursePackageVersion.count({ where: { packageId } });
-  const nextVersionNumber = versionCount + 1;
+  if (!version) {
+    throw new Error("无法获取或创建草稿版本，生成流程中止");
+  }
 
-  const version = await prisma.coursePackageVersion.create({
-    data: {
-      packageId,
-      versionNumber: nextVersionNumber,
-      label: `AI Draft #${nextVersionNumber}`,
-      notes: `生成自 ${originalName}`,
-      status: "draft",
-      sourceType: "ai_generated",
-      payload: plan as unknown as Prisma.JsonObject,
-      createdById: triggerUserId
+  // 计算现有最大序号，用于在复用版本时将新关卡追加到末尾
+  const existingLessonSeq = await prisma.lesson.aggregate({
+    where: {
+      packageVersionId: version.id
+    },
+    _max: {
+      sequence: true
     }
-  });
-
-  await generationJobRepository.appendLog(generationJobId, "课程包版本创建成功，开始创建课程", "info", {
-    versionId: version.id,
-    versionNumber: nextVersionNumber
   });
 
   // 2. 逐个创建课程和课时，使用小事务
   // 由于已删除旧草稿，sequence从1开始（只保留一个草稿版本）
-  let sequence = 1;
+  let sequence = targetUnit ? (existingLessonSeq._max?.sequence ?? 0) + 1 : 1;
   const lessonSummaries: Array<{ id: string; versionId: string }> = [];
 
   for (let i = 0; i < plan.lessons.length; i++) {
@@ -1210,17 +1323,22 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
     await job.updateProgress(progress);
 
     try {
+      console.log(`[Worker] 创建关卡 "${lessonPlan.title}" 关联到 unitId: ${unitId}`);
       const lessonResult = await prisma.$transaction(
         async (tx) => {
           const lesson = await tx.lesson.create({
             data: {
               packageId,
               packageVersionId: version.id,
+              unitId: targetUnit?.id ?? null,
+              unitNumber: targetUnit?.sequence ?? null,
+              unitName: targetUnit?.title ?? null,
               title: lessonPlan.title,
               sequence,
               createdById: triggerUserId
-            }
+            } as any
           });
+          console.log(`[Worker] 关卡创建成功, lesson.id: ${lesson.id}`);
 
           const difficulty = clampDifficulty(lessonPlan.difficulty);
 
@@ -1308,7 +1426,7 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
       lessonSummaries.push({ id: lessonResult.lessonId, versionId: lessonResult.versionId });
       sequence += 1;
 
-      await generationJobRepository.appendLog(generationJobId, `课程创建成功: ${lessonPlan.title}`, "info");
+          await generationJobRepository.appendLog(generationJobId, `课程创建成功: ${lessonPlan.title}`, "info");
 
     } catch (error) {
       // 如果是唯一键冲突（通常发生在任务重试/并发下），自动顺延 sequence 并重试当前课程
@@ -1346,8 +1464,13 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
 
   const persisted = {
     versionId: version.id,
-    versionNumber: nextVersionNumber,
-    lessonCount: lessonSummaries.length
+    versionNumber: versionNumber ?? version.versionNumber,
+    lessonCount: await prisma.lesson.count({
+      where: {
+        packageVersionId: version.id,
+        deletedAt: null
+      }
+    })
   };
 
   // 确认最终关卡数量（应该始终>=15）

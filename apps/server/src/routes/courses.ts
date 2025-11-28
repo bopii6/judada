@@ -26,12 +26,15 @@ router.get("/", async (req, res, next) => {
     // 从查询参数获取筛选条件
     const { grade, publisher } = req.query;
 
-    // 构建筛选条件
+    // 构建筛选条件 - 只查询有已发布单元的课程包
     const whereCondition: any = {
-      status: CourseStatus.published,
       deletedAt: null,
-      currentVersion: {
-        isNot: null
+      // 必须有至少一个已发布的单元
+      units: {
+        some: {
+          status: CourseStatus.published,
+          deletedAt: null
+        }
       }
     };
 
@@ -45,51 +48,49 @@ router.get("/", async (req, res, next) => {
       whereCondition.publisher = publisher.trim();
     }
 
-    const packages = await prisma.coursePackage.findMany({
+    const packages = await (prisma as any).coursePackage.findMany({
       where: whereCondition,
       orderBy: { updatedAt: "desc" },
       include: {
-        currentVersion: {
-          select: {
-            id: true,
-            lessons: {
-              select: { id: true, unitNumber: true, unitName: true },
-              where: { deletedAt: null }
+        units: {
+          where: {
+            status: CourseStatus.published,
+            deletedAt: null
+          },
+          orderBy: { sequence: "asc" },
+          include: {
+            _count: {
+              select: {
+                lessons: {
+                  where: { deletedAt: null }
+                }
+              }
             }
           }
         }
       }
     });
 
-    // 过滤出至少包含15个关卡的课程包
-    const items = packages
-      .filter(pkg => {
-        const lessonCount = pkg.currentVersion?.lessons.length ?? 0;
-        return lessonCount >= 15;
-      })
-      .map(pkg => {
-        // 计算单元数量（根据 unitNumber 去重）
-        const unitNumbers = new Set(
-          pkg.currentVersion?.lessons
-            .map(l => l.unitNumber)
-            .filter((n): n is number => n !== null)
-        );
-        const unitCount = unitNumbers.size || 1; // 至少算1个单元
+    // 映射结果
+    const items = packages.map((pkg: any) => {
+      // 计算已发布单元数量和总关卡数
+      const publishedUnits = pkg.units;
+      const totalLessons = publishedUnits.reduce((sum: number, u: any) => sum + u._count.lessons, 0);
 
-        return {
-          id: pkg.id,
-          title: pkg.title,
-          topic: pkg.topic,
-          description: pkg.description,
-          coverUrl: pkg.coverUrl,
-          grade: pkg.grade,
-          publisher: pkg.publisher,
-          semester: pkg.semester,
-          updatedAt: pkg.updatedAt,
-          lessonCount: pkg.currentVersion?.lessons.length ?? 0,
-          unitCount
-        };
-      });
+      return {
+        id: pkg.id,
+        title: pkg.title,
+        topic: pkg.topic,
+        description: pkg.description,
+        coverUrl: pkg.coverUrl,
+        grade: pkg.grade,
+        publisher: pkg.publisher,
+        semester: pkg.semester,
+        updatedAt: pkg.updatedAt,
+        lessonCount: totalLessons,
+        unitCount: publishedUnits.length
+      };
+    });
 
     // 获取所有可用的筛选选项（用于前端显示筛选器）
     const allPackages = await prisma.coursePackage.findMany({
@@ -120,17 +121,20 @@ router.get("/", async (req, res, next) => {
 
 router.get("/:id/questions", async (req, res, next) => {
   try {
-    const course = await prisma.coursePackage.findUnique({
+    // 获取课程包及其已发布的单元和关卡
+    const course = await (prisma as any).coursePackage.findUnique({
       where: { id: req.params.id },
       include: {
-        currentVersion: {
+        units: {
+          where: {
+            status: CourseStatus.published,
+            deletedAt: null
+          },
+          orderBy: { sequence: "asc" },
           include: {
             lessons: {
               where: { deletedAt: null },
-              orderBy: [
-                { unitNumber: "asc" },
-                { sequence: "asc" }
-              ],
+              orderBy: { sequence: "asc" },
               include: {
                 currentVersion: {
                   include: { items: true }
@@ -142,15 +146,28 @@ router.get("/:id/questions", async (req, res, next) => {
       }
     });
 
-    if (!course || course.status !== CourseStatus.published || !course.currentVersion) {
-      res.status(404).json({ error: "课程不存在或未发布" });
+    if (!course) {
+      res.status(404).json({ error: "课程不存在" });
       return;
     }
 
-    // 验证课程包是否包含至少15个关卡
-    const lessonCount = course.currentVersion.lessons.length;
-    if (lessonCount < 15) {
-      res.status(404).json({ error: `课程不符合要求：必须包含至少15个关卡，当前只有${lessonCount}个关卡` });
+    // 检查是否有已发布的单元
+    if (course.units.length === 0) {
+      res.status(404).json({ error: "该课程暂无已发布的单元" });
+      return;
+    }
+
+    // 将所有已发布单元的关卡合并
+    const allLessons = (course as any).units.flatMap((unit: any) =>
+      unit.lessons.map((lesson: any) => ({
+        ...lesson,
+        unitNumber: unit.sequence,
+        unitName: unit.title
+      }))
+    );
+
+    if (allLessons.length === 0) {
+      res.status(404).json({ error: "该课程暂无关卡内容" });
       return;
     }
 
@@ -252,13 +269,13 @@ router.get("/:id/questions", async (req, res, next) => {
 
     // 先收集所有需要处理的数据
     const stageData: Array<{
-      lesson: typeof course.currentVersion.lessons[0];
-      firstItem: NonNullable<typeof course.currentVersion.lessons[0]['currentVersion']>['items'][0];
+      lesson: typeof allLessons[0];
+      firstItem: NonNullable<typeof allLessons[0]['currentVersion']>['items'][0];
       payload: Record<string, any>;
       en: string;
     }> = [];
 
-    for (const lesson of course.currentVersion.lessons) {
+    for (const lesson of allLessons) {
       const lessonItems = [...(lesson.currentVersion?.items ?? [])].sort((a, b) => a.orderIndex - b.orderIndex);
       const firstItem = lessonItems[0];
 
@@ -326,9 +343,8 @@ router.get("/:id/questions", async (req, res, next) => {
       };
     });
 
-    // 计算单元数量
-    const unitNumbers = new Set(stages.map(s => s.unitNumber).filter((n): n is number => n !== null));
-    const unitCount = unitNumbers.size || 1;
+    // 单元数量就是已发布单元的数量
+    const unitCount = (course as any).units.length;
 
     res.json({
       course: {

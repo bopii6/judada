@@ -89,11 +89,11 @@ export const unitService = {
    * 创建新单元
    */
   create: async (input: CreateUnitInput) => {
-    // 获取当前最大序号
+    // 获取当前最大序号（包括软删除的记录，因为sequence有唯一约束）
     const maxSequence = await prisma.unit.aggregate({
       where: {
-        packageId: input.packageId,
-        deletedAt: null
+        packageId: input.packageId
+        // 不要过滤 deletedAt，因为sequence的唯一约束包含所有记录
       },
       _max: { sequence: true }
     });
