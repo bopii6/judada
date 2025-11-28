@@ -246,13 +246,13 @@
         "stageId": "8dc0667c-02b6-44cb-a173-c97b2eef738a-506a4811-21f8-4e83-83df-462b9f602a2c",
         "courseId": "4d5867e9-4220-4a7b-8525-3b625a77d651",
         "bestStars": 3,
-        "attempts": 1,
-        "lastPlayedAt": "2025-11-28T08:46:00.403Z",
+        "attempts": 2,
+        "lastPlayedAt": "2025-11-28T13:09:27.955Z",
         "modes": [
           "type"
         ],
         "createdAt": "2025-11-28T08:46:00.403Z",
-        "updatedAt": "2025-11-28T08:46:00.403Z"
+        "updatedAt": "2025-11-28T13:09:27.955Z"
       },
       {
         "userId": "guest-1763547891565-7fvezctmx",
@@ -266,6 +266,45 @@
         ],
         "createdAt": "2025-11-28T11:05:07.925Z",
         "updatedAt": "2025-11-28T11:05:07.947Z"
+      },
+      {
+        "userId": "guest-1763547891565-7fvezctmx",
+        "stageId": "4fc546bb-01c3-4966-982a-880e0bb76543-1799d35f-3ddd-4c5f-8dee-2f150cee2a77",
+        "courseId": "c2af98aa-ab15-43ca-916d-0d7021d659af",
+        "bestStars": 3,
+        "attempts": 1,
+        "lastPlayedAt": "2025-11-28T13:09:58.939Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-11-28T13:09:58.939Z",
+        "updatedAt": "2025-11-28T13:09:58.939Z"
+      },
+      {
+        "userId": "guest-1763547891565-7fvezctmx",
+        "stageId": "a209ac35-329e-431a-b399-d7d29f091eb2-decb0c8d-f162-4a8e-b7bd-a7bc3cd5d41e",
+        "courseId": "c2af98aa-ab15-43ca-916d-0d7021d659af",
+        "bestStars": 3,
+        "attempts": 1,
+        "lastPlayedAt": "2025-11-28T13:10:07.972Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-11-28T13:10:07.972Z",
+        "updatedAt": "2025-11-28T13:10:07.972Z"
+      },
+      {
+        "userId": "guest-1763547891565-7fvezctmx",
+        "stageId": "c908a990-36d2-4473-b604-6703e7079bfa-62f26b17-f6f0-4b37-a568-cb3522b7532a",
+        "courseId": "c2af98aa-ab15-43ca-916d-0d7021d659af",
+        "bestStars": 3,
+        "attempts": 1,
+        "lastPlayedAt": "2025-11-28T13:10:27.191Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-11-28T13:10:27.191Z",
+        "updatedAt": "2025-11-28T13:10:27.191Z"
       }
     ]
   },
@@ -427,13 +466,13 @@
     "guest-1763547891565-7fvezctmx": {
       "userId": "guest-1763547891565-7fvezctmx",
       "totalPlayTime": 0,
-      "totalStars": 24,
-      "completedStages": 8,
+      "totalStars": 33,
+      "completedStages": 11,
       "currentStreak": 0,
       "longestStreak": 0,
-      "lastActiveAt": "2025-11-28T11:05:07.947Z",
+      "lastActiveAt": "2025-11-28T13:10:27.191Z",
       "createdAt": "2025-11-27T02:08:59.713Z",
-      "updatedAt": "2025-11-28T11:05:07.947Z"
+      "updatedAt": "2025-11-28T13:10:27.191Z"
     }
   },
   "daily": {
@@ -504,11 +543,11 @@
       {
         "userId": "guest-1763547891565-7fvezctmx",
         "date": "2025-11-28",
-        "completedStages": 4,
-        "starsEarned": 12,
-        "typingStages": 1,
+        "completedStages": 8,
+        "starsEarned": 24,
+        "typingStages": 5,
         "createdAt": "2025-11-28T08:46:00.404Z",
-        "updatedAt": "2025-11-28T11:05:07.948Z"
+        "updatedAt": "2025-11-28T13:10:27.192Z"
       }
     ]
   }

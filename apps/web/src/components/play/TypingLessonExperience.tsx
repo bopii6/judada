@@ -202,7 +202,6 @@ export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLe
     const allCorrectOptions = [expected, ...variants];
 
     if (allCorrectOptions.includes(normalized)) {
-      setStatus("success");
       setFeedback({ type: "correct", message: "Perfect!" });
       playSuccessSound();
       
