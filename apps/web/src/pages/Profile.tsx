@@ -66,7 +66,7 @@ export const Profile: React.FC = () => {
       <div className="grid gap-8 md:grid-cols-[1fr_1.5fr]">
         {/* Left Column: Avatar & Basic Info */}
         <div className="space-y-6">
-          <div className="bg-white rounded-[2.5rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 text-center">
+          <div className="bg-white rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 text-center">
             <div className="relative inline-block mb-6">
               <div className="w-32 h-32 rounded-full p-1 bg-gradient-to-br from-orange-300 to-pink-300">
                 <img
@@ -83,7 +83,7 @@ export const Profile: React.FC = () => {
             <p className="text-sm text-slate-400 font-medium mt-1">{user?.email}</p>
           </div>
 
-          <div className="bg-gradient-to-br from-indigo-500 to-violet-600 rounded-[2.5rem] p-8 shadow-lg text-white relative overflow-hidden">
+          <div className="bg-gradient-to-br from-indigo-500 to-violet-600 rounded-3xl p-8 shadow-lg text-white relative overflow-hidden">
             <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white/20 rounded-full blur-2xl"></div>
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 rounded-xl bg-white/20 backdrop-blur">
@@ -103,7 +103,7 @@ export const Profile: React.FC = () => {
         {/* Right Column: Forms */}
         <div className="space-y-6">
           {/* Profile Form */}
-          <div className="bg-white rounded-[2.5rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100">
+          <div className="bg-white rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2.5 rounded-xl bg-blue-100 text-blue-500">
                 <User className="w-5 h-5" />
@@ -117,7 +117,7 @@ export const Profile: React.FC = () => {
                 <input
                   value={nickname}
                   onChange={e => setNickname(e.target.value)}
-                  className="block w-full px-5 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-800 focus:outline-none focus:bg-white focus:border-blue-400 transition-all font-medium"
+                  className="block w-full px-6 py-3 bg-slate-50 border border-slate-200 rounded-full text-slate-800 focus:outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all font-bold"
                   placeholder="给自己起个好听的名字"
                 />
               </div>
@@ -126,14 +126,14 @@ export const Profile: React.FC = () => {
                 <input
                   value={avatarUrl}
                   onChange={e => setAvatarUrl(e.target.value)}
-                  className="block w-full px-5 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-800 focus:outline-none focus:bg-white focus:border-blue-400 transition-all font-medium text-sm"
+                  className="block w-full px-6 py-3 bg-slate-50 border border-slate-200 rounded-full text-slate-800 focus:outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-sm"
                   placeholder="https://..."
                 />
               </div>
               <div className="pt-2 flex justify-end">
                 <button
                   onClick={handleSaveProfile}
-                  className="flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition-colors"
+                  className="flex items-center gap-2 px-8 py-3 rounded-full bg-slate-900 text-white font-bold hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20"
                 >
                   <Save className="w-4 h-4" />
                   保存修改
@@ -143,7 +143,7 @@ export const Profile: React.FC = () => {
           </div>
 
           {/* Password Form */}
-          <div className="bg-white rounded-[2.5rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100">
+          <div className="bg-white rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-500">
                 <KeyRound className="w-5 h-5" />
@@ -159,7 +159,7 @@ export const Profile: React.FC = () => {
                     type="password"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    className="block w-full px-5 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-800 focus:outline-none focus:bg-white focus:border-emerald-400 transition-all font-medium"
+                    className="block w-full px-6 py-3 bg-slate-50 border border-slate-200 rounded-full text-slate-800 focus:outline-none focus:bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold"
                     placeholder="至少 6 位"
                   />
                 </div>
@@ -169,7 +169,7 @@ export const Profile: React.FC = () => {
                     type="password"
                     value={confirmPassword}
                     onChange={e => setConfirmPassword(e.target.value)}
-                    className="block w-full px-5 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-800 focus:outline-none focus:bg-white focus:border-emerald-400 transition-all font-medium"
+                    className="block w-full px-6 py-3 bg-slate-50 border border-slate-200 rounded-full text-slate-800 focus:outline-none focus:bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold"
                     placeholder="再次输入"
                   />
                 </div>
@@ -177,7 +177,7 @@ export const Profile: React.FC = () => {
               <div className="pt-2 flex justify-end">
                 <button
                   onClick={handleSetPassword}
-                  className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white border-2 border-slate-200 text-slate-700 font-bold hover:border-emerald-400 hover:text-emerald-600 transition-colors"
+                  className="flex items-center gap-2 px-8 py-3 rounded-full bg-white border border-slate-200 text-slate-700 font-bold hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors shadow-sm"
                 >
                   <KeyRound className="w-4 h-4" />
                   设置密码

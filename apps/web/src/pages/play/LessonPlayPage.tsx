@@ -168,19 +168,21 @@ export const LessonPlayPage = () => {
       <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-sky-100/60 rounded-full blur-3xl animate-pulse delay-1000" />
 
       {/* Top Navigation */}
-      <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
-        <button
-          type="button"
-          className="group inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm border border-slate-100 hover:bg-slate-50 transition-all"
-          onClick={handleBack}
-        >
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-          返回课程
-        </button>
+      <header className="relative z-20 mx-auto flex w-full items-center justify-between px-6 py-5 sm:px-8 bg-[#FFFBF5]/80 backdrop-blur-md border-b border-slate-200/50">
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
+            onClick={handleBack}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>返回课程</span>
+          </button>
+        </div>
 
-        <div className="text-center hidden sm:block">
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center hidden sm:block">
           <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-bold">Current Stage</p>
-          <p className="text-lg font-black text-slate-800">{currentStage.lessonTitle}</p>
+          <p className="text-sm font-black text-slate-800">{currentStage.lessonTitle}</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -216,7 +218,7 @@ export const LessonPlayPage = () => {
 
           {/* Game Card */}
           <section className={classNames(
-            "relative overflow-hidden rounded-[3rem] bg-white p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border border-slate-100",
+            "relative overflow-hidden rounded-3xl bg-white p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border border-slate-100",
             activeMode === "type" ? "flex-1 min-w-0" : "w-full max-w-4xl"
           )}>
 

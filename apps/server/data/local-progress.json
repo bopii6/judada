@@ -240,6 +240,19 @@
         ],
         "createdAt": "2025-11-27T12:53:42.101Z",
         "updatedAt": "2025-11-27T12:53:42.101Z"
+      },
+      {
+        "userId": "guest-1763547891565-7fvezctmx",
+        "stageId": "8dc0667c-02b6-44cb-a173-c97b2eef738a-506a4811-21f8-4e83-83df-462b9f602a2c",
+        "courseId": "4d5867e9-4220-4a7b-8525-3b625a77d651",
+        "bestStars": 3,
+        "attempts": 1,
+        "lastPlayedAt": "2025-11-28T08:46:00.403Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-11-28T08:46:00.403Z",
+        "updatedAt": "2025-11-28T08:46:00.403Z"
       }
     ]
   },
@@ -401,13 +414,13 @@
     "guest-1763547891565-7fvezctmx": {
       "userId": "guest-1763547891565-7fvezctmx",
       "totalPlayTime": 0,
-      "totalStars": 18,
-      "completedStages": 6,
+      "totalStars": 21,
+      "completedStages": 7,
       "currentStreak": 0,
       "longestStreak": 0,
-      "lastActiveAt": "2025-11-27T12:53:42.101Z",
+      "lastActiveAt": "2025-11-28T08:46:00.403Z",
       "createdAt": "2025-11-27T02:08:59.713Z",
-      "updatedAt": "2025-11-27T12:53:42.101Z"
+      "updatedAt": "2025-11-28T08:46:00.403Z"
     }
   },
   "daily": {
@@ -474,6 +487,15 @@
         "typingStages": 8,
         "createdAt": "2025-11-27T02:09:50.141Z",
         "updatedAt": "2025-11-27T12:53:42.102Z"
+      },
+      {
+        "userId": "guest-1763547891565-7fvezctmx",
+        "date": "2025-11-28",
+        "completedStages": 1,
+        "starsEarned": 3,
+        "typingStages": 1,
+        "createdAt": "2025-11-28T08:46:00.404Z",
+        "updatedAt": "2025-11-28T08:46:00.404Z"
       }
     ]
   }

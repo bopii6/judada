@@ -69,17 +69,10 @@ export const CourseOverviewPage = () => {
   const { course } = data;
 
   return (
-    <div className="space-y-10 max-w-5xl mx-auto pb-20">
-      <button
-        onClick={() => navigate("/courses")}
-        className="inline-flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors"
-      >
-        <ArrowRight className="w-4 h-4 rotate-180" />
-        <span>返回课程列表</span>
-      </button>
+    <div className="space-y-5 max-w-6xl mx-auto pb-20">
 
       {/* Hero Header */}
-      <header className="relative overflow-hidden rounded-[2.5rem] bg-white p-8 sm:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100">
+      <header className="relative overflow-hidden rounded-[2rem] bg-white p-6 sm:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100">
         {/* Background Decorations */}
         <div className="absolute top-0 right-0 -mt-20 -mr-20 w-96 h-96 bg-gradient-to-br from-orange-100/50 to-amber-100/50 rounded-full blur-3xl opacity-60 pointer-events-none"></div>
         <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-80 h-80 bg-gradient-to-tr from-sky-100/50 to-indigo-100/50 rounded-full blur-3xl opacity-60 pointer-events-none"></div>
@@ -92,10 +85,10 @@ export const CourseOverviewPage = () => {
                 src={course.coverUrl}
                 alt={course.title}
                 loading="lazy"
-                className="h-40 w-40 sm:h-48 sm:w-48 rounded-[2rem] object-cover shadow-lg rotate-3 hover:rotate-0 transition-transform duration-500"
+                className="h-32 w-32 sm:h-40 sm:w-40 rounded-2xl object-cover shadow-lg rotate-3 hover:rotate-0 transition-transform duration-500"
               />
             ) : (
-              <div className="h-40 w-40 sm:h-48 sm:w-48 rounded-[2rem] bg-gradient-to-br from-violet-100 to-fuchsia-50 flex items-center justify-center text-violet-300 shadow-sm rotate-3 hover:rotate-0 transition-transform duration-500">
+              <div className="h-32 w-32 sm:h-40 sm:w-40 rounded-2xl bg-gradient-to-br from-violet-100 to-fuchsia-50 flex items-center justify-center text-violet-300 shadow-sm rotate-3 hover:rotate-0 transition-transform duration-500">
                 <BookOpen className="w-16 h-16" />
               </div>
             )}
@@ -107,31 +100,31 @@ export const CourseOverviewPage = () => {
               {/* 标签区域 */}
               <div className="flex flex-wrap items-center gap-2 mb-3">
                 {course.grade && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-600">
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-600 border border-indigo-100">
                     {course.grade}
                   </span>
                 )}
                 {course.publisher && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500 border border-slate-200">
                     {course.publisher}
                   </span>
                 )}
                 {course.semester && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1 text-xs font-bold text-orange-500">
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-orange-50 px-2.5 py-1 text-xs font-bold text-orange-600 border border-orange-100">
                     {course.semester}
                   </span>
                 )}
                 {!course.grade && !course.publisher && (
-                  <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  <div className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500 uppercase tracking-wider border border-slate-200">
                     <BookOpen className="w-3 h-3" />
                     <span>{course.topic || "General Course"}</span>
                   </div>
                 )}
               </div>
-              <h1 className="text-3xl sm:text-4xl font-black text-slate-800 leading-tight">{course.title}</h1>
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-800 leading-tight">{course.title}</h1>
             </div>
 
-            <p className="text-slate-500 font-medium leading-relaxed max-w-2xl">
+            <p className="text-slate-500 text-sm font-medium leading-relaxed max-w-2xl">
               {course.description || "这个课程包已经准备好啦，选择一个关卡开始闯关吧！"}
             </p>
 
@@ -147,8 +140,8 @@ export const CourseOverviewPage = () => {
                 {course.stageCount} 个关卡
               </div>
               {course.updatedAt && (
-                <div className="flex items-center gap-2 text-sm font-bold text-slate-400 bg-slate-50 px-4 py-2 rounded-xl">
-                  <Clock className="w-4 h-4" />
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-400 bg-slate-50 px-3 py-1.5 rounded-lg">
+                  <Clock className="w-3.5 h-3.5" />
                   更新于 {new Date(course.updatedAt).toLocaleDateString()}
                 </div>
               )}

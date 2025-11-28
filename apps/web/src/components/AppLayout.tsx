@@ -108,6 +108,14 @@ export const AppLayout = () => {
                   <ArrowRight className="w-4 h-4 rotate-180" />
                   <span>返回首页</span>
                 </button>
+              ) : location.pathname.startsWith("/courses/") ? (
+                <button
+                  onClick={() => navigate("/courses")}
+                  className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
+                >
+                  <ArrowRight className="w-4 h-4 rotate-180" />
+                  <span>返回课程列表</span>
+                </button>
               ) : (
                 <>
                   <button
@@ -176,7 +184,7 @@ export const AppLayout = () => {
           </div>
         </header>
 
-        <main className="flex-1 px-6 py-8 sm:px-8 lg:px-10 overflow-y-auto custom-scrollbar">
+        <main className="flex-1 px-4 py-6 sm:px-8 lg:px-10 overflow-y-auto custom-scrollbar">
           <div className="mx-auto max-w-7xl">
             <Outlet />
           </div>
