@@ -92,11 +92,16 @@ router.get("/", async (req, res, next) => {
       };
     });
 
-    // 获取所有可用的筛选选项（用于前端显示筛选器）
-    const allPackages = await prisma.coursePackage.findMany({
+    // 获取所有可用的筛选选项（基于有已发布单元的课程包）
+    const packagesWithPublishedUnits = await prisma.coursePackage.findMany({
       where: {
-        status: CourseStatus.published,
-        deletedAt: null
+        deletedAt: null,
+        units: {
+          some: {
+            status: CourseStatus.published,
+            deletedAt: null
+          }
+        }
       },
       select: {
         grade: true,
@@ -104,8 +109,8 @@ router.get("/", async (req, res, next) => {
       }
     });
 
-    const availableGrades = [...new Set(allPackages.map(p => p.grade).filter((g): g is string => !!g))].sort();
-    const availablePublishers = [...new Set(allPackages.map(p => p.publisher).filter((p): p is string => !!p))];
+    const availableGrades = [...new Set(packagesWithPublishedUnits.map(p => p.grade).filter((g): g is string => !!g))].sort();
+    const availablePublishers = [...new Set(packagesWithPublishedUnits.map(p => p.publisher).filter((p): p is string => !!p))];
 
     res.json({
       courses: items,
