@@ -40,10 +40,7 @@ export const Courses = () => {
   return (
     <div className="space-y-5 max-w-6xl mx-auto">
       <div className="flex flex-col gap-2">
-        <div className="inline-flex items-center gap-1.5 self-start rounded-full bg-orange-50 px-3 py-1 text-[10px] font-bold text-orange-500 border border-orange-100/50">
-          <Layers className="w-3 h-3" />
-          <span>LEARNING PATHS</span>
-        </div>
+
         <h1 className="text-2xl sm:text-3xl font-black text-slate-800">探索课程</h1>
         <p className="text-slate-500 text-sm font-medium max-w-2xl">
           选择一个感兴趣的主题，开始你的英语进阶之旅。每个课程都包含精心设计的关卡。
@@ -163,11 +160,7 @@ export const Courses = () => {
               <h3 className="text-lg font-bold text-slate-800 mb-1 line-clamp-1 group-hover:text-indigo-600 transition-colors">
                 {course.title}
               </h3>
-              {course.publisher && (
-                <span className="inline-flex self-start mb-2 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
-                  {course.publisher}
-                </span>
-              )}
+
               <p className="text-xs text-slate-500 font-medium line-clamp-2 mb-3 flex-1 leading-relaxed">
                 {course.description || "暂无简介，快去探索吧！"}
               </p>
