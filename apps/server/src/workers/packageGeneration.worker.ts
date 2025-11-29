@@ -32,6 +32,24 @@ const LESSON_ITEM_TYPES: LessonItemType[] = [
   "custom"
 ];
 
+const DEFAULT_ENGLISH_SENTENCES = [
+  "Hello, how are you today?",
+  "I am a student.",
+  "What is your name?",
+  "My name is Tom.",
+  "Where do you live?",
+  "I live in China.",
+  "Do you like English?",
+  "Yes, I like English very much.",
+  "What time is it now?",
+  "It is ten o'clock.",
+  "Can you help me?",
+  "Of course, I can help you.",
+  "Thank you very much.",
+  "You are welcome.",
+  "See you tomorrow."
+];
+
 type AllowedLessonItemType = `${LessonItemType}`;
 
 interface GeneratedLessonItemPlan {
@@ -595,6 +613,7 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
   });
 
   let extractedText = "";
+  let usedFallbackOcrText = false;
   const parsedQuestions: ParsedQuestion[] = [];
   const allOcrTexts: string[] = [];
 
@@ -727,6 +746,21 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
   }
 
   if (!extractedText.trim()) {
+    usedFallbackOcrText = true;
+    extractedText = DEFAULT_ENGLISH_SENTENCES.join("\n");
+    console.warn(`[生成任务 ${generationJobId}] 未能从素材中提取有效文本，使用内置英文句子兜底继续流程`);
+    await generationJobRepository.appendLog(
+      generationJobId,
+      "未能从素材提取到有效文本，使用内置英文句子兜底继续生成",
+      "warning",
+      {
+        fallbackSentenceCount: DEFAULT_ENGLISH_SENTENCES.length,
+        fallbackSample: DEFAULT_ENGLISH_SENTENCES.slice(0, 5)
+      }
+    );
+  }
+
+  if (!extractedText.trim()) {
     throw new Error(`未能从${filesToProcess.length}个素材中提取有效文本，请确认内容质量`);
   }
 
@@ -742,6 +776,10 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
     `Original file name(s): ${filesToProcess.map(f => f.originalName).join(", ")}`,
     `Extracted text from ${filesToProcess.length} file(s) (<=4000 chars):\n${truncate(extractedText, 4000)}`
   ];
+
+  if (usedFallbackOcrText) {
+    promptSegments.push("NOTE: OCR text was empty. Default English fallback sentences were injected to continue generation.");
+  }
 
   const questionSummary = summarizeParsedQuestions(parsedQuestions);
   if (questionSummary) {
@@ -1651,28 +1689,9 @@ const generateFallbackLessons = (extractedEnglishSentences?: string[]): Generate
   let index = 0;
   let sentenceIndex = 0;
 
-  // 默认英文句子（如果OCR没有提取到）
-  const defaultEnglishSentences = [
-    "Hello, how are you today?",
-    "I am a student.",
-    "What is your name?",
-    "My name is Tom.",
-    "Where do you live?",
-    "I live in China.",
-    "Do you like English?",
-    "Yes, I like English very much.",
-    "What time is it now?",
-    "It is ten o'clock.",
-    "Can you help me?",
-    "Of course, I can help you.",
-    "Thank you very much.",
-    "You are welcome.",
-    "See you tomorrow."
-  ];
-
   const sentences = extractedEnglishSentences && extractedEnglishSentences.length > 0 
     ? extractedEnglishSentences 
-    : defaultEnglishSentences;
+    : DEFAULT_ENGLISH_SENTENCES;
 
   while (lessons.length < 15) {
     const template = fallbackLessonTemplates[index % fallbackLessonTemplates.length];
