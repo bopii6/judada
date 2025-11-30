@@ -75,6 +75,7 @@ export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLe
   const [wordInputs, setWordInputs] = useState<string[]>([]);
   const [wordErrors, setWordErrors] = useState<Record<number, boolean>>({});
   const [feedback, setFeedback] = useState<{ type: "correct" | "incorrect" | null; message?: string }>({ type: null });
+  const [autoCheckLocked, setAutoCheckLocked] = useState(false);
   
   const blockRefs = useRef<Array<HTMLInputElement | null>>([]);
   const successTimeoutRef = useRef<number | null>(null);
@@ -117,6 +118,7 @@ export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLe
     setWordInputs(wordSlots.map(() => ""));
     setWordErrors({});
     setFeedback({ type: null });
+    setAutoCheckLocked(false);
     blockRefs.current = [];
     speak(stage.answerEn, { rate: 0.95, preferredLocales: ["en-US", "en-GB"] });
 
@@ -162,6 +164,7 @@ export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLe
       next[index] = sanitized;
       return next;
     });
+    setAutoCheckLocked(false);
 
     // 清除错误状态
     if (wordErrors[index]) {
@@ -192,8 +195,9 @@ export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLe
   };
 
   // 检查答案
-  const checkAnswer = useCallback(() => {
+  const checkAnswer = useCallback((options?: { auto?: boolean }) => {
     if (!answerText || !wordSlots.length || isInputLocked) return;
+    const autoTriggered = options?.auto ?? false;
 
     const typedSentence = assembleWordInputs(wordSlots, wordInputs);
     const normalized = normalizeForCompare(typedSentence);
@@ -203,15 +207,18 @@ export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLe
 
     if (allCorrectOptions.includes(normalized)) {
       setFeedback({ type: "correct", message: "Perfect!" });
+      setAutoCheckLocked(false);
       playSuccessSound();
       
       successTimeoutRef.current = window.setTimeout(() => {
         setWordInputs(wordSlots.map(() => ""));
         setWordErrors({});
         setFeedback({ type: null });
+        setAutoCheckLocked(false);
         onSuccess();
       }, 1000);
     } else {
+      setAutoCheckLocked(true);
       setFeedback({ type: "incorrect", message: "Not quite. Listen again." });
       onMistake();
       playErrorSound();
@@ -228,13 +235,19 @@ export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLe
       (slot, index) => slot.fillableLength === 0 || (wordInputs[index]?.length ?? 0) === slot.fillableLength
     ).length;
 
-    if (requiredWordCount > 0 && completedWordCount === requiredWordCount && !isInputLocked && !feedback.type) {
+    if (
+      requiredWordCount > 0 &&
+      completedWordCount === requiredWordCount &&
+      !isInputLocked &&
+      !feedback.type &&
+      !autoCheckLocked
+    ) {
       const timer = setTimeout(() => {
-        checkAnswer();
+        checkAnswer({ auto: true });
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [wordInputs, wordSlots, isInputLocked, feedback.type, checkAnswer]);
+  }, [wordInputs, wordSlots, isInputLocked, feedback.type, autoCheckLocked, checkAnswer]);
 
   // 全局键盘事件
   useEffect(() => {
@@ -398,6 +411,7 @@ export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLe
             setWordInputs(wordSlots.map(() => ""));
             setWordErrors({});
             setFeedback({ type: null });
+            setAutoCheckLocked(false);
             focusFirstWritableBlock();
           }}
         >

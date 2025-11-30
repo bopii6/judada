@@ -97,6 +97,19 @@ const normalizePayload = (payload: unknown): Prisma.InputJsonValue => {
 /**
  * 从OCR文本中提取英文句子
  */
+const meetsMinimumSentenceRequirements = (wordCount: number, englishCharCount: number): boolean => {
+  if (wordCount >= 3) {
+    return true;
+  }
+  if (wordCount === 2) {
+    return englishCharCount >= 6;
+  }
+  if (wordCount === 1) {
+    return englishCharCount >= 4;
+  }
+  return false;
+};
+
 const extractEnglishSentences = (text: string, logContext?: { generationJobId?: string; logFn?: (msg: string, details?: any) => void }): string[] => {
   if (!text || !text.trim()) {
     if (logContext?.logFn) {
@@ -129,9 +142,8 @@ const extractEnglishSentences = (text: string, logContext?: { generationJobId?: 
         if (englishCharCount / cleaned.length > 0.6) {
           // 确保包含至少3个单词
           const wordCount = cleaned.split(/\s+/).filter(w => w.match(/[a-zA-Z]/)).length;
-          if (wordCount >= 3 && !seen.has(cleaned.toLowerCase())) {
-            sentences.push(cleaned);
-            seen.add(cleaned.toLowerCase());
+          if (meetsMinimumSentenceRequirements(wordCount, englishCharCount)) {
+            pushSentenceCandidate(cleaned, sentences, seen);
           }
         }
       }
@@ -140,24 +152,28 @@ const extractEnglishSentences = (text: string, logContext?: { generationJobId?: 
   
   // 方法2: 如果没有找到完整句子，尝试提取英文短语（3-10个单词）
   if (sentences.length < 10) {
-    // 先提取所有英文单词
-    const words = text.split(/\s+/).filter(w => {
-      const cleaned = w.replace(/[^\w]/g, ''); // 移除标点
-      const englishChars = (cleaned.match(/[a-zA-Z]/g) || []).length;
-      return englishChars / cleaned.length > 0.7 && cleaned.length >= 2;
-    });
-    
-    // 组合成短语（3-8个单词）
-    for (let i = 0; i < words.length - 2; i++) {
-      const phraseWords = words.slice(i, Math.min(i + 8, words.length));
-      const phrase = phraseWords.join(' ');
-      if (phrase.length >= 10 && phrase.length <= 150) {
-        const englishCharCount = (phrase.match(/[a-zA-Z]/g) || []).length;
-        if (englishCharCount / phrase.length > 0.6 && !seen.has(phrase.toLowerCase())) {
-          sentences.push(phrase);
-          seen.add(phrase.toLowerCase());
-        }
+    const normalizedForFragments = text.replace(/\r?\n{2,}/g, ". ");
+    const fragmentRegex = /[^.!?]+[.!?]?/g;
+    let fragmentMatch: RegExpExecArray | null;
+    while ((fragmentMatch = fragmentRegex.exec(normalizedForFragments)) !== null) {
+      const fragment = fragmentMatch[0].trim();
+      if (!fragment) {
+        continue;
       }
+      const fragmentNoSpace = fragment.replace(/\s+/g, "");
+      if (fragmentNoSpace.length < 4 || fragment.length > 180) {
+        continue;
+      }
+      const englishCharCount = (fragment.match(/[a-zA-Z]/g) || []).length;
+      if (!englishCharCount || englishCharCount / fragmentNoSpace.length <= 0.6) {
+        continue;
+      }
+      const wordCount = fragment.split(/\s+/).filter(w => w.match(/[a-zA-Z]/)).length;
+      if (!meetsMinimumSentenceRequirements(wordCount, englishCharCount)) {
+        continue;
+      }
+      const ensuredFragment = /[.!?]$/.test(fragment) ? fragment : `${fragment}.`;
+      pushSentenceCandidate(ensuredFragment, sentences, seen);
     }
   }
   
@@ -167,9 +183,8 @@ const extractEnglishSentences = (text: string, logContext?: { generationJobId?: 
   while ((quotedMatch = quotedRegex.exec(text)) !== null && sentences.length < 50) {
     const quoted = quotedMatch[1].trim();
     const englishCharCount = (quoted.match(/[a-zA-Z]/g) || []).length;
-    if (englishCharCount / quoted.length > 0.7 && !seen.has(quoted.toLowerCase())) {
-      sentences.push(quoted);
-      seen.add(quoted.toLowerCase());
+    if (englishCharCount / quoted.length > 0.7) {
+      pushSentenceCandidate(quoted, sentences, seen);
     }
   }
   
@@ -184,6 +199,574 @@ const extractEnglishSentences = (text: string, logContext?: { generationJobId?: 
   }
   
   return result;
+};
+
+const sentenceStopWords = new Set([
+  "a",
+  "an",
+  "the",
+  "and",
+  "or",
+  "but",
+  "if",
+  "in",
+  "on",
+  "for",
+  "to",
+  "of",
+  "is",
+  "am",
+  "are",
+  "was",
+  "were",
+  "be",
+  "been",
+  "being",
+  "with",
+  "as",
+  "by",
+  "at",
+  "from",
+  "this",
+  "that",
+  "these",
+  "those",
+  "it",
+  "its",
+  "i",
+  "you",
+  "he",
+  "she",
+  "we",
+  "they",
+  "them",
+  "him",
+  "her",
+  "my",
+  "your",
+  "our",
+  "their",
+  "me",
+  "us"
+]);
+
+const tokenizeSentence = (sentence: string): string[] =>
+  sentence
+    .toLowerCase()
+    .split(/[^a-z0-9]+/g)
+    .filter(token => token.length > 1 && !sentenceStopWords.has(token));
+
+const buildTermFrequencyMap = (sentences: string[]): Map<string, number> => {
+  const freq = new Map<string, number>();
+  for (const sentence of sentences) {
+    const tokens = tokenizeSentence(sentence);
+    for (const token of tokens) {
+      freq.set(token, (freq.get(token) ?? 0) + 1);
+    }
+  }
+  return freq;
+};
+
+const verbIndicatorTokens = new Set([
+  "am",
+  "is",
+  "are",
+  "was",
+  "were",
+  "be",
+  "been",
+  "being",
+  "have",
+  "has",
+  "had",
+  "do",
+  "does",
+  "did",
+  "go",
+  "goes",
+  "went",
+  "play",
+  "plays",
+  "played",
+  "like",
+  "likes",
+  "liked",
+  "eat",
+  "eats",
+  "ate",
+  "drink",
+  "drinks",
+  "drank",
+  "read",
+  "reads",
+  "clean",
+  "cleans",
+  "cleaned",
+  "study",
+  "studies",
+  "studied",
+  "start",
+  "starts",
+  "started",
+  "finish",
+  "finishes",
+  "finished",
+  "sleep",
+  "sleeps",
+  "slept",
+  "work",
+  "works",
+  "worked",
+  "do",
+  "does",
+  "did",
+  "practice",
+  "practices",
+  "practiced",
+  "watch",
+  "watches",
+  "watched",
+  "write",
+  "writes",
+  "wrote",
+  "cook",
+  "cooks",
+  "cooked"
+]);
+
+const dayNameTokens = new Set(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]);
+
+const subjectLabelTokens = new Set([
+  "art",
+  "music",
+  "english",
+  "chinese",
+  "math",
+  "maths",
+  "science",
+  "computer",
+  "pe",
+  "sport",
+  "sports",
+  "writing",
+  "reading",
+  "drawing",
+  "class",
+  "classes",
+  "words",
+  "story",
+  "stories",
+  "breakfast",
+  "lunch",
+  "dinner",
+  "week",
+  "weekend"
+]);
+
+const headingKeywords = new Set(["unit", "lesson", "chapter", "section", "module", "part", "practice", "review"]);
+
+const headingNumberTokens = new Set([
+  "one",
+  "two",
+  "three",
+  "four",
+  "five",
+  "six",
+  "seven",
+  "eight",
+  "nine",
+  "ten",
+  "eleven",
+  "twelve",
+  "thirteen",
+  "fourteen",
+  "fifteen",
+  "sixteen",
+  "seventeen",
+  "eighteen",
+  "nineteen",
+  "twenty",
+  "first",
+  "second",
+  "third",
+  "fourth",
+  "fifth",
+  "sixth",
+  "seventh",
+  "eighth",
+  "ninth",
+  "tenth",
+  "eleventh",
+  "twelfth",
+  "thirteenth",
+  "fourteenth",
+  "fifteenth",
+  "sixteenth",
+  "seventeenth",
+  "eighteenth",
+  "nineteenth",
+  "twentieth"
+]);
+
+const runOnSentenceStarterTokens = new Set([
+  "hello",
+  "hi",
+  "hey",
+  "i",
+  "im",
+  "my",
+  "we",
+  "he",
+  "she",
+  "they",
+  "it",
+  "this",
+  "that",
+  "there",
+  "let",
+  "lets",
+  "look",
+  "listen",
+  "can",
+  "could",
+  "do",
+  "does",
+  "did",
+  "are",
+  "is",
+  "am",
+  "please"
+]);
+
+const headingRomanNumeralRegex = /^[ivxlcdm]+$/i;
+
+const sanitizeHeadingToken = (token: string): string =>
+  token.replace(/^[^0-9a-z]+|[^0-9a-z]+$/gi, "").toLowerCase();
+
+const normalizeRunOnToken = (token: string): string =>
+  token.replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, "").toLowerCase();
+
+const looksLikeHeadingIndexToken = (token: string): boolean =>
+  !!token && (headingNumberTokens.has(token) || /^\d+[a-z]?$/.test(token) || headingRomanNumeralRegex.test(token));
+
+const tokenEndsSentence = (token: string): boolean => /[.!?]"?$/.test(token);
+
+const splitRunOnSentence = (sentence: string): string[] => {
+  const trimmed = sentence.trim();
+  if (!trimmed) {
+    return [];
+  }
+  const tokens = trimmed.split(/\s+/);
+  const segments: string[] = [];
+  let current: string[] = [];
+
+  const flushCurrent = () => {
+    if (!current.length) return;
+    const segment = current.join(" ").trim();
+    if (segment) {
+      segments.push(segment);
+    }
+    current = [];
+  };
+
+  for (const token of tokens) {
+    const normalizedToken = normalizeRunOnToken(token);
+    const rawAlphaToken = token.replace(/^[^a-zA-Z]+/, "");
+    const startsWithUppercase = /^[A-Z]/.test(rawAlphaToken);
+    if (
+      current.length &&
+      runOnSentenceStarterTokens.has(normalizedToken) &&
+      !tokenEndsSentence(current[current.length - 1]) &&
+      startsWithUppercase
+    ) {
+      flushCurrent();
+      current.push(token);
+      continue;
+    }
+    current.push(token);
+  }
+
+  flushCurrent();
+  return segments.length ? segments : [trimmed];
+};
+
+const splitHeadingFromSentence = (sentence: string): string[] => {
+  const trimmed = sentence.trim();
+  if (!trimmed) {
+    return [];
+  }
+
+  const normalized = trimmed.replace(/\s+/g, " ");
+  const words = normalized.split(" ");
+  if (words.length < 3) {
+    return [trimmed];
+  }
+
+  const headingWord = sanitizeHeadingToken(words[0]);
+  if (!headingKeywords.has(headingWord)) {
+    return [trimmed];
+  }
+
+  let removalEnd = 1;
+  for (let i = 1; i < Math.min(words.length, 4); i++) {
+    const token = sanitizeHeadingToken(words[i]);
+    if (!token) {
+      continue;
+    }
+    if (looksLikeHeadingIndexToken(token)) {
+      removalEnd = i + 1;
+      continue;
+    }
+    break;
+  }
+
+  if (removalEnd === 1) {
+    return [trimmed];
+  }
+
+  const rest = words.slice(removalEnd).join(" ").trim();
+  if (!rest) {
+    return [trimmed];
+  }
+
+  const restWordCount = rest.split(/\s+/).filter(word => /[a-zA-Z]/.test(word)).length;
+  if (restWordCount < 3 && !/[.!?]/.test(rest)) {
+    return [trimmed];
+  }
+
+  return [rest];
+};
+
+const pushSentenceCandidate = (sentence: string, collector: string[], dedup: Set<string>) => {
+  for (const headingless of splitHeadingFromSentence(sentence)) {
+    for (const candidate of splitRunOnSentence(headingless)) {
+      const normalized = candidate.trim();
+      if (!normalized) {
+        continue;
+      }
+      const key = normalized.toLowerCase();
+      if (dedup.has(key)) {
+        continue;
+      }
+      const ensured = tokenEndsSentence(normalized) ? normalized : `${normalized}.`;
+      collector.push(ensured);
+      dedup.add(key);
+    }
+  }
+};
+
+const labelPhraseIndicators = [
+  "my week",
+  "my day",
+  "my class",
+  "my unit",
+  "let's try",
+  "let's talk",
+  "let's learn",
+  "let's read",
+  "let's write",
+  "let's spell",
+  "let's play",
+  "listen and type",
+  "listen and tick",
+  "listen and circle",
+  "ask and write",
+  "ask and answer",
+  "read and write",
+  "read and tick",
+  "read and say",
+  "look and say",
+  "look and read",
+  "look and write"
+];
+
+const containsVerbLikeToken = (tokens: string[]): boolean =>
+  tokens.some(token => verbIndicatorTokens.has(token) || token.endsWith("ing") || token.endsWith("ed"));
+
+const tokensMatchLabelList = (tokens: string[]): boolean => {
+  if (!tokens.length || tokens.length > 6) {
+    return false;
+  }
+  return tokens.every(token => dayNameTokens.has(token) || subjectLabelTokens.has(token));
+};
+
+const isLikelyTitleOrLabel = (sentence: string, tokens: string[]): boolean => {
+  const trimmed = sentence.trim();
+  if (!trimmed) {
+    return true;
+  }
+
+  const lower = trimmed.toLowerCase();
+  const hasPunctuation = /[.?!]/.test(trimmed);
+  const hasVerb = containsVerbLikeToken(tokens);
+  const wordCount = tokens.length;
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  const uppercaseWords = words.filter(word => /^[A-Z]+$/.test(word));
+  const firstToken = tokens[0];
+
+  if (!hasPunctuation) {
+    if (!hasVerb && wordCount <= 2) {
+      return true;
+    }
+    if (
+      !hasVerb &&
+      uppercaseWords.length >= Math.max(1, words.length - 1) &&
+      words.length <= 5
+    ) {
+      return true;
+    }
+    if (!hasVerb && firstToken && headingKeywords.has(firstToken)) {
+      return true;
+    }
+    if (
+      labelPhraseIndicators.some(phrase => lower === phrase || lower.startsWith(`${phrase} `))
+    ) {
+      return true;
+    }
+    if (!hasVerb && tokens.every(token => dayNameTokens.has(token) || /^\d+$/.test(token))) {
+      return true;
+    }
+    if (!hasVerb && tokensMatchLabelList(tokens)) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const scoreSentenceForImportance = (sentence: string, termFrequency: Map<string, number>): number => {
+  const tokens = tokenizeSentence(sentence);
+  if (tokens.length === 0) {
+    return 0;
+  }
+
+  let score = tokens.reduce((sum, token) => sum + (termFrequency.get(token) ?? 0), 0);
+
+  if (sentence.trim().endsWith("?")) {
+    score += 2.5;
+  }
+
+  if (/[0-9]/.test(sentence)) {
+    score += 1;
+  }
+
+  const uniqueTokenCount = new Set(tokens).size;
+  if (uniqueTokenCount >= 3 && uniqueTokenCount <= 15) {
+    score += 1.5;
+  }
+
+  if (/[,;]/.test(sentence)) {
+    score += 0.5;
+  }
+
+  if (/(always|usually|often|sometimes|never|every)/i.test(sentence)) {
+    score += 1;
+  }
+
+  if (/^(when|what|why|how|who|where)\b/i.test(sentence)) {
+    score += 1.5;
+  }
+
+  return score;
+};
+
+const sentencesAreNearDuplicates = (tokensA: Set<string>, tokensB: Set<string>): boolean => {
+  if (tokensA.size === 0 || tokensB.size === 0) {
+    return false;
+  }
+  const smaller = tokensA.size < tokensB.size ? tokensA : tokensB;
+  const larger = smaller === tokensA ? tokensB : tokensA;
+  let intersection = 0;
+  for (const token of smaller) {
+    if (larger.has(token)) {
+      intersection += 1;
+    }
+  }
+  const union = tokensA.size + tokensB.size - intersection;
+  if (union === 0) {
+    return false;
+  }
+  return intersection / union >= 0.85;
+};
+
+const selectCoreSentences = (sentences: string[], limit = 50): string[] => {
+  if (!sentences.length) {
+    return [];
+  }
+
+  const termFrequency = buildTermFrequencyMap(sentences);
+  const scored: Array<{ sentence: string; index: number; tokens: Set<string>; score: number }> = [];
+
+  sentences.forEach((sentence, index) => {
+    const rawTokens = tokenizeSentence(sentence);
+    if (isLikelyTitleOrLabel(sentence, rawTokens)) {
+      return;
+    }
+    scored.push({
+      sentence,
+      index,
+      tokens: new Set(rawTokens),
+      score: scoreSentenceForImportance(sentence, termFrequency)
+    });
+  });
+
+  if (!scored.length) {
+    return sentences.slice(0, Math.min(limit, sentences.length));
+  }
+
+  scored.sort((a, b) => {
+    if (b.score === a.score) {
+      return a.index - b.index;
+    }
+    return b.score - a.score;
+  });
+
+  const selected: typeof scored = [];
+  const tryAdd = (candidate: (typeof scored)[number]) => {
+    if (selected.length >= limit) {
+      return;
+    }
+    if (selected.some(item => sentencesAreNearDuplicates(item.tokens, candidate.tokens))) {
+      return;
+    }
+    selected.push(candidate);
+  };
+
+  for (const candidate of scored) {
+    tryAdd(candidate);
+    if (selected.length >= limit) {
+      break;
+    }
+  }
+
+  const selectedIndexes = new Set(selected.map(item => item.index));
+  for (let i = 0; i < sentences.length && selected.length < limit; i++) {
+    const sentence = sentences[i];
+    if (!sentence.trim().endsWith("?")) {
+      continue;
+    }
+    if (!selectedIndexes.has(i)) {
+      const candidate = scored.find(item => item.index === i);
+      if (candidate) {
+        tryAdd(candidate);
+        selectedIndexes.add(i);
+      }
+    }
+
+    const answerIndex = i + 1;
+    if (answerIndex < sentences.length && !selectedIndexes.has(answerIndex)) {
+      const answerCandidate = scored.find(item => item.index === answerIndex);
+      if (answerCandidate) {
+        tryAdd(answerCandidate);
+        selectedIndexes.add(answerIndex);
+      }
+    }
+  }
+
+  return selected
+    .sort((a, b) => a.index - b.index)
+    .map(item => item.sentence)
+    .slice(0, limit);
 };
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -708,8 +1291,12 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
   );
 
   // 提前提取英文句子，用于后续验证和补充
-  const preExtractedSentences = extractEnglishSentences(extractedText);
-  console.log(`[生成任务 ${generationJobId}] 从OCR文本中预提取到 ${preExtractedSentences.length} 个英文句子`);
+  const rawExtractedSentences = extractEnglishSentences(extractedText);
+  const preExtractedSentences = selectCoreSentences(rawExtractedSentences, 50);
+  const filteredOutCount = Math.max(0, rawExtractedSentences.length - preExtractedSentences.length);
+  console.log(
+    `[生成任务 ${generationJobId}] 从OCR文本中预提取到 ${rawExtractedSentences.length} 个英文句子，优先队列保留 ${preExtractedSentences.length} 个（过滤标题/标签 ${filteredOutCount} 个）`
+  );
   if (preExtractedSentences.length > 0) {
     console.log(`[生成任务 ${generationJobId}] 英文句子示例: ${preExtractedSentences.slice(0, 5).join(', ')}`);
   }
@@ -720,7 +1307,9 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
     "info",
     {
       sampleSentences: preExtractedSentences.slice(0, 10),
-      totalExtracted: preExtractedSentences.length
+      totalExtracted: preExtractedSentences.length,
+      rawCandidates: rawExtractedSentences.length,
+      filteredOut: filteredOutCount
     }
   );
 
@@ -914,7 +1503,7 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
 
   if (!plan.lessons?.length) {
     // 先尝试从OCR文本中提取英文句子
-    const extractedSentences = extractEnglishSentences(extractedText);
+    const extractedSentences = selectCoreSentences(extractEnglishSentences(extractedText), 50);
     await generationJobRepository.appendLog(
       generationJobId,
       `AI 未返回任何课程，切换到基础补课方案。从OCR提取到 ${extractedSentences.length} 个英文句子`,
@@ -979,14 +1568,14 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
     );
     
     // 尝试从OCR文本中提取英文句子作为fallback
-    const englishSentences = extractEnglishSentences(extractedText);
+    const englishSentences = selectCoreSentences(extractEnglishSentences(extractedText), 50);
     await generationJobRepository.appendLog(
       generationJobId,
       `开始从OCR文本提取英文句子，OCR文本长度: ${extractedText.length}`,
       "info",
       {
         ocrTextSample: extractedText.substring(0, 1000),
-        extractionMethod: "extractEnglishSentences"
+        extractionMethod: "extractEnglishSentences+selectCoreSentences"
       }
     );
     
