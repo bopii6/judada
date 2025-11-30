@@ -13,7 +13,10 @@ import {
   CoursePackageDetail,
   UnitSummary,
   LessonSummary,
+  PackageMaterialSummary,
+  MaterialLessonSummary,
   fetchCoursePackageDetail,
+  fetchPackageMaterials,
   uploadCoursePackageCover,
   updateCoursePackage,
   fetchUnits,
@@ -24,6 +27,13 @@ import {
   deleteUnit,
   uploadUnitMaterial,
   uploadUnitCover,
+  regeneratePackageMaterial,
+  deletePackageMaterial,
+  getMaterialPreviewUrl,
+  updateMaterialLabel,
+  updateLessonContent,
+  deleteLessonById,
+  createManualLesson,
   type UpdateCoursePackagePayload,
   type CreateUnitPayload,
   type UpdateUnitPayload
@@ -39,6 +49,87 @@ const statusTextMap: Record<string, string> = {
 
 const MAX_COVER_SIZE = 5 * 1024 * 1024;
 const MAX_UPLOAD_SIZE = 15 * 1024 * 1024;
+
+const formatBytes = (bytes?: number | null) => {
+  if (!bytes) return "未知大小";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const parseNumericValue = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return null;
+};
+
+const getMaterialPageNumber = (material: PackageMaterialSummary): number | null => {
+  const metadata = (material.metadata ?? {}) as Record<string, unknown>;
+  const candidateKeys = ["pageNumber", "page", "page_index", "pageIndex", "pageNo", "page_no", "pageNum", "page_num"];
+  for (const key of candidateKeys) {
+    const numeric = parseNumericValue(metadata[key]);
+    if (numeric !== null) {
+      return numeric <= 0 ? numeric + 1 : numeric;
+    }
+  }
+  const lessonWithOrder = material.lessons.find(lesson => typeof lesson.sourceAssetOrder === "number");
+  if (lessonWithOrder) {
+    return (lessonWithOrder.sourceAssetOrder ?? 0) + 1;
+  }
+  const baseName = material.originalName.replace(/\.[^.]+$/, "");
+  const segments = baseName.split(/[-_]/).filter(Boolean);
+  if (segments.length) {
+    const lastSegmentDigits = segments[segments.length - 1].replace(/\D+/g, "");
+    if (lastSegmentDigits) {
+      const parsed = Number(lastSegmentDigits);
+      if (!Number.isNaN(parsed)) {
+        return parsed;
+      }
+    }
+  }
+  return null;
+};
+
+const formatMaterialLabel = (material: PackageMaterialSummary) => {
+  const pageNumber = getMaterialPageNumber(material);
+  if (pageNumber !== null) {
+    const normalized = Math.max(1, Math.round(pageNumber));
+    return `Page ${normalized}`;
+  }
+  const metadataLabel = typeof material.metadata?.label === "string" ? material.metadata.label.trim() : "";
+  return metadataLabel || material.originalName;
+};
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const sanitizeLessonTitle = (title: string | null | undefined, material?: PackageMaterialSummary) => {
+  if (!title) return "";
+  let result = title.trim();
+  if (!result) return "";
+  const candidates: string[] = [];
+  if (material?.originalName) {
+    candidates.push(material.originalName.trim());
+    const base = material.originalName.replace(/\.[^.]+$/, "").trim();
+    if (base && base !== candidates[0]) {
+      candidates.push(base);
+    }
+  }
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const pattern = new RegExp(`\\s*[·•．・\\-]*\\s*${escapeRegExp(candidate)}\\s*$`);
+    if (pattern.test(result)) {
+      result = result.replace(pattern, "").trim();
+    }
+  }
+  return result;
+};
 
 export const CourseDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -81,6 +172,23 @@ export const CourseDetailPage = () => {
   });
 
   const units = useMemo(() => unitsData?.units ?? [], [unitsData]);
+
+  const {
+    data: materialsData,
+    isLoading: materialsLoading,
+    error: materialsError,
+    refetch: refetchMaterials,
+    isFetching: materialsFetching
+  } = useQuery({
+    queryKey: ["course-packages", id, "materials-tree"],
+    queryFn: () => fetchPackageMaterials(id!),
+    enabled: Boolean(id)
+  });
+
+  const materials = materialsData?.materials ?? [];
+  const unassignedLessons = materialsData?.unassignedLessons ?? [];
+  const [materialsFeedback, setMaterialsFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [materialActionId, setMaterialActionId] = useState<string | null>(null);
 
   const coverMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -149,6 +257,68 @@ export const CourseDetailPage = () => {
       void refetchUnits();
     }
   });
+
+  const runMaterialsAction = async (materialId: string, action: () => Promise<void>, successTip: string) => {
+    if (!id) return;
+    setMaterialActionId(materialId);
+    setMaterialsFeedback(null);
+    try {
+      await action();
+      setMaterialsFeedback({ type: "success", text: successTip });
+      void refetchMaterials();
+    } catch (error) {
+      setMaterialsFeedback({ type: "error", text: (error as Error).message });
+    } finally {
+      setMaterialActionId(null);
+    }
+  };
+
+  const handleRenameMaterial = async (material: PackageMaterialSummary) => {
+    if (!id) return;
+    const currentLabel = formatMaterialLabel(material);
+    const next = window.prompt("请输入素材备注（可选）", currentLabel);
+    if (next === null) return;
+    const labelToSave = next.trim();
+    await runMaterialsAction(
+      material.id,
+      () => updateMaterialLabel(id, material.id, labelToSave || undefined),
+      "素材备注已更新"
+    );
+  };
+
+  const handleRegenerateMaterial = async (material: PackageMaterialSummary) => {
+    if (!id) return;
+    if (!window.confirm(`确定要重新生成素材「${formatMaterialLabel(material)}」下的关卡吗？`)) return;
+    await runMaterialsAction(
+      material.id,
+      () => regeneratePackageMaterial(id, material.id),
+      "已触发重新生成任务"
+    );
+  };
+
+  const handleDeleteMaterial = async (material: PackageMaterialSummary) => {
+    if (!id) return;
+    if (!window.confirm(`删除素材会同时解除与关卡的关联，确认删除「${formatMaterialLabel(material)}」？`)) return;
+    await runMaterialsAction(
+      material.id,
+      () => deletePackageMaterial(id, material.id),
+      "素材已删除"
+    );
+  };
+
+  const handlePreviewMaterial = async (material: PackageMaterialSummary) => {
+    if (!id) return;
+    setMaterialActionId(material.id);
+    setMaterialsFeedback(null);
+    try {
+      const { url } = await getMaterialPreviewUrl(id, material.id);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      setMaterialsFeedback({ type: "error", text: (error as Error).message });
+    } finally {
+      setMaterialActionId(null);
+    }
+  };
 
 
   const detail = useMemo<CoursePackageDetail | null>(() => data?.package ?? null, [data]);
@@ -380,9 +550,9 @@ export const CourseDetailPage = () => {
               onChange={handleBasicInfoChange("description")}
               placeholder="可选：补充一句介绍"
             />
-          </label>
-        </div>
-      </form>
+      </label>
+    </div>
+  </form>
 
       {/* 单元管理区域 */}
       <section className="units-section">
@@ -397,6 +567,15 @@ export const CourseDetailPage = () => {
           </button>
         </div>
 
+        {(materialsFeedback || materialsError || materialsLoading || materialsFetching) && (
+          <div className={`materials-feedback ${materialsFeedback?.type ?? ""}`}>
+            {materialsLoading ? "素材数据加载中..." : null}
+            {materialsFetching && !materialsLoading ? "素材数据刷新中..." : null}
+            {materialsError && <span>素材加载失败：{(materialsError as Error).message}</span>}
+            {materialsFeedback && <span>{materialsFeedback.text}</span>}
+          </div>
+        )}
+
         {units.length === 0 ? (
           <div className="units-empty">
             <p>还没有创建单元</p>
@@ -408,10 +587,17 @@ export const CourseDetailPage = () => {
               <UnitCard
                 key={unit.id}
                 unit={unit}
+                materials={materials}
                 onUpdate={() => {
                   void refetchUnits();
                   void refetchDetail();
+                  void refetchMaterials();
                 }}
+                materialActionId={materialActionId}
+                onRenameMaterial={handleRenameMaterial}
+                onPreviewMaterial={handlePreviewMaterial}
+                onRegenerateMaterial={handleRegenerateMaterial}
+                onDeleteMaterial={handleDeleteMaterial}
               />
             ))}
           </div>
@@ -460,6 +646,22 @@ export const CourseDetailPage = () => {
           </div>
         </div>
       )}
+
+      {unassignedLessons.length > 0 && (
+        <section className="materials-unassigned">
+          <h3>未关联素材的关卡</h3>
+          <p className="hint">这些关卡尚未匹配到具体素材，可在单元中手动调整</p>
+          <ul>
+            {unassignedLessons.map(lesson => (
+                <li key={lesson.id}>
+                  <span className="material-lesson-title">
+                    #{lesson.sequence ?? "—"} {lesson.contentEn || "未提供句子"}
+                  </span>
+                </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 };
@@ -468,9 +670,33 @@ export const CourseDetailPage = () => {
 interface UnitCardProps {
   unit: UnitSummary;
   onUpdate: () => void;
+  materials: PackageMaterialSummary[];
+  materialActionId: string | null;
+  onRenameMaterial: (material: PackageMaterialSummary) => void;
+  onPreviewMaterial: (material: PackageMaterialSummary) => void;
+  onRegenerateMaterial: (material: PackageMaterialSummary) => void;
+  onDeleteMaterial: (material: PackageMaterialSummary) => void;
 }
 
-const UnitCard = ({ unit, onUpdate }: UnitCardProps) => {
+interface LessonEditorState {
+  mode: "create" | "edit";
+  material: PackageMaterialSummary;
+  lesson: MaterialLessonSummary | null;
+  title: string;
+  en: string;
+  cn: string;
+}
+
+const UnitCard = ({
+  unit,
+  onUpdate,
+  materials,
+  materialActionId,
+  onRenameMaterial,
+  onPreviewMaterial,
+  onRegenerateMaterial,
+  onDeleteMaterial
+}: UnitCardProps) => {
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -479,6 +705,8 @@ const UnitCard = ({ unit, onUpdate }: UnitCardProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const [uploadMessage, setUploadMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [lessonMessage, setLessonMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [lessonEditor, setLessonEditor] = useState<LessonEditorState | null>(null);
 
   const updateMutation = useMutation({
     mutationFn: (payload: UpdateUnitPayload) => updateUnit(unit.id, payload),
@@ -508,6 +736,52 @@ const UnitCard = ({ unit, onUpdate }: UnitCardProps) => {
     mutationFn: () => deleteUnit(unit.id),
     onSuccess: () => {
       onUpdate();
+    }
+  });
+
+  const lessonSaveMutation = useMutation({
+    mutationFn: async (editor: LessonEditorState) => {
+      const title = editor.title.trim();
+      const en = editor.en.trim();
+      const cn = editor.cn.trim();
+      if (!title) {
+        throw new Error("请填写关卡标题");
+      }
+      if (!en) {
+        throw new Error("请填写英文句子");
+      }
+      const payload = {
+        title,
+        en,
+        cn: cn ? cn : null
+      };
+      if (editor.mode === "edit" && editor.lesson) {
+        await updateLessonContent(editor.lesson.id, payload);
+        return "关卡内容已更新";
+      }
+      await createManualLesson(unit.packageId, editor.material.id, payload);
+      return "已新增关卡";
+    },
+    onSuccess: message => {
+      setLessonMessage({ type: "success", text: message });
+      setLessonEditor(null);
+      onUpdate();
+    },
+    onError: failure => {
+      setLessonMessage({ type: "error", text: (failure as Error).message });
+    }
+  });
+
+  const lessonDeleteMutation = useMutation({
+    mutationFn: async (lessonId: string) => {
+      await deleteLessonById(lessonId);
+    },
+    onSuccess: () => {
+      setLessonMessage({ type: "success", text: "关卡已删除" });
+      onUpdate();
+    },
+    onError: failure => {
+      setLessonMessage({ type: "error", text: (failure as Error).message });
     }
   });
 
@@ -585,6 +859,50 @@ const UnitCard = ({ unit, onUpdate }: UnitCardProps) => {
 
   const lessonCount = unit._count?.lessons ?? unit.lessons?.length ?? 0;
   const isPublished = unit.status === "published";
+  const unitMaterials = useMemo(() => {
+    if (!materials.length) return [];
+    return materials
+      .map(material => {
+        const linkedLessons = material.lessons.filter(lesson => lesson.unitId === unit.id);
+        if (!linkedLessons.length) return null;
+        return { material, lessons: linkedLessons };
+      })
+      .filter(Boolean) as Array<{ material: PackageMaterialSummary; lessons: MaterialLessonSummary[] }>;
+  }, [materials, unit.id]);
+
+  const openLessonEditor = (
+    mode: "create" | "edit",
+    material: PackageMaterialSummary,
+    lesson?: MaterialLessonSummary | null,
+    orderHint?: number
+  ) => {
+    setLessonEditor({
+      mode,
+      material,
+      lesson: lesson ?? null,
+      title: lesson ? sanitizeLessonTitle(lesson.title, material) : orderHint ? `关卡 ${orderHint}` : "",
+      en: lesson?.contentEn ?? "",
+      cn: lesson?.contentCn ?? ""
+    });
+  };
+
+  const handleLessonFieldChange =
+    (field: "title" | "en" | "cn") =>
+    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const value = event.target.value;
+      setLessonEditor(prev => (prev ? { ...prev, [field]: value } : prev));
+    };
+
+  const handleLessonModalSubmit: FormEventHandler<HTMLFormElement> = event => {
+    event.preventDefault();
+    if (!lessonEditor) return;
+    lessonSaveMutation.mutate(lessonEditor);
+  };
+
+  const handleLessonDelete = (lesson: MaterialLessonSummary) => {
+    if (!window.confirm(`确认删除关卡「${lesson.title}」吗？`)) return;
+    lessonDeleteMutation.mutate(lesson.id);
+  };
 
   return (
     <div className={`unit-card ${isPublished ? "published" : "draft"}`}>
@@ -650,6 +968,9 @@ const UnitCard = ({ unit, onUpdate }: UnitCardProps) => {
           {uploadMessage && (
             <p className={`unit-message ${uploadMessage.type}`}>{uploadMessage.text}</p>
           )}
+          {lessonMessage && (
+            <p className={`unit-message ${lessonMessage.type}`}>{lessonMessage.text}</p>
+          )}
 
           {/* 编辑表单 */}
           {isEditing && (
@@ -698,6 +1019,98 @@ const UnitCard = ({ unit, onUpdate }: UnitCardProps) => {
             )}
           </div>
 
+          <div className="unit-materials-tree">
+            <h4>素材与关卡树</h4>
+            {unitMaterials.length === 0 ? (
+              <p className="materials-empty">该单元尚未关联素材，可上传素材后查看生成结果。</p>
+            ) : (
+              <div className="materials-grid nested">
+                {unitMaterials.map(({ material, lessons }) => (
+                  <div key={material.id} className="material-card">
+                    <div className="material-card-header clean">
+                      <div>
+                        <p className="material-label">{formatMaterialLabel(material)}</p>
+                        <p className="material-meta subtle">
+                          {lessons.length} 个关卡 · {formatBytes(material.fileSize)}
+                        </p>
+                      </div>
+                      <div className="material-card-actions horizontal">
+                        <button
+                          type="button"
+                          onClick={() => onRenameMaterial(material)}
+                          disabled={materialActionId === material.id}
+                        >
+                          重命名
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onPreviewMaterial(material)}
+                          disabled={materialActionId === material.id}
+                        >
+                          预览
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onRegenerateMaterial(material)}
+                          disabled={materialActionId === material.id}
+                        >
+                          重新生成
+                        </button>
+                        <button
+                          type="button"
+                          className="danger"
+                          onClick={() => onDeleteMaterial(material)}
+                          disabled={materialActionId === material.id}
+                        >
+                          删除
+                        </button>
+                      </div>
+                    </div>
+                    <div className="material-lessons compact">
+                      <div className="material-lessons-header">
+                        <span>已关联 {lessons.length} 个关卡</span>
+                        <button
+                          type="button"
+                          onClick={() => openLessonEditor("create", material, null, lessons.length + 1)}
+                          disabled={lessonSaveMutation.isPending}
+                        >
+                          + 新增句子
+                        </button>
+                      </div>
+                      <ul className="material-lessons-list detailed">
+                        {lessons.map(lesson => (
+                            <li key={lesson.id}>
+                              <div className="material-lesson-info">
+                                <div className="material-lesson-title">
+                                  #{lesson.sequence ?? "—"} {lesson.contentEn || "未提供句子"}
+                                </div>
+                                {lesson.contentCn && (
+                                  <p className="material-lesson-cn">{lesson.contentCn}</p>
+                                )}
+                              </div>
+                              <div className="material-lesson-actions">
+                                <button type="button" onClick={() => openLessonEditor("edit", material, lesson)}>
+                                  编辑
+                                </button>
+                                <button
+                                  type="button"
+                                  className="danger"
+                                  onClick={() => handleLessonDelete(lesson)}
+                                  disabled={lessonDeleteMutation.isPending}
+                                >
+                                  删除
+                                </button>
+                              </div>
+                            </li>
+                          ))}
+                      </ul>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <input
             ref={fileInputRef}
             type="file"
@@ -713,6 +1126,51 @@ const UnitCard = ({ unit, onUpdate }: UnitCardProps) => {
             hidden
             onChange={handleCoverChange}
           />
+
+          {lessonEditor && (
+            <div className="modal-overlay" onClick={() => setLessonEditor(null)}>
+              <div className="modal-content" onClick={event => event.stopPropagation()}>
+                <h3>{lessonEditor.mode === "edit" ? "编辑句子" : "新增句子"}</h3>
+                <form className="modal-form" onSubmit={handleLessonModalSubmit}>
+                  <label>
+                    <span>关卡标题 *</span>
+                    <input
+                      type="text"
+                      value={lessonEditor.title}
+                      onChange={handleLessonFieldChange("title")}
+                      placeholder="例如：核心词汇训练"
+                    />
+                  </label>
+                  <label>
+                    <span>英文句子 *</span>
+                    <textarea
+                      rows={3}
+                      value={lessonEditor.en}
+                      onChange={handleLessonFieldChange("en")}
+                      placeholder="请输入英文原文"
+                    />
+                  </label>
+                  <label>
+                    <span>中文翻译</span>
+                    <textarea
+                      rows={2}
+                      value={lessonEditor.cn}
+                      onChange={handleLessonFieldChange("cn")}
+                      placeholder="可选：添加中文翻译"
+                    />
+                  </label>
+                  <div className="modal-actions">
+                    <button type="button" onClick={() => setLessonEditor(null)} disabled={lessonSaveMutation.isPending}>
+                      取消
+                    </button>
+                    <button type="submit" className="primary" disabled={lessonSaveMutation.isPending}>
+                      {lessonSaveMutation.isPending ? "保存中..." : "保存"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

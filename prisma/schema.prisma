@@ -147,6 +147,9 @@ model Lesson {
   status           CourseStatus          @default(draft)
   currentVersionId String?               @unique
   createdById      String?
+  sourceAssetId    String?
+  sourceAssetName  String?
+  sourceAssetOrder Int?
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
   deletedAt        DateTime?

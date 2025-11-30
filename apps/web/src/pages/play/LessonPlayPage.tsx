@@ -9,7 +9,8 @@ import { TypingLessonExperience } from "../../components/play/TypingLessonExperi
 import { SpaceBattleExperience } from "../../components/play/SpaceBattleExperience";
 import { StagesProgressSidebar } from "../../components/StagesProgressSidebar";
 import { progressStore } from "../../store/progressStore";
-import { ArrowLeft, Star, Keyboard, MousePointer2 } from "lucide-react";
+import { ArrowLeft, Star, Keyboard, MousePointer2, Share2 } from "lucide-react";
+import { formatStageOriginLabel } from "../../utils/stageOrigin";
 
 const MODES = ["tiles", "type", "game"] as const;
 
@@ -43,6 +44,7 @@ export const LessonPlayPage = () => {
   const stageIndex = useMemo(() => stages.findIndex(stage => stage.id === stageId), [stages, stageId]);
   const currentStage = stageIndex >= 0 ? stages[stageIndex] : undefined;
   const nextStage = stageIndex >= 0 ? stages[stageIndex + 1] : undefined;
+  const stageOriginLabel = currentStage ? formatStageOriginLabel(currentStage) : null;
   const activeMode: LessonMode = isValidMode(mode) ? (mode as LessonMode) : "tiles";
 
   const [combo, setCombo] = useState(0);
@@ -51,6 +53,7 @@ export const LessonPlayPage = () => {
   const [stageMistakes, setStageMistakes] = useState(0);
 
   const celebrationTimeoutRef = useRef<number | null>(null);
+  const sessionStartRef = useRef<number>(Date.now());
 
   useEffect(() => {
     if (celebrationTimeoutRef.current) {
@@ -60,6 +63,7 @@ export const LessonPlayPage = () => {
     setCelebration(null);
     setCompleted(false);
     setStageMistakes(0);
+    sessionStartRef.current = Date.now();
   }, [stageId]);
 
   const handleBack = () => {
@@ -101,6 +105,20 @@ export const LessonPlayPage = () => {
   const handleMistake = () => {
     setCombo(0);
     setStageMistakes(prev => prev + 1);
+  };
+
+  const handleShare = () => {
+    if (!courseId) return;
+    const elapsedSeconds = Math.max(1, Math.round((Date.now() - sessionStartRef.current) / 1000));
+    navigate(`/share/${courseId}`, {
+      state: {
+        courseTitle: data?.course?.title ?? stageOriginLabel ?? "教材闯关",
+        stageCount: stages.length,
+        elapsedSeconds,
+        stars: celebration?.stars ?? calculateStars(stageMistakes),
+        comboStreak: combo
+      }
+    });
   };
 
   useEffect(() => () => {
@@ -182,11 +200,6 @@ export const LessonPlayPage = () => {
           </button>
         </div>
 
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center hidden sm:block">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-bold">Current Stage</p>
-          <p className="text-sm font-black text-slate-800">{currentStage.lessonTitle}</p>
-        </div>
-
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex items-center gap-2 rounded-full bg-white px-3 py-1.5 border border-slate-100 shadow-sm">
             {activeMode === "tiles" ? <MousePointer2 className="w-3 h-3 text-sky-500" /> : <Keyboard className="w-3 h-3 text-violet-500" />}
@@ -242,32 +255,34 @@ export const LessonPlayPage = () => {
                     <Star key={idx} className="fill-yellow-400 text-yellow-400 animate-pulse drop-shadow-sm" style={{ animationDelay: `${idx * 0.15}s` }} />
                   ))}
                 </div>
-                <button
-                  type="button"
-                  className="rounded-2xl bg-slate-900 px-10 py-4 text-lg font-bold text-white shadow-xl hover:scale-105 transition-transform"
-                  onClick={handleBack}
-                >
-                  返回课程中心
-                </button>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <button
+                    type="button"
+                    className="flex-1 rounded-2xl bg-slate-900 px-10 py-4 text-lg font-bold text-white shadow-xl hover:scale-105 transition-transform"
+                    onClick={handleBack}
+                  >
+                    返回课程中心
+                  </button>
+                  <button
+                    type="button"
+                    className="flex-1 rounded-2xl border-2 border-slate-900 px-10 py-4 text-lg font-bold text-slate-900 hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+                    onClick={handleShare}
+                  >
+                    <Share2 className="w-5 h-5" />
+                    炫耀一下
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="relative z-10 flex h-full flex-col">
                 {/* Progress & Stats Header */}
-                <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="px-2 py-1 rounded-lg bg-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                        Level {currentStage.difficulty ?? 1}
+                <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-wrap items-center gap-2 min-h-[32px]">
+                    {combo > 1 && (
+                      <span className="px-2 py-1 rounded-lg bg-orange-100 text-[10px] font-bold uppercase tracking-wider text-orange-600 animate-pulse">
+                        Combo x{combo} 🔥
                       </span>
-                      {combo > 1 && (
-                        <span className="px-2 py-1 rounded-lg bg-orange-100 text-[10px] font-bold uppercase tracking-wider text-orange-600 animate-pulse">
-                          Combo x{combo} 🔥
-                        </span>
-                      )}
-                    </div>
-                    <h2 className="text-2xl sm:text-3xl font-black text-slate-800 leading-tight">
-                      {currentStage.lessonTitle}
-                    </h2>
+                    )}
                   </div>
 
                   {/* Progress Bar */}

@@ -100,6 +100,37 @@ export interface CoursePackageDetail {
   lessons: LessonSummary[];
 }
 
+export interface MaterialLessonSummary {
+  id: string;
+  title: string;
+  sequence: number;
+  unitNumber: number | null;
+  unitName: string | null;
+  unitId?: string | null;
+  status: CourseStatus;
+  sourceAssetOrder?: number | null;
+  itemType?: string;
+  contentEn?: string | null;
+  contentCn?: string | null;
+}
+
+export interface PackageMaterialSummary {
+  id: string;
+  originalName: string;
+  mimeType: string | null;
+  fileSize: number | null;
+  sourceType: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  lessonCount: number;
+  lessons: MaterialLessonSummary[];
+}
+
+export interface PackageMaterialTreeResponse {
+  materials: PackageMaterialSummary[];
+  unassignedLessons: MaterialLessonSummary[];
+}
+
 export interface GenerationJob {
   id: string;
   jobType: string;
@@ -260,6 +291,60 @@ export const updateLesson = (packageId: string, lessonId: string, payload: Updat
       body: JSON.stringify(payload)
     }
   );
+
+export const fetchPackageMaterials = (packageId: string) =>
+  apiFetch<PackageMaterialTreeResponse>(`/admin/course-packages/${packageId}/materials`);
+
+export const regeneratePackageMaterial = (packageId: string, assetId: string, payload?: { unitId?: string }) =>
+  apiFetch<{ job: GenerationJob }>(
+    `/admin/course-packages/${packageId}/materials/${assetId}/regenerate`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload ?? {})
+    }
+  );
+
+export const deletePackageMaterial = (packageId: string, assetId: string) =>
+  apiFetch<{ success: boolean }>(`/admin/course-packages/${packageId}/materials/${assetId}`, {
+    method: "DELETE"
+  });
+
+export const getMaterialPreviewUrl = (packageId: string, assetId: string) =>
+  apiFetch<{ url: string }>(`/admin/course-packages/${packageId}/materials/${assetId}/preview`);
+
+export const updateMaterialLabel = (packageId: string, assetId: string, label?: string) =>
+  apiFetch<{ success: boolean }>(`/admin/course-packages/${packageId}/materials/${assetId}/label`, {
+    method: "PATCH",
+    body: JSON.stringify({ label })
+  });
+
+export interface LessonContentPayload {
+  title: string;
+  en: string;
+  cn?: string | null;
+  type?: string;
+}
+
+export const updateLessonContent = (lessonId: string, payload: LessonContentPayload) =>
+  apiFetch<{ success: boolean }>(`/admin/lessons/${lessonId}/content`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+
+export const deleteLessonById = (lessonId: string) =>
+  apiFetch<{ success: boolean }>(`/admin/lessons/${lessonId}`, {
+    method: "DELETE"
+  });
+
+export const createManualLesson = (
+  packageId: string,
+  assetId: string,
+  payload: LessonContentPayload
+) =>
+  apiFetch<{ lessonId: string }>(`/admin/course-packages/${packageId}/materials/${assetId}/lessons`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
 
 // 批量更新关卡单元信息
 export interface BatchUpdateLessonsPayload {

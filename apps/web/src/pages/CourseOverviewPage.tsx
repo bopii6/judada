@@ -175,7 +175,9 @@ export const CourseOverviewPage = () => {
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-500 mb-4 text-2xl font-black">
                 {selectedStage.stageSequence}
               </div>
-              <h3 className="text-2xl font-black text-slate-800 mb-2">{selectedStage.lessonTitle}</h3>
+              <h3 className="text-2xl font-black text-slate-800 mb-2">
+                {selectedStage.promptEn || selectedStage.answerEn || "暂无句子"}
+              </h3>
               <p className="text-slate-500 font-medium">{selectedStage.promptCn}</p>
             </div>
 

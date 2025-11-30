@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { Prisma, SourceType } from "@prisma/client";
+import { Prisma, SourceType, LessonItemType } from "@prisma/client";
 import path from "node:path";
 import { getPrisma } from "../lib/prisma";
 import { getSupabase } from "../lib/supabase";
@@ -707,5 +707,182 @@ export const coursePackageService = {
     }
 
     return results;
+  },
+
+  enqueueGenerationFromAssets: async (params: {
+    packageId: string;
+    assetIds: string[];
+    unitId?: string | null;
+    triggeredById?: string | null;
+  }) => {
+    const assets = await prisma.asset.findMany({
+      where: {
+        id: { in: params.assetIds },
+        packageId: params.packageId,
+        deletedAt: null
+      }
+    });
+
+    if (assets.length === 0) {
+      const error = new Error("未找到可用的素材文件");
+      (error as any).status = 404;
+      throw error;
+    }
+
+    const hasPdf = assets.some(
+      asset => asset.mimeType?.toLowerCase().includes("pdf") || asset.originalName.toLowerCase().endsWith(".pdf")
+    );
+    const sourceType: SourceType = hasPdf ? "pdf_upload" : "image_ocr";
+
+    const job = await generationJobRepository.create({
+      jobType: "package_generation",
+      packageId: params.packageId,
+      triggeredById: params.triggeredById,
+      sourceType,
+      unitId: params.unitId ?? null,
+      inputInfo: {
+        assetIds: assets.map(asset => asset.id),
+        assets: assets.map(asset => ({
+          assetId: asset.id,
+          storagePath: asset.storagePath,
+          originalName: asset.originalName,
+          mimeType: asset.mimeType,
+          size: asset.fileSize ?? 0
+        })),
+        totalFiles: assets.length,
+        unitId: params.unitId ?? null
+      }
+    });
+
+    await enqueuePackageGenerationJob(job.id);
+    return { job, assets };
+  },
+
+  getMaterialLessonTree: async (packageId: string) => {
+    const [assets, lessons] = await Promise.all([
+      prisma.asset.findMany({
+        where: { packageId, deletedAt: null },
+        orderBy: [{ createdAt: "asc" }]
+      }),
+      prisma.lesson.findMany({
+        where: { packageId, deletedAt: null },
+        orderBy: [{ sequence: "asc" }],
+        include: {
+          currentVersion: {
+            include: {
+              items: {
+                orderBy: { orderIndex: "asc" }
+              }
+            }
+          }
+        }
+      })
+    ]);
+
+    const lessonMap = new Map<string, typeof lessons>();
+    for (const lesson of lessons) {
+      if (!lesson.sourceAssetId) continue;
+      if (!lessonMap.has(lesson.sourceAssetId)) {
+        lessonMap.set(lesson.sourceAssetId, []);
+      }
+      lessonMap.get(lesson.sourceAssetId)?.push(lesson);
+    }
+
+    const materials = assets.map(asset => ({
+      id: asset.id,
+      originalName: asset.originalName,
+      mimeType: asset.mimeType,
+      fileSize: asset.fileSize,
+      sourceType: asset.sourceType,
+      metadata: asset.metadata ?? null,
+      createdAt: asset.createdAt,
+      lessonCount: lessonMap.get(asset.id)?.length ?? 0,
+      lessons: (lessonMap.get(asset.id) ?? []).map(entry => {
+        const firstItem = entry.currentVersion?.items?.[0];
+        const payload = (firstItem?.payload ?? {}) as Record<string, unknown>;
+        return {
+          id: entry.id,
+          title: entry.title,
+          sequence: entry.sequence,
+          unitNumber: entry.unitNumber,
+          unitName: entry.unitName,
+          unitId: entry.unitId,
+          status: entry.status,
+          sourceAssetOrder: entry.sourceAssetOrder,
+          itemType: firstItem?.type ?? "sentence",
+          contentEn:
+            (payload.en as string) ??
+            (payload.target as string) ??
+            (payload.answer as string) ??
+            null,
+          contentCn: (payload.cn as string) ?? (payload.prompt as string) ?? null
+        };
+      })
+    }));
+
+    const unassignedLessons = lessons
+      .filter(item => !item.sourceAssetId)
+      .map(item => ({
+        id: item.id,
+        title: item.title,
+        sequence: item.sequence,
+        unitNumber: item.unitNumber,
+        unitName: item.unitName,
+        unitId: item.unitId,
+        status: item.status
+      }));
+
+    return { materials, unassignedLessons };
+  },
+
+  deleteMaterial: async (packageId: string, assetId: string) => {
+    await prisma.$transaction(async tx => {
+      const asset = await tx.asset.findFirst({
+        where: { id: assetId, packageId, deletedAt: null }
+      });
+      if (!asset) {
+        const error = new Error("素材不存在或已被删除");
+        (error as any).status = 404;
+        throw error;
+      }
+      await tx.asset.update({
+        where: { id: assetId },
+        data: { deletedAt: new Date() }
+      });
+
+      await tx.lesson.updateMany({
+        where: { packageId, sourceAssetId: assetId },
+        data: {
+          sourceAssetId: null,
+          sourceAssetName: null,
+          sourceAssetOrder: null
+        }
+      });
+    });
+
+    return { success: true };
+  },
+
+  getMaterialPreviewUrl: async (packageId: string, assetId: string) => {
+    const asset = await prisma.asset.findFirst({
+      where: { id: assetId, packageId, deletedAt: null }
+    });
+    if (!asset) {
+      const error = new Error("素材不存在或已被删除");
+      (error as any).status = 404;
+      throw error;
+    }
+
+    const { SUPABASE_STORAGE_BUCKET } = getEnv();
+    const supabase = getSupabase();
+    const result = await supabase.storage
+      .from(SUPABASE_STORAGE_BUCKET)
+      .createSignedUrl(asset.storagePath, 60 * 10);
+
+    if (result.error || !result.data?.signedUrl) {
+      throw new Error(`素材签名链接生成失败：${result.error?.message || "未知错误"}`);
+    }
+
+    return { url: result.data.signedUrl };
   }
 };

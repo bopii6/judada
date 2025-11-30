@@ -178,6 +178,34 @@ router.get("/:id/questions", async (req, res, next) => {
 
     let stageSequence = 1;
 
+    // 判断字符串是否是课程描述而不是翻译
+    const isLikelyDescription = (text: string) => {
+      if (!text) return false;
+      const patterns = [
+        /通过.*(提升|巩固|加强)/i,
+        /进行.*(训练|练习|学习)/i,
+        /针对.*(词汇|语法|句型|主题)/i,
+        /(掌握|培养|提高).*(能力|表达|技巧)/i,
+        /(记忆|理解).*(词汇|内容)/i,
+        /核心词汇/i,
+        /练习题/i,
+        /阅读理解/i,
+        /口语表达/i,
+        /写作训练/i
+      ];
+      return patterns.some(pattern => pattern.test(text));
+    };
+
+    const cleanTranslationText = (text: string) =>
+      text
+        .replace(/^["'"“”‘’]/, "")
+        .replace(/["'"“”‘’]$/, "")
+        .replace(/^翻译[：:\s]*/i, "")
+        .replace(/^中文[：:\s]*/i, "")
+        .replace(/^以下是.*翻译[：:\s]*/i, "")
+        .replace(/^.*翻译结果[：:\s]*/i, "")
+        .trim();
+
     // 翻译函数：确保始终返回英文句子的中文翻译
     // 严格禁止使用课程描述、课程标题等非翻译内容
     const getTranslation = async (en: string, payload: Record<string, any>): Promise<string> => {
@@ -185,26 +213,12 @@ router.get("/:id/questions", async (req, res, next) => {
         return "";
       }
       
-      // 只使用 payload.cn 作为翻译来源（这是专门存储英文句子翻译的字段）
-      let translationCn = payload.cn || "";
-      
-      // 验证 payload.cn 是否是真正的翻译（不是课程描述）
-      // 课程描述通常包含特定模式，如"通过...提升..."、"进行...训练"等
+      // 只使用 payload.translation 或 payload.cn 作为翻译来源
+      let translationCn = (payload.translation as string) || payload.cn || "";
       if (translationCn) {
-        const descriptionPatterns = [
-          /通过.*提升/i,
-          /进行.*训练/i,
-          /进行.*练习/i,
-          /学习.*掌握/i,
-          /培养.*能力/i,
-          /提升.*理解/i
-        ];
-        
-        const isLikelyDescription = descriptionPatterns.some(pattern => pattern.test(translationCn));
-        
-        // 如果看起来像课程描述，清空它，强制生成真正的翻译
-        if (isLikelyDescription) {
-          console.warn(`[Translation] Detected course description instead of translation, will generate. Original: ${translationCn.substring(0, 50)}...`);
+        translationCn = cleanTranslationText(translationCn);
+        if (isLikelyDescription(translationCn)) {
+          console.warn(`[Translation] Provided text looks like description, ignoring. Original: ${translationCn.substring(0, 50)}...`);
           translationCn = "";
         }
       }
@@ -224,24 +238,10 @@ router.get("/:id/questions", async (req, res, next) => {
             }
           ], { temperature: 0.2 });
           
-          translationCn = translationResponse.trim();
-          
-          // 清理可能的额外内容（如引号、说明等）
-          translationCn = translationCn
-            .replace(/^["'""]|["'""]$/g, '') // 移除首尾引号
-            .replace(/^翻译[：:]\s*/i, '') // 移除"翻译："前缀
-            .replace(/^中文[：:]\s*/i, '') // 移除"中文："前缀
-            .replace(/^以下是.*翻译[：:]\s*/i, '') // 移除"以下是...翻译："前缀
-            .replace(/^.*翻译结果[：:]\s*/i, '') // 移除"翻译结果："前缀
-            .trim();
+          translationCn = cleanTranslationText(translationResponse);
           
           // 再次验证生成的内容不是课程描述
-          const descriptionPatterns = [
-            /通过.*提升/i,
-            /进行.*训练/i,
-            /进行.*练习/i
-          ];
-          if (descriptionPatterns.some(pattern => pattern.test(translationCn))) {
+          if (isLikelyDescription(translationCn)) {
             console.warn(`[Translation] Generated content looks like description, retrying...`);
             // 如果生成的内容还是像课程描述，返回一个占位符
             translationCn = "[翻译生成中...]";
@@ -328,6 +328,9 @@ router.get("/:id/questions", async (req, res, next) => {
         stageSequence: stageSequence++,
         unitNumber: lesson.unitNumber,    // 单元序号
         unitName: lesson.unitName,        // 单元名称
+        sourceAssetId: lesson.sourceAssetId,
+        sourceAssetName: lesson.sourceAssetName,
+        sourceAssetOrder: lesson.sourceAssetOrder,
         promptCn: promptCn, // 中文翻译（确保始终有值）
         promptEn: promptEn, // 英文作为主要内容（必须，不能是中文）
         answerEn: answerEn, // 答案（英文）

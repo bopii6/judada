@@ -1,7 +1,7 @@
 import { Router, type Router as ExpressRouter } from "express";
 import multer from "multer";
 import { z } from "zod";
-import { MusicTrackStatus } from "@prisma/client";
+import { LessonItemType, MusicTrackStatus } from "@prisma/client";
 import { requireAdmin } from "../middleware/adminAuth";
 import { coursePackageService, musicTrackService, unitService } from "../services";
 import { lessonRepository } from "../repositories";
@@ -37,6 +37,21 @@ const coverUpload = multer({
     }
     cb(new Error("仅支持 PNG/JPG/WebP 图片作为封面"));
   }
+});
+
+const lessonContentSchema = z.object({
+  title: z.string().min(1, "请输入标题"),
+  en: z.string().min(1, "请填写英文内容"),
+  cn: z.string().optional(),
+  type: z.nativeEnum(LessonItemType).optional()
+});
+
+const createManualLessonSchema = lessonContentSchema.extend({
+  type: z.nativeEnum(LessonItemType).default("sentence")
+});
+
+const updateAssetLabelSchema = z.object({
+  label: z.string().max(60).optional()
 });
 
 const createPackageSchema = z.object({
@@ -347,6 +362,288 @@ router.put("/course-packages/:packageId/lessons", async (req, res, next) => {
     );
 
     res.json({ success: true, updatedCount: lessonIds.length });
+  } catch (error) {
+    next(error);
+  }
+});
+
+const regenerateMaterialSchema = z.object({
+  unitId: z.string().optional()
+});
+
+router.get("/course-packages/:packageId/materials", async (req, res, next) => {
+  try {
+    const { packageId } = req.params;
+    const tree = await coursePackageService.getMaterialLessonTree(packageId);
+    res.json(tree);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch("/course-packages/:packageId/materials/:assetId/label", async (req, res, next) => {
+  try {
+    const { packageId, assetId } = req.params;
+    const payload = updateAssetLabelSchema.parse(req.body ?? {});
+    const asset = await prisma.asset.findFirst({
+      where: { id: assetId, packageId, deletedAt: null }
+    });
+    if (!asset) {
+      res.status(404).json({ error: "素材不存在或已被删除" });
+      return;
+    }
+    const metadata = (asset.metadata && typeof asset.metadata === "object" && !Array.isArray(asset.metadata)
+      ? { ...(asset.metadata as Record<string, unknown>) }
+      : {}) as Record<string, unknown>;
+    if (payload.label && payload.label.trim().length > 0) {
+      metadata.pageLabel = payload.label.trim();
+    } else {
+      delete metadata.pageLabel;
+    }
+    await prisma.asset.update({
+      where: { id: asset.id },
+      data: { metadata }
+    });
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/course-packages/:packageId/materials/:assetId/regenerate", async (req, res, next) => {
+  try {
+    const { packageId, assetId } = req.params;
+    const payload = regenerateMaterialSchema.parse(req.body ?? {});
+    const result = await coursePackageService.enqueueGenerationFromAssets({
+      packageId,
+      assetIds: [assetId],
+      unitId: payload.unitId
+    });
+    res.status(201).json({ job: result.job, assets: result.assets });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/course-packages/:packageId/materials/:assetId/lessons", async (req, res, next) => {
+  try {
+    const { packageId, assetId } = req.params;
+    const payload = createManualLessonSchema.parse(req.body ?? {});
+
+    const asset = await prisma.asset.findFirst({
+      where: { id: assetId, packageId, deletedAt: null }
+    });
+    if (!asset) {
+      res.status(404).json({ error: "素材不存在或已删除" });
+      return;
+    }
+
+    const coursePackage = await prisma.coursePackage.findUnique({
+      where: { id: packageId },
+      include: { currentVersion: true }
+    });
+    if (!coursePackage?.currentVersionId) {
+      res.status(400).json({ error: "该课程包尚未初始化版本，无法新增关卡" });
+      return;
+    }
+
+    const sequenceInfo = await prisma.lesson.aggregate({
+      where: { packageId },
+      _max: { sequence: true }
+    });
+    const nextSequence = (sequenceInfo._max.sequence ?? 0) + 1;
+
+    const created = await prisma.$transaction(async tx => {
+      const lesson = await tx.lesson.create({
+        data: {
+          packageId,
+          packageVersionId: coursePackage.currentVersionId,
+          unitId: null,
+          unitNumber: null,
+          unitName: null,
+          title: payload.title,
+          sequence: nextSequence,
+          sourceAssetId: asset.id,
+          sourceAssetName: asset.originalName,
+          sourceAssetOrder:
+            typeof asset.metadata === "object" && asset.metadata && "fileIndex" in asset.metadata
+              ? (asset.metadata as Record<string, unknown>).fileIndex ?? null
+              : null,
+          createdById: null
+        }
+      });
+
+      const version = await tx.lessonVersion.create({
+        data: {
+          lessonId: lesson.id,
+          versionNumber: 1,
+          title: payload.title,
+          summary: payload.cn ?? null,
+          difficulty: 1,
+          status: "draft"
+        }
+      });
+
+      await tx.lesson.update({
+        where: { id: lesson.id },
+        data: { currentVersionId: version.id }
+      });
+
+      await tx.lessonItem.create({
+        data: {
+          lessonVersionId: version.id,
+          orderIndex: 1,
+          type: payload.type,
+          title: payload.title,
+          payload: {
+            en: payload.en,
+            answer: payload.en,
+            target: payload.en,
+            cn: payload.cn ?? null,
+            note: "来自手动创建"
+          }
+        }
+      });
+
+      return lesson;
+    });
+
+    res.status(201).json({ lessonId: created.id });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete("/course-packages/:packageId/materials/:assetId", async (req, res, next) => {
+  try {
+    const { packageId, assetId } = req.params;
+    await coursePackageService.deleteMaterial(packageId, assetId);
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/course-packages/:packageId/materials/:assetId/preview", async (req, res, next) => {
+  try {
+    const { packageId, assetId } = req.params;
+    const { url } = await coursePackageService.getMaterialPreviewUrl(packageId, assetId);
+    res.json({ url });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put("/lessons/:lessonId/content", async (req, res, next) => {
+  try {
+    const { lessonId } = req.params;
+    const payload = lessonContentSchema.parse(req.body ?? {});
+
+    const lesson = await prisma.lesson.findUnique({
+      where: { id: lessonId, deletedAt: null },
+      include: {
+        currentVersion: {
+          include: { items: { orderBy: { orderIndex: "asc" } } }
+        }
+      }
+    });
+    if (!lesson) {
+      res.status(404).json({ error: "关卡不存在或已删除" });
+      return;
+    }
+
+    await prisma.$transaction(async tx => {
+      let currentVersionId = lesson.currentVersionId;
+      let version = lesson.currentVersion;
+      if (!version) {
+        version = await tx.lessonVersion.create({
+          data: {
+            lessonId: lesson.id,
+            versionNumber: 1,
+            title: payload.title,
+            summary: payload.cn ?? null,
+            difficulty: 1,
+            status: "draft"
+          }
+        });
+        currentVersionId = version.id;
+        await tx.lesson.update({
+          where: { id: lesson.id },
+          data: { currentVersionId }
+        });
+      } else {
+        await tx.lessonVersion.update({
+          where: { id: version.id },
+          data: {
+            title: payload.title,
+            summary: payload.cn ?? null
+          }
+        });
+      }
+
+      const firstItem = version?.items?.[0];
+      const basePayload = firstItem?.payload && typeof firstItem.payload === "object" ? firstItem.payload : {};
+      const nextPayload = {
+        ...basePayload,
+        en: payload.en,
+        answer: payload.en,
+        target: payload.en,
+        cn: payload.cn ?? null,
+        updatedAt: new Date().toISOString()
+      };
+
+      if (firstItem) {
+        await tx.lessonItem.update({
+          where: { id: firstItem.id },
+          data: {
+            type: payload.type ?? firstItem.type,
+            title: payload.title,
+            payload: nextPayload
+          }
+        });
+      } else if (version) {
+        await tx.lessonItem.create({
+          data: {
+            lessonVersionId: version.id,
+            orderIndex: 1,
+            type: payload.type ?? "sentence",
+            title: payload.title,
+            payload: nextPayload
+          }
+        });
+      }
+
+      await tx.lesson.update({
+        where: { id: lesson.id },
+        data: { title: payload.title }
+      });
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete("/lessons/:lessonId", async (req, res, next) => {
+  try {
+    const { lessonId } = req.params;
+    const lesson = await prisma.lesson.findUnique({ where: { id: lessonId, deletedAt: null } });
+    if (!lesson) {
+      res.status(404).json({ error: "关卡不存在或已删除" });
+      return;
+    }
+    await prisma.$transaction(async tx => {
+      await tx.lesson.update({
+        where: { id: lessonId },
+        data: { deletedAt: new Date() }
+      });
+      await tx.lessonVersion.updateMany({
+        where: { lessonId },
+        data: { deletedAt: new Date() }
+      });
+    });
+    res.json({ success: true });
   } catch (error) {
     next(error);
   }

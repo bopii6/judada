@@ -237,6 +237,271 @@
   color: #ffffff;
 }
 
+.materials-section {
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.materials-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.materials-section-header h2 {
+  margin: 0 0 4px;
+}
+
+.materials-section-header p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.materials-section-header button {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.materials-feedback {
+  margin: 0;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.materials-feedback.success {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.materials-feedback.error {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.materials-error,
+.materials-loading {
+  font-size: 14px;
+  color: #64748b;
+}
+
+.materials-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.material-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.material-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.material-card-header.clean {
+  align-items: flex-start;
+}
+.material-label {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+}
+.material-meta.subtle {
+  margin-top: 4px;
+  color: #94a3b8;
+  font-size: 12px;
+}
+.material-card-actions.horizontal {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.material-card-actions.horizontal button {
+  white-space: nowrap;
+}
+
+.material-card-header h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.material-meta {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.material-samples {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #475569;
+}
+
+.material-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.material-card-actions button {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.material-card-actions button.danger {
+  border-color: #f87171;
+  color: #b91c1c;
+}
+
+.material-card-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.material-lessons {
+  background: #fff;
+  border-radius: 10px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+}
+.material-lessons.compact {
+  padding: 16px;
+}
+.material-lessons-list.detailed li {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.material-lesson-info {
+  width: 100%;
+}
+.material-lesson-en {
+  margin: 2px 0;
+  font-size: 14px;
+  color: #1e293b;
+  font-weight: 600;
+}
+.material-lesson-cn {
+  margin: 0;
+  font-size: 13px;
+  color: #94a3b8;
+}
+.material-lesson-actions {
+  display: flex;
+  gap: 8px;
+}
+.material-add-lesson {
+  margin-top: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.material-lessons-header {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #334155;
+}
+
+.material-no-lessons {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.material-lessons-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.material-lessons-list li {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #475569;
+  border-bottom: 1px dashed #e2e8f0;
+  padding-bottom: 4px;
+}
+
+.material-lessons-list li:last-child {
+  border-bottom: none;
+}
+
+.material-lesson-title {
+  font-weight: 600;
+}
+
+.material-lesson-meta {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.materials-unassigned {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 12px;
+}
+
+.materials-unassigned h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.materials-unassigned ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.materials-empty {
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.materials-empty .hint {
+  margin-top: 6px;
+  font-size: 13px;
+}
+
 .course-basic-editor-actions button:disabled {
   opacity: 0.5;
   cursor: not-allowed;

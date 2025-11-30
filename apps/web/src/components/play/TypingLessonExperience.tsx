@@ -70,6 +70,8 @@ const normalizeForCompare = (value: string) =>
 
 export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLessonExperienceProps) => {
   const answerText = stage.answerEn || stage.promptEn || "";
+  const displaySentence = stage.promptEn || stage.answerEn || "Loading...";
+  const translationText = stage.promptCn || "";
   const wordSlots = useMemo(() => buildWordSlots(answerText), [answerText]);
   
   const [wordInputs, setWordInputs] = useState<string[]>([]);
@@ -195,9 +197,8 @@ export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLe
   };
 
   // 检查答案
-  const checkAnswer = useCallback((options?: { auto?: boolean }) => {
+  const checkAnswer = useCallback(() => {
     if (!answerText || !wordSlots.length || isInputLocked) return;
-    const autoTriggered = options?.auto ?? false;
 
     const typedSentence = assembleWordInputs(wordSlots, wordInputs);
     const normalized = normalizeForCompare(typedSentence);
@@ -243,7 +244,7 @@ export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLe
       !autoCheckLocked
     ) {
       const timer = setTimeout(() => {
-        checkAnswer({ auto: true });
+        checkAnswer();
       }, 500);
       return () => clearTimeout(timer);
     }
@@ -277,13 +278,12 @@ export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLe
     <div className="flex h-full w-full flex-col items-center justify-between gap-8">
       <div className="flex-1 flex flex-col items-center justify-center w-full max-w-3xl">
         <div className="text-center space-y-2">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Listen and type</p>
           <h3 className="text-2xl sm:text-3xl font-black text-slate-800 leading-relaxed drop-shadow-sm">
-            {stage.promptEn || stage.answerEn || "Loading..."}
+            {displaySentence}
           </h3>
           {/* 显示英文句子的中文翻译 */}
-          {stage.promptCn && (stage.promptEn || stage.answerEn) && (
-            <p className="text-sm text-slate-500 mt-2">{stage.promptCn}</p>
+          {translationText && (
+            <p className="text-sm text-slate-500 mt-2">{translationText}</p>
           )}
         </div>
 

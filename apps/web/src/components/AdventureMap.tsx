@@ -235,7 +235,12 @@ interface StageCardProps {
   compact?: boolean;
 }
 
-const StageCard = ({ stage, completed, unlocked, stars, showArrow, onStart, compact }: StageCardProps) => (
+const StageCard = ({ stage, completed, unlocked, stars, showArrow, onStart, compact }: StageCardProps) => {
+  const englishSentence = (stage.promptEn || stage.answerEn || "").trim();
+  const translation = (stage.promptCn || "").trim();
+  const pageNumber = typeof stage.sourceAssetOrder === "number" ? stage.sourceAssetOrder + 1 : null;
+
+  return (
   <div
     className={`relative flex-shrink-0 w-full ${compact ? 'md:w-52' : 'md:w-64'} flex flex-col items-center text-center group transition-all duration-300 ${unlocked ? "opacity-100" : "opacity-60 grayscale"}`}
   >
@@ -275,10 +280,24 @@ const StageCard = ({ stage, completed, unlocked, stars, showArrow, onStart, comp
       className={`bg-white ${compact ? 'p-3' : 'p-4'} rounded-2xl border border-slate-100 shadow-sm w-full ${compact ? 'md:w-48' : 'md:w-56'} group-hover:shadow-md transition-shadow cursor-pointer`}
       onClick={() => unlocked && onStart(stage.id)}
     >
-      <h3 className={`font-bold text-slate-800 mb-1 truncate ${compact ? 'text-sm' : ''}`}>{stage.lessonTitle}</h3>
-      <p className={`text-slate-500 font-medium line-clamp-2 ${compact ? 'text-xs h-7 mb-2' : 'text-xs h-8 mb-3'}`}>
-        {stage.promptCn}
-      </p>
+      <div className="flex items-center justify-between text-[11px] text-slate-400 mb-2">
+        <div className="text-left">
+          <p className="font-semibold text-slate-500">单元</p>
+          <p className="text-slate-800 font-bold">{stage.unitName || `Unit ${stage.unitNumber ?? "?"}`}</p>
+        </div>
+        <div className="text-right">
+          <p className="font-semibold text-slate-500">页码</p>
+          <p className="text-slate-800 font-bold">{pageNumber ? `第 ${pageNumber} 页` : "未标注"}</p>
+        </div>
+      </div>
+      <h3 className={`font-bold text-slate-800 mb-1 ${compact ? 'text-sm' : 'text-base'} line-clamp-2`}>
+        {englishSentence || "暂无句子"}
+      </h3>
+      {translation && (
+        <p className={`text-slate-500 font-medium line-clamp-2 ${compact ? 'text-xs h-7 mb-2' : 'text-xs h-8 mb-3'}`}>
+          {translation}
+        </p>
+      )}
 
       <div className="flex justify-center">
         <span className={`text-xs font-bold ${unlocked ? "text-indigo-500" : "text-slate-400"}`}>
@@ -294,4 +313,5 @@ const StageCard = ({ stage, completed, unlocked, stars, showArrow, onStart, comp
       </div>
     )}
   </div>
-);
+  );
+};

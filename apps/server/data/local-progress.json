@@ -838,6 +838,97 @@
         ],
         "createdAt": "2025-11-30T03:13:04.890Z",
         "updatedAt": "2025-11-30T03:13:04.890Z"
+      },
+      {
+        "userId": "guest-1763547891565-7fvezctmx",
+        "stageId": "b567bfa8-677a-4de2-9ff3-c0d5348bf884-38bddc3a-7636-4875-a545-687da9ae2f52",
+        "courseId": "9fc9c6f7-d00c-4396-a0e2-b285952df891",
+        "bestStars": 3,
+        "attempts": 1,
+        "lastPlayedAt": "2025-11-30T05:14:13.371Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-11-30T05:14:13.371Z",
+        "updatedAt": "2025-11-30T05:14:13.371Z"
+      },
+      {
+        "userId": "guest-1763547891565-7fvezctmx",
+        "stageId": "c0a99c3e-7517-4bf9-ab7a-8d1d7ace458d-91cb5e4d-e672-4d69-80bb-3cfc43823ec2",
+        "courseId": "9fc9c6f7-d00c-4396-a0e2-b285952df891",
+        "bestStars": 3,
+        "attempts": 1,
+        "lastPlayedAt": "2025-11-30T05:14:32.582Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-11-30T05:14:32.582Z",
+        "updatedAt": "2025-11-30T05:14:32.582Z"
+      },
+      {
+        "userId": "guest-1763547891565-7fvezctmx",
+        "stageId": "a6bc0336-a7e9-4549-b192-7b3538f134d5-c6c77c51-04d6-4770-bc02-b1b449eb9ab4",
+        "courseId": "9fc9c6f7-d00c-4396-a0e2-b285952df891",
+        "bestStars": 3,
+        "attempts": 1,
+        "lastPlayedAt": "2025-11-30T05:14:45.940Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-11-30T05:14:45.940Z",
+        "updatedAt": "2025-11-30T05:14:45.940Z"
+      },
+      {
+        "userId": "guest-1763547891565-7fvezctmx",
+        "stageId": "6fe432c7-62aa-4d0f-a2ef-035e81a27798-4c83f156-d4c9-45b3-bd27-f3f2407ce62d",
+        "courseId": "9fc9c6f7-d00c-4396-a0e2-b285952df891",
+        "bestStars": 3,
+        "attempts": 1,
+        "lastPlayedAt": "2025-11-30T05:15:27.235Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-11-30T05:15:27.235Z",
+        "updatedAt": "2025-11-30T05:15:27.235Z"
+      },
+      {
+        "userId": "guest-1763547891565-7fvezctmx",
+        "stageId": "f0639132-3594-420b-a6c5-457cae7a3e6c-fbe3c4bf-64d8-4045-8c28-46d1144181d6",
+        "courseId": "9fc9c6f7-d00c-4396-a0e2-b285952df891",
+        "bestStars": 3,
+        "attempts": 1,
+        "lastPlayedAt": "2025-11-30T05:15:34.466Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-11-30T05:15:34.466Z",
+        "updatedAt": "2025-11-30T05:15:34.466Z"
+      },
+      {
+        "userId": "guest-1763547891565-7fvezctmx",
+        "stageId": "9a68fa8b-c816-4fd5-8427-fce47307dabd-204350df-dfc2-4850-98cc-0d05d35f1172",
+        "courseId": "9fc9c6f7-d00c-4396-a0e2-b285952df891",
+        "bestStars": 2,
+        "attempts": 1,
+        "lastPlayedAt": "2025-11-30T05:15:43.866Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-11-30T05:15:43.866Z",
+        "updatedAt": "2025-11-30T05:15:43.866Z"
+      },
+      {
+        "userId": "guest-1763547891565-7fvezctmx",
+        "stageId": "69ddc774-3177-4e9f-9552-76274232d4ff-7d108e02-40b6-43ff-bb17-0e925b76bbb2",
+        "courseId": "ea9748b3-752e-4937-bf65-d96377459e05",
+        "bestStars": 3,
+        "attempts": 3,
+        "lastPlayedAt": "2025-11-30T07:44:14.282Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-11-30T06:44:05.938Z",
+        "updatedAt": "2025-11-30T07:44:14.282Z"
       }
     ]
   },
@@ -999,13 +1090,13 @@
     "guest-1763547891565-7fvezctmx": {
       "userId": "guest-1763547891565-7fvezctmx",
       "totalPlayTime": 0,
-      "totalStars": 147,
-      "completedStages": 52,
+      "totalStars": 167,
+      "completedStages": 59,
       "currentStreak": 0,
       "longestStreak": 0,
-      "lastActiveAt": "2025-11-30T03:13:04.890Z",
+      "lastActiveAt": "2025-11-30T07:44:14.282Z",
       "createdAt": "2025-11-27T02:08:59.713Z",
-      "updatedAt": "2025-11-30T03:13:04.890Z"
+      "updatedAt": "2025-11-30T07:44:14.282Z"
     }
   },
   "daily": {
@@ -1094,11 +1185,11 @@
       {
         "userId": "guest-1763547891565-7fvezctmx",
         "date": "2025-11-30",
-        "completedStages": 31,
-        "starsEarned": 87,
-        "typingStages": 31,
+        "completedStages": 40,
+        "starsEarned": 113,
+        "typingStages": 40,
         "createdAt": "2025-11-30T02:34:13.705Z",
-        "updatedAt": "2025-11-30T03:13:04.891Z"
+        "updatedAt": "2025-11-30T07:44:14.283Z"
       }
     ]
   }

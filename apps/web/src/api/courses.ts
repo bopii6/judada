@@ -34,6 +34,9 @@ export interface CourseStage {
   stageSequence: number;
   unitNumber?: number | null;  // 单元序号
   unitName?: string | null;    // 单元名称
+  sourceAssetId?: string | null;
+  sourceAssetName?: string | null;
+  sourceAssetOrder?: number | null;
   promptCn: string;
   promptEn?: string; // 英文句子（主要显示内容）
   answerEn: string;

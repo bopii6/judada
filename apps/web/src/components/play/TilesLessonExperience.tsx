@@ -148,6 +148,9 @@ export const TilesLessonExperience = ({ stage, onSuccess, onMistake }: TilesLess
     });
   };
 
+  const displaySentence = stage.promptEn || stage.answerEn || "Loading...";
+  const translationText = stage.promptCn || "";
+
   const answerBoxClass = classNames(
     "min-h-[120px] w-full rounded-[2rem] border-2 px-8 py-6 text-2xl font-bold tracking-wide shadow-sm transition-all duration-300 flex items-center",
     {
@@ -170,12 +173,11 @@ export const TilesLessonExperience = ({ stage, onSuccess, onMistake }: TilesLess
     <div className="flex h-full w-full flex-col items-center justify-between gap-8">
       <div className="flex-1 flex flex-col items-center justify-center gap-8 w-full max-w-3xl">
         <div className="text-center space-y-2">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Listen and practice</p>
           <h3 className="text-2xl sm:text-3xl font-black text-slate-800 leading-relaxed">
-            {stage.promptEn || stage.answerEn || "Loading..."}
+            {displaySentence}
           </h3>
-          {stage.promptCn && (stage.promptEn || stage.answerEn) && (
-            <p className="text-sm text-slate-500 mt-2">{stage.promptCn}</p>
+          {translationText && (
+            <p className="text-sm text-slate-500 mt-2">{translationText}</p>
           )}
         </div>
 
