@@ -589,8 +589,7 @@ router.put("/lessons/:lessonId/content", async (req, res, next) => {
             title: payload.title,
             summary: null,
             difficulty: 1,
-            status: "draft",
-            items: []
+            status: "draft"
           }
         });
         if (version) {
