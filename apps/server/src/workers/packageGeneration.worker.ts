@@ -1,15 +1,18 @@
-import type { Job } from "bullmq";
 import { Prisma, LessonItemType } from "@prisma/client";
+import type { Job } from "bullmq";
 import pdf from "pdf-parse";
-import { PACKAGE_GENERATION_QUEUE, PackageGenerationJobData } from "../jobs/packageGeneration.queue";
-import { createWorker } from "../lib/queue";
-import { getPrisma } from "../lib/prisma";
-import { getSupabase } from "../lib/supabase";
+
 import { getEnv } from "../config/env";
-import { parsePdfToQuestions, ParsedQuestion } from "../utils/pdf";
+import { PACKAGE_GENERATION_QUEUE, PackageGenerationJobData } from "../jobs/packageGeneration.queue";
+import { callHunyuanChat } from "../lib/hunyuan";
+import { callOpenAIWithRetry, getOpenAI } from "../lib/openai";
+import { getPrisma } from "../lib/prisma";
 import { recognizeImagesBatch } from "../lib/ocr";
-import { getOpenAI, callOpenAIWithRetry } from "../lib/openai";
+import { createWorker } from "../lib/queue";
+import { getSupabase } from "../lib/supabase";
+import { batchTranslate } from "../lib/translation";
 import { generationJobRepository } from "../repositories/generationJob.repository";
+import { ParsedQuestion, parsePdfToQuestions } from "../utils/pdf";
 
 const prisma = getPrisma();
 const supabase = getSupabase();
@@ -66,6 +69,7 @@ interface MaterialExtraction {
   sourceType: "image" | "pdf" | "fallback";
   ocrText: string;
   sentences: string[];
+  targetLessonCount?: number | null;
 }
 
 const cloneMetadata = (value: Prisma.JsonValue | null | undefined): Record<string, unknown> => {
@@ -148,14 +152,123 @@ const normalizePayload = (payload: unknown): Prisma.InputJsonValue => {
     return {};
   }
   if (typeof payload === "object") {
-    return payload as Prisma.JsonObject | Prisma.JsonArray;
+    const payloadObj = payload as Record<string, unknown>;
+
+    // 自动为缺少中文翻译的item生成翻译
+    if (payloadObj.en && !payloadObj.cn) {
+      console.log(`[normalizePayload] 为item自动生成中文翻译，en: ${(payloadObj.en as string).substring(0, 50)}...`);
+
+      // 使用异步翻译避免阻塞
+      generateTranslationForItem(payloadObj.en as string)
+        .then(translation => {
+          if (translation && translation !== '[翻译生成中...]') {
+            payloadObj.cn = translation;
+            console.log(`[normalizePayload] 翻译生成成功: ${translation.substring(0, 50)}...`);
+          } else {
+            payloadObj.cn = payloadObj.en; // fallback到英文
+            console.log(`[normalizePayload] 翻译失败，fallback到英文`);
+          }
+        })
+        .catch(error => {
+          console.error(`[normalizePayload] 翻译生成失败:`, error);
+          payloadObj.cn = payloadObj.en; // fallback到英文
+        });
+    }
+
+    return payloadObj as Prisma.JsonObject | Prisma.JsonArray;
   }
   return { value: payload } as Prisma.JsonObject;
 };
 
+// 异步翻译函数，避免阻塞主要流程
+const generateTranslationForItem = async (enText: string): Promise<string | null> => {
+  try {
+    if (!enText || !enText.trim()) {
+      return null;
+    }
+
+    const translation = await callHunyuanChat([
+      {
+        Role: "system",
+        Content: "你是专业的英语翻译助手。请将英文句子准确翻译成中文。要求：1. 只返回翻译结果，不要添加任何解释、说明或额外内容；2. 翻译要准确、自然；3. 如果是单词，返回对应的中文意思；4. 如果是句子，返回完整的句子翻译。"
+      },
+      {
+        Role: "user",
+        Content: `请将以下英文翻译成中文：\n\n${enText}`
+      }
+    ], { temperature: 0.2 });
+
+    const cleanTranslation = translation.replace(/\n+/g, '').trim();
+    return cleanTranslation && cleanTranslation.length > 0 ? cleanTranslation : null;
+  } catch (error) {
+    console.error(`[generateTranslationForItem] 翻译失败:`, error);
+    return null;
+  }
+};
+
+const parseNumericSetting = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return null;
+};
+
+const normalizeLessonTarget = (value: number | null | undefined): number | null => {
+  if (value == null || Number.isNaN(value)) {
+    return null;
+  }
+  const rounded = Math.round(value);
+  if (rounded < MIN_LESSONS_PER_MATERIAL) {
+    return MIN_LESSONS_PER_MATERIAL;
+  }
+  if (rounded > MAX_LESSONS_PER_MATERIAL) {
+    return MAX_LESSONS_PER_MATERIAL;
+  }
+  return rounded;
+};
+
+const extractLessonTargetFromMetadata = (metadata?: Record<string, unknown> | null): number | null => {
+  if (!metadata) {
+    return null;
+  }
+  const candidateKeys = [
+    "lessonTargetCount",
+    "lesson_target_count",
+    "targetLessons",
+    "targetLessonCount",
+    "lessonGoal"
+  ];
+  for (const key of candidateKeys) {
+    const numeric = parseNumericSetting(metadata[key]);
+    if (numeric !== null) {
+      return normalizeLessonTarget(numeric);
+    }
+  }
+  return null;
+};
+
+const resolveMaterialLessonTarget = (material: MaterialExtraction): number => {
+  const explicit = normalizeLessonTarget(material.targetLessonCount);
+  if (explicit !== null) {
+    return explicit;
+  }
+  const sentenceBased =
+    material.sentences && material.sentences.length >= 5
+      ? DEFAULT_LESSONS_PER_MATERIAL
+      : MIN_LESSONS_PER_MATERIAL;
+  return normalizeLessonTarget(sentenceBased) ?? DEFAULT_LESSONS_PER_MATERIAL;
+};
+
 const MIN_LESSONS_PER_MATERIAL = 3;
-const MAX_LESSONS_PER_MATERIAL = 5;
-const MAX_TOTAL_LESSONS = 25;
+const DEFAULT_LESSONS_PER_MATERIAL = 5;
+const MAX_LESSONS_PER_MATERIAL = 8;
+const MAX_TOTAL_LESSONS = 80;
 
 /**
  * 从OCR文本中提取英文句子
@@ -998,9 +1111,9 @@ const buildOptimizedAiInstructions = () =>
     "MANDATORY CONTENT REQUIREMENTS:",
     "1. Extract REAL English sentences, phrases, and words from the OCR text provided",
     "2. The 'en' field MUST contain actual English text from the textbook (sentences, phrases, or words)",
-    "3. DO NOT create Chinese translations or Chinese prompts as the main content",
+    "3. ALWAYS provide Chinese translation for English content in the 'cn' field",
     "4. DO NOT use placeholder English - use actual English content from the OCR text",
-    "5. The 'cn' field is OPTIONAL and should only be used for hints/translations, NOT as the primary content",
+    "5. The 'cn' field is REQUIRED - provide accurate Chinese translation for each English sentence",
     "",
     "DISPLAY LOGIC:",
     "- Students see ENGLISH sentences/phrases at the top of the screen",
@@ -1013,7 +1126,7 @@ const buildOptimizedAiInstructions = () =>
     "Each item's payload MUST follow this structure:",
     "  {",
     "    \"en\": \"Actual English sentence from textbook\",  // REQUIRED - This is what students see",
-    "    \"cn\": \"中文提示（可选）\",  // OPTIONAL - Only for hints",
+    "    \"cn\": \"准确的中文翻译\",  // REQUIRED - Chinese translation for each English sentence",
     "    \"variants\": [\"word1\", \"word2\", \"word3\"],  // For reorder type",
     "    \"answer\": \"English sentence\"  // For typing exercises",
     "  }",
@@ -1021,17 +1134,22 @@ const buildOptimizedAiInstructions = () =>
     "ACTIVITY TYPES TO USE:",
     "- 'reorder': Students click word blocks to form English sentences",
     "  * payload.en = English sentence to form",
+    "  * payload.cn = Chinese translation of the sentence",
     "  * payload.variants = array of English words from the sentence",
     "- 'sentence': Students type English sentences",
     "  * payload.en = English sentence to type",
+    "  * payload.cn = Chinese translation of the sentence",
     "  * payload.answer = same English sentence",
     "- 'vocabulary': Students learn English words",
     "  * payload.en = English word",
+    "  * payload.cn = Chinese meaning of the word",
     "- 'listening': Students listen and type",
     "  * payload.en = English sentence/phrase",
+    "  * payload.cn = Chinese translation of the sentence",
     "  * payload.answer = same English sentence",
     "- 'fill_blank': Students complete English sentences",
     "  * payload.en = English sentence with blank",
+    "  * payload.cn = Chinese translation of the complete sentence",
     "",
     "CONTENT EXTRACTION FROM OCR:",
     "- Look for English sentences in the OCR text (lines starting with capital letters, ending with periods)",
@@ -1047,8 +1165,9 @@ const buildOptimizedAiInstructions = () =>
     "",
     "EACH lesson must be unique and based on actual English content from the OCR text.",
     "Generate EXACTLY 15 lessons. Each lesson: title (in Chinese for organization), summary (max 100 chars), difficulty (1-6), 3-6 items.",
+    "CRITICAL: Every item MUST include both 'en' (English) and 'cn' (Chinese translation) fields.",
     "Use exact activity types from schema. Keep content concise. No markdown. Valid JSON required.",
-    "FAILURE to generate exactly 15 lessons or use proper English content will result in rejection."
+    "FAILURE to generate exactly 15 lessons, proper English content, or Chinese translations will result in rejection."
   ].join("\n");
 
 /**
@@ -1146,7 +1265,7 @@ const generationJsonSchema = {
                   payload: {
                     type: "object",
                     additionalProperties: true,
-                    required: ["en"],
+                    required: ["en", "cn"],
                     properties: {
                       en: {
                         type: "string",
@@ -1156,7 +1275,7 @@ const generationJsonSchema = {
                       },
                       cn: {
                         type: "string",
-                        description: "Optional Chinese translation or hint",
+                        description: "Chinese translation of the English sentence",
                         maxLength: 300
                       },
                       answer: {
@@ -1246,17 +1365,33 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
     throw new Error("任务缺少存储路径信息");
   }
 
+  const assetMetadataMap = new Map<string, Record<string, unknown>>();
+  const assetIds = filesToProcess
+    .map(file => file.assetId)
+    .filter((value): value is string => Boolean(value));
+  if (assetIds.length) {
+    const records = await prisma.asset.findMany({
+      where: { id: { in: assetIds } },
+      select: { id: true, metadata: true }
+    });
+    for (const record of records) {
+      assetMetadataMap.set(record.id, cloneMetadata(record.metadata));
+    }
+  }
+
   const materialExtractions: MaterialExtraction[] = filesToProcess.map((file, index) => {
     const lowerName = file.originalName?.toLowerCase() ?? "";
     const lowerMime = file.mimeType?.toLowerCase() ?? "";
     const isPdf = lowerMime.includes("pdf") || lowerName.endsWith(".pdf");
+    const metadata = file.assetId ? assetMetadataMap.get(file.assetId) : undefined;
     return {
       materialId: file.assetId || file.storagePath || `${file.originalName || "file"}-${index + 1}`,
       order: index,
       originalName: file.originalName || `file-${index + 1}`,
       sourceType: isPdf ? "pdf" : "image",
       ocrText: "",
-      sentences: []
+      sentences: [],
+      targetLessonCount: extractLessonTargetFromMetadata(metadata)
     };
   });
 
@@ -1652,7 +1787,8 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
     plan.lessons = generateFallbackLessons(materialExtractions, extractedSentences);
   }
 
-  plan.lessons = applyMaterialLessonDistribution(plan.lessons ?? [], materialExtractions);
+  const distributionResult = applyMaterialLessonDistribution(plan.lessons ?? [], materialExtractions);
+  plan.lessons = distributionResult.lessons;
   const materialAssignmentCount = new Map<string, number>();
   for (const lesson of plan.lessons) {
     if (!lesson.sourceMaterialId) continue;
@@ -1667,11 +1803,13 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
     "info",
     {
       totalLessons: plan.lessons.length,
-      maxAllowed: MAX_TOTAL_LESSONS,
+      maxAllowed: distributionResult.cap,
+      requestedTotal: Array.from(distributionResult.targetMap.values()).reduce((sum, value) => sum + value, 0),
       perMaterial: materialExtractions.map(material => ({
         materialId: material.materialId,
         originalName: material.originalName,
-        assigned: materialAssignmentCount.get(material.materialId) ?? 0
+        assigned: materialAssignmentCount.get(material.materialId) ?? 0,
+        target: distributionResult.targetMap.get(material.materialId) ?? resolveMaterialLessonTarget(material)
       }))
     }
   );
@@ -2040,7 +2178,57 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
     }
   });
 
-  // 2. 逐个创建课程和课时，使用小事务
+  // 2. 批量翻译：在创建关卡前，先收集所有需要翻译的句子并批量翻译
+  console.log(`[Worker] 开始批量翻译所有关卡的英文句子...`);
+  const sentencesToTranslate = new Set<string>();
+  
+  for (const lessonPlan of plan.lessons) {
+    const validItems = Array.isArray(lessonPlan.items) ? lessonPlan.items : [];
+    for (const item of validItems) {
+      if (!item || typeof item !== "object") continue;
+      const payload = (item.payload as Record<string, any>) || {};
+      const enText = payload.en || payload.target || payload.answer || payload.enText || payload.text || payload.sentence;
+      if (enText && !payload.cn) {
+        sentencesToTranslate.add(enText);
+      }
+    }
+  }
+
+  // 批量翻译
+  let translationMap = new Map<string, string>();
+  if (sentencesToTranslate.size > 0) {
+    console.log(`[Worker] 需要翻译 ${sentencesToTranslate.size} 个句子，开始批量翻译...`);
+    translationMap = await batchTranslate(Array.from(sentencesToTranslate), {
+      concurrency: 3,  // 并发数
+      delayBetweenBatches: 500  // 批次间延迟 500ms，避免限频
+    });
+    console.log(`[Worker] 批量翻译完成，成功 ${translationMap.size}/${sentencesToTranslate.size} 个`);
+    
+    // 应用翻译结果到 plan
+    for (const lessonPlan of plan.lessons) {
+      const validItems = Array.isArray(lessonPlan.items) ? lessonPlan.items : [];
+      for (const item of validItems) {
+        if (!item || typeof item !== "object") continue;
+        const payload = (item.payload as Record<string, any>) || {};
+        const enText = payload.en || payload.target || payload.answer || payload.enText || payload.text || payload.sentence;
+        if (enText && !payload.cn) {
+          const translation = translationMap.get(enText);
+          if (translation) {
+            payload.cn = translation;
+            console.log(`[Worker] 应用翻译: "${enText.substring(0, 30)}..." -> "${translation.substring(0, 30)}..."`);
+          } else {
+            // 翻译失败时留空，不 fallback 到英文
+            payload.cn = null;
+            console.warn(`[Worker] 翻译失败，留空: "${enText.substring(0, 50)}..."`);
+          }
+        }
+      }
+    }
+  } else {
+    console.log(`[Worker] 没有需要翻译的句子`);
+  }
+
+  // 3. 逐个创建课程和课时，使用小事务
   // 由于已删除旧草稿，sequence从1开始（只保留一个草稿版本）
   let sequence = targetUnit ? (existingLessonSeq._max?.sequence ?? 0) + 1 : 1;
   const lessonSummaries: Array<{ id: string; versionId: string }> = [];
@@ -2108,6 +2296,11 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
             const payload = item.payload as Record<string, any> || {};
             const hasEn = payload.en || payload.target || payload.answer || payload.enText || payload.text || payload.sentence;
             
+            // 翻译已在批量翻译阶段完成，这里只需要验证
+            if (hasEn && !payload.cn) {
+              console.warn(`[Worker] 警告：item #${orderIndex} 有英文但无翻译，可能批量翻译时失败`);
+            }
+
             // 记录每个item的保存详情
             await generationJobRepository.appendLog(
               generationJobId,
@@ -2121,11 +2314,12 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
                 en: payload.en || 'N/A',
                 answer: payload.answer || 'N/A',
                 target: payload.target || 'N/A',
+                cn: payload.cn || 'N/A',
                 payloadKeys: Object.keys(payload),
                 payloadFull: JSON.stringify(payload).substring(0, 500)
               }
             );
-            
+
             if (!hasEn) {
               await generationJobRepository.appendLog(
                 generationJobId,
@@ -2144,7 +2338,7 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
                 orderIndex,
                 type: item.type as LessonItemType,
                 title: item.title ?? null,
-                payload: normalizePayload(item.payload)
+                payload: payload
               }
             });
 
@@ -2393,6 +2587,31 @@ const instantiateLessonFromTemplate = (
     ? `来源素材 ${material.order + 1}: ${material.originalName}`
     : "基于OCR提取的英文内容生成";
   const titleSuffix = material ? ` · ${material.originalName}` : ` ${sequenceIndex + 1}`;
+
+  // 为每个英文句子生成中文翻译
+  const generateTranslation = async (enSentence: string): Promise<string> => {
+    try {
+      console.log(`[Fallback Translation] 翻译句子: ${enSentence.substring(0, 50)}...`);
+      const translation = await callHunyuanChat([
+        {
+          Role: "system",
+          Content: "你是专业的英语翻译助手。请将英文句子准确翻译成中文。要求：1. 只返回翻译结果，不要添加任何解释；2. 翻译要准确、自然；3. 不要添加课程标题、学习目标等额外内容；4. 只返回纯粹的中文翻译。"
+        },
+        {
+          Role: "user",
+          Content: `请将以下英文句子翻译成中文：\n\n${enSentence}`
+        }
+      ], { temperature: 0.2 });
+
+      const cleanTranslation = translation.replace(/\n+/g, '').trim();
+      console.log(`[Fallback Translation] 翻译结果: ${cleanTranslation.substring(0, 50)}...`);
+      return cleanTranslation;
+    } catch (error) {
+      console.error(`[Fallback Translation] 翻译失败:`, error);
+      return `[翻译生成中...]`;
+    }
+  };
+
   return {
     title: `${template.title}${titleSuffix}`,
     summary: template.summary,
@@ -2411,7 +2630,7 @@ const instantiateLessonFromTemplate = (
           en: sentence,
           answer: sentence,
           target: sentence,
-          cn: template.summary,
+          cn: null, // 翻译将在后续步骤中生成，不在这里设置
           variants: words,
           note
         }
@@ -2447,9 +2666,14 @@ const buildLessonsForMaterial = (
 const applyMaterialLessonDistribution = (
   lessons: GeneratedLessonPlan[],
   materials: MaterialExtraction[]
-): GeneratedLessonPlan[] => {
+): { lessons: GeneratedLessonPlan[]; cap: number; targetMap: Map<string, number> } => {
   if (!materials.length) {
-    return lessons.slice(0, MAX_TOTAL_LESSONS);
+    const limited = lessons.slice(0, MAX_TOTAL_LESSONS);
+    return {
+      lessons: limited,
+      cap: limited.length,
+      targetMap: new Map()
+    };
   }
 
   let assignPointer = 0;
@@ -2477,22 +2701,29 @@ const applyMaterialLessonDistribution = (
     }
   }
 
-  let effectiveMin = MIN_LESSONS_PER_MATERIAL;
-  if (effectiveMin * materials.length > MAX_TOTAL_LESSONS) {
-    effectiveMin = Math.max(1, Math.floor(MAX_TOTAL_LESSONS / Math.max(1, materials.length)));
+  const targetMap = new Map<string, number>();
+  let requestedTotal = 0;
+  for (const material of materials) {
+    const target = resolveMaterialLessonTarget(material);
+    targetMap.set(material.materialId, target);
+    requestedTotal += target;
   }
+  const lessonCap = Math.min(
+    MAX_TOTAL_LESSONS,
+    Math.max(requestedTotal, materials.length * MIN_LESSONS_PER_MATERIAL)
+  );
 
   const supplementalLessons: GeneratedLessonPlan[] = [];
   let templateOffset = 0;
 
   for (const entry of perMaterialCounts.values()) {
     const { material, count } = entry;
-    const maxAllowed = MAX_LESSONS_PER_MATERIAL;
-    const needed = Math.max(0, effectiveMin - count);
+    const target = targetMap.get(material.materialId) ?? MIN_LESSONS_PER_MATERIAL;
+    const needed = Math.max(0, target - count);
     if (needed <= 0) {
       continue;
     }
-    const extraCount = Math.min(needed, Math.max(0, maxAllowed - count));
+    const extraCount = Math.min(needed, Math.max(0, target - count));
     if (extraCount > 0) {
       const extras = buildLessonsForMaterial(material, extraCount, templateOffset);
       supplementalLessons.push(...extras);
@@ -2501,30 +2732,35 @@ const applyMaterialLessonDistribution = (
     }
   }
 
-  let combined = lessons.concat(supplementalLessons);
+  const combined = lessons.concat(supplementalLessons);
   const limited: GeneratedLessonPlan[] = [];
   const limitCounter = new Map<string, number>();
 
   for (const lesson of combined) {
     const materialId = lesson.sourceMaterialId;
     if (!materialId) {
-      if (limited.length < MAX_TOTAL_LESSONS) {
+      if (limited.length < lessonCap) {
         limited.push(lesson);
       }
       continue;
     }
     const current = limitCounter.get(materialId) ?? 0;
-    if (current >= MAX_LESSONS_PER_MATERIAL) {
+    const allowed = targetMap.get(materialId) ?? MAX_LESSONS_PER_MATERIAL;
+    if (current >= allowed) {
       continue;
     }
     limitCounter.set(materialId, current + 1);
     limited.push(lesson);
-    if (limited.length >= MAX_TOTAL_LESSONS) {
+    if (limited.length >= lessonCap) {
       break;
     }
   }
 
-  return limited.slice(0, MAX_TOTAL_LESSONS);
+  return {
+    lessons: limited.slice(0, lessonCap),
+    cap: lessonCap,
+    targetMap
+  };
 };
 
 const generateFallbackLessons = (
@@ -2540,15 +2776,12 @@ const generateFallbackLessons = (
     const lessons: GeneratedLessonPlan[] = [];
     let templateOffset = 0;
     for (const material of materials) {
-      const targetCount = Math.min(
-        MAX_LESSONS_PER_MATERIAL,
-        Math.max(MIN_LESSONS_PER_MATERIAL, material.sentences.length || MIN_LESSONS_PER_MATERIAL)
-      );
+      const targetCount = resolveMaterialLessonTarget(material);
       const extras = buildLessonsForMaterial(material, targetCount, templateOffset, fallbackSentences);
       templateOffset += targetCount;
       lessons.push(...extras);
     }
-    return applyMaterialLessonDistribution(lessons, materials);
+    return applyMaterialLessonDistribution(lessons, materials).lessons;
   }
 
   const lessons: GeneratedLessonPlan[] = [];

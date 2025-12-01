@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
+
 import { HttpError } from "../utils/errors";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

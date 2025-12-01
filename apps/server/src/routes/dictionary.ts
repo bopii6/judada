@@ -1,4 +1,5 @@
 import { Router } from "express";
+
 import { dictionaryService } from "../services";
 
 const router = Router();

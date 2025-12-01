@@ -184,6 +184,7 @@ export const CourseDetailPage = () => {
   const [showCreateUnit, setShowCreateUnit] = useState(false);
   const [newUnitTitle, setNewUnitTitle] = useState("");
   const [newUnitDescription, setNewUnitDescription] = useState("");
+  const [newUnitSequence, setNewUnitSequence] = useState("");
 
   const {
     data,
@@ -207,6 +208,13 @@ export const CourseDetailPage = () => {
   });
 
   const units = useMemo(() => unitsData?.units ?? [], [unitsData]);
+  const recommendedUnitSequence = useMemo(() => {
+    if (units.length === 0) {
+      return 1;
+    }
+    const maxSequence = units.reduce((max, unit) => Math.max(max, unit.sequence ?? 0), 0);
+    return Math.max(1, maxSequence + 1);
+  }, [units]);
 
   const {
     data: materialsData,
@@ -289,6 +297,7 @@ export const CourseDetailPage = () => {
       setShowCreateUnit(false);
       setNewUnitTitle("");
       setNewUnitDescription("");
+      setNewUnitSequence("");
       void refetchUnits();
     }
   });
@@ -472,14 +481,31 @@ export const CourseDetailPage = () => {
   };
 
   const handleCreateUnit = () => {
-    if (!newUnitTitle.trim()) {
+    const title = newUnitTitle.trim();
+    if (!title) {
       alert("请填写单元标题");
       return;
     }
+    const description = newUnitDescription.trim();
+    const sequenceInput = newUnitSequence.trim();
+    let parsedSequence: number | undefined;
+    if (sequenceInput) {
+      const numeric = Number(sequenceInput);
+      if (!Number.isFinite(numeric) || numeric <= 0) {
+        alert("请填写有效的单元编号（正整数）");
+        return;
+      }
+      parsedSequence = Math.floor(numeric);
+    }
     createUnitMutation.mutate({
-      title: newUnitTitle.trim(),
-      description: newUnitDescription.trim() || undefined
+      title,
+      description: description || undefined,
+      sequence: parsedSequence
     });
+  };
+  const handleOpenCreateUnit = () => {
+    setNewUnitSequence(String(recommendedUnitSequence));
+    setShowCreateUnit(true);
   };
 
   const totalLessons = units.reduce((sum, u) => sum + (u._count?.lessons ?? 0), 0);
@@ -604,11 +630,7 @@ export const CourseDetailPage = () => {
       <section className="units-section">
         <div className="units-section-header">
           <h2>单元管理</h2>
-          <button
-            type="button"
-            className="add-unit-btn"
-            onClick={() => setShowCreateUnit(true)}
-          >
+          <button type="button" className="add-unit-btn" onClick={handleOpenCreateUnit}>
             + 新增单元
           </button>
         </div>
@@ -657,6 +679,18 @@ export const CourseDetailPage = () => {
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <h3>新增单元</h3>
             <div className="modal-form">
+              <label>
+                <span>单元编号</span>
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={newUnitSequence}
+                  onChange={e => setNewUnitSequence(e.target.value)}
+                  placeholder={`默认：${recommendedUnitSequence}`}
+                />
+                <span className="field-hint">默认会采用下一个顺序号，可手动指定补齐缺失的单元</span>
+              </label>
               <label>
                 <span>单元标题 *</span>
                 <input

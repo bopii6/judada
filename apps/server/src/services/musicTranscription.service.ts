@@ -1,6 +1,7 @@
-import { MusicPhrase } from "./musicTrack.service";
 import * as tencentcloud from "tencentcloud-sdk-nodejs";
+
 import { getEnv } from "../config/env";
+import { MusicPhrase } from "./musicTrack.service";
 
 const { asr } = tencentcloud;
 
@@ -218,4 +219,3 @@ const normalizeTranscription = (data: any): TranscriptionResult => {
     raw: data
   };
 };
-

@@ -1,8 +1,10 @@
+import type { Router as ExpressRouter } from "express";
 import { Router } from "express";
-import { coursePackageService } from "../services";
-import { requireAdmin } from "../middleware/adminAuth";
 
-const router = Router();
+import { requireAdmin } from "../middleware/adminAuth";
+import { coursePackageService } from "../services";
+
+const router: ExpressRouter = Router();
 
 router.use(requireAdmin);
 

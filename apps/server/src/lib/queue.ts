@@ -1,5 +1,6 @@
-import { Queue, QueueEvents, Worker, Processor, JobsOptions } from "bullmq";
+import { JobsOptions, Processor, Queue, QueueEvents, Worker } from "bullmq";
 import IORedis from "ioredis";
+
 import { getEnv } from "../config/env";
 
 const { REDIS_URL, QUEUE_PREFIX } = getEnv();

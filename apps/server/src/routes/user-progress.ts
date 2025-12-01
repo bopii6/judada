@@ -1,8 +1,9 @@
-﻿import { Router } from 'express';
-import { getPrisma } from '../lib/prisma';
-import { authenticateToken } from '../middleware/auth';
-import { z } from 'zod';
-import * as localStore from '../lib/localProgressStore';
+import { Router } from "express";
+import { z } from "zod";
+
+import * as localStore from "../lib/localProgressStore";
+import { getPrisma } from "../lib/prisma";
+import { authenticateToken } from "../middleware/auth";
 
 const router = Router();
 

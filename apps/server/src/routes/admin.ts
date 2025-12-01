@@ -1,11 +1,12 @@
+import { LessonItemType, MusicTrackStatus } from "@prisma/client";
 import { Router, type Router as ExpressRouter } from "express";
 import multer from "multer";
 import { z } from "zod";
-import { LessonItemType, MusicTrackStatus } from "@prisma/client";
-import { requireAdmin } from "../middleware/adminAuth";
-import { coursePackageService, musicTrackService, unitService } from "../services";
-import { lessonRepository } from "../repositories";
+
 import { getPrisma } from "../lib/prisma";
+import { requireAdmin } from "../middleware/adminAuth";
+import { lessonRepository } from "../repositories";
+import { coursePackageService, musicTrackService, unitService } from "../services";
 
 const prisma = getPrisma();
 
@@ -50,8 +51,11 @@ const createManualLessonSchema = lessonContentSchema.extend({
   type: z.nativeEnum(LessonItemType).default("sentence")
 });
 
+const LESSON_TARGET_OPTIONS = [3, 5, 8] as const;
+
 const updateAssetLabelSchema = z.object({
-  label: z.string().max(60).optional()
+  label: z.string().max(60).optional(),
+  lessonTargetCount: z.union([z.number().int().min(1).max(20), z.null()]).optional()
 });
 
 const createPackageSchema = z.object({
@@ -374,9 +378,16 @@ const regenerateMaterialSchema = z.object({
 router.get("/course-packages/:packageId/materials", async (req, res, next) => {
   try {
     const { packageId } = req.params;
+    console.log(`[API] GET /course-packages/${packageId}/materials - 开始获取素材树`);
     const tree = await coursePackageService.getMaterialLessonTree(packageId);
+    console.log(`[API] GET /course-packages/${packageId}/materials - 成功获取素材树:`, {
+      materialsCount: tree.materials.length,
+      totalLessons: tree.materials.reduce((sum, m) => sum + m.lessonCount, 0),
+      unassignedLessons: tree.unassignedLessons.length
+    });
     res.json(tree);
   } catch (error) {
+    console.error(`[API] GET /course-packages/${req.params.packageId}/materials - 错误:`, error);
     next(error);
   }
 });
@@ -395,10 +406,25 @@ router.patch("/course-packages/:packageId/materials/:assetId/label", async (req,
     const metadata = (asset.metadata && typeof asset.metadata === "object" && !Array.isArray(asset.metadata)
       ? { ...(asset.metadata as Record<string, unknown>) }
       : {}) as Record<string, unknown>;
-    if (payload.label && payload.label.trim().length > 0) {
-      metadata.pageLabel = payload.label.trim();
-    } else {
-      delete metadata.pageLabel;
+    if (payload.label !== undefined) {
+      const trimmedLabel = payload.label?.trim();
+      if (trimmedLabel) {
+        metadata.pageLabel = trimmedLabel;
+      } else {
+        delete metadata.pageLabel;
+      }
+    }
+    if (payload.lessonTargetCount !== undefined) {
+      if (payload.lessonTargetCount === null) {
+        delete metadata.lessonTargetCount;
+      } else if (!LESSON_TARGET_OPTIONS.includes(payload.lessonTargetCount as (typeof LESSON_TARGET_OPTIONS)[number])) {
+        res
+          .status(400)
+          .json({ error: `鍙敮鎸佹瘡寮犻」绱犳潗鐢熸垚 ${LESSON_TARGET_OPTIONS.join(" / ")} 涓叧鍗?` });
+        return;
+      } else {
+        metadata.lessonTargetCount = payload.lessonTargetCount;
+      }
     }
     await prisma.asset.update({
       where: { id: asset.id },
@@ -478,7 +504,7 @@ router.post("/course-packages/:packageId/materials/:assetId/lessons", async (req
           lessonId: lesson.id,
           versionNumber: 1,
           title: payload.title,
-          summary: payload.cn ?? null,
+          summary: null,
           difficulty: 1,
           status: "draft"
         }
@@ -561,7 +587,7 @@ router.put("/lessons/:lessonId/content", async (req, res, next) => {
             lessonId: lesson.id,
             versionNumber: 1,
             title: payload.title,
-            summary: payload.cn ?? null,
+            summary: null,
             difficulty: 1,
             status: "draft"
           }
@@ -575,8 +601,7 @@ router.put("/lessons/:lessonId/content", async (req, res, next) => {
         await tx.lessonVersion.update({
           where: { id: version.id },
           data: {
-            title: payload.title,
-            summary: payload.cn ?? null
+            title: payload.title
           }
         });
       }

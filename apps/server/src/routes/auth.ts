@@ -1,7 +1,8 @@
-import { Router } from "express";
-import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { Router } from "express";
 import jwt from "jsonwebtoken";
+import { z } from "zod";
+
 import { getEnv } from "../config/env";
 import { getPrisma } from "../lib/prisma";
 import { authenticateToken } from "../middleware/auth";

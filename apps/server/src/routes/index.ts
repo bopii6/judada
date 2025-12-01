@@ -1,14 +1,15 @@
 import { Router } from "express";
+
 import adminRoutes from "./admin";
 import authRoutes from "./auth";
+import coursesRoutes from "./courses";
+import deviceRoutes from "./device";
+import dictionaryRoutes from "./dictionary";
 import emailAuthRoutes from "./email-auth";
 import jobsRoutes from "./jobs";
-import coursesRoutes from "./courses";
-import userProgressRoutes from "./user-progress";
-import deviceRoutes from "./device";
 import musicRoutes from "./music";
-import dictionaryRoutes from "./dictionary";
 import publicAssetsRoutes from "./publicAssets";
+import userProgressRoutes from "./user-progress";
 
 const router = Router();
 

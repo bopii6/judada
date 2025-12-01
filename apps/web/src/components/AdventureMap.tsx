@@ -14,6 +14,16 @@ interface UnitGroup {
   stages: CourseStage[];
 }
 
+const getUnitKey = (stage: CourseStage) => {
+  if (typeof stage.unitNumber === "number") {
+    return `num-${stage.unitNumber}`;
+  }
+  if (stage.unitName?.trim()) {
+    return `name-${stage.unitName.trim()}`;
+  }
+  return "unit-none";
+};
+
 export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
   const progress = useProgressStore();
 
@@ -66,12 +76,14 @@ export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
   };
 
   const nodeStates = useMemo(() => {
-    let previousCompleted = true;
+    const unitProgressState = new Map<string, boolean>();
     return stages.map(stage => {
       const record = progress.stages[stage.id];
       const completed = Boolean(record);
-      const unlocked = completed || previousCompleted;
-      previousCompleted = completed;
+      const unitKey = getUnitKey(stage);
+      const canEnter = unitProgressState.get(unitKey) ?? true;
+      const unlocked = completed || canEnter;
+      unitProgressState.set(unitKey, completed);
       return {
         stage,
         completed,

@@ -1,4 +1,5 @@
 import { CourseStatus, Prisma } from "@prisma/client";
+
 import { getPrisma } from "../lib/prisma";
 
 const prisma = getPrisma();
@@ -93,12 +94,36 @@ export const unitService = {
     const maxSequence = await prisma.unit.aggregate({
       where: {
         packageId: input.packageId
-        // 不要过滤 deletedAt，因为sequence的唯一约束包含所有记录
+        // 不要过滤 deletedAt，因为sequence 的唯一约束包含所有记录
       },
       _max: { sequence: true }
     });
 
     const sequence = input.sequence ?? (maxSequence._max.sequence ?? 0) + 1;
+
+    // 如果存在被软删除的同序号单元，先将其序号挪到末尾，释放这个编号
+    const conflictUnit = await prisma.unit.findFirst({
+      where: {
+        packageId: input.packageId,
+        sequence
+      },
+      select: {
+        id: true,
+        deletedAt: true
+      }
+    });
+
+    if (conflictUnit) {
+      if (!conflictUnit.deletedAt) {
+        throw new Error("该单元编号已存在，请选择其他编号");
+      }
+
+      const bumpedSequence = Math.max(maxSequence._max.sequence ?? 0, sequence) + 1;
+      await prisma.unit.update({
+        where: { id: conflictUnit.id },
+        data: { sequence: bumpedSequence }
+      });
+    }
 
     return prisma.unit.create({
       data: {

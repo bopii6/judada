@@ -18,6 +18,17 @@ type LessonMode = (typeof MODES)[number];
 
 const isValidMode = (value: string | undefined): value is LessonMode => MODES.includes(value as LessonMode);
 
+const getUnitKey = (stage?: CourseStage) => {
+  if (!stage) return "unit-none";
+  if (typeof stage.unitNumber === "number") {
+    return `num-${stage.unitNumber}`;
+  }
+  if (stage.unitName?.trim()) {
+    return `name-${stage.unitName.trim()}`;
+  }
+  return "unit-none";
+};
+
 interface CelebrationState {
   stars: number;
   combo: number;
@@ -43,6 +54,16 @@ export const LessonPlayPage = () => {
   const stages = useMemo<CourseStage[]>(() => data?.stages ?? [], [data]);
   const stageIndex = useMemo(() => stages.findIndex(stage => stage.id === stageId), [stages, stageId]);
   const currentStage = stageIndex >= 0 ? stages[stageIndex] : undefined;
+  const currentUnitStages = useMemo(() => {
+    if (!currentStage) return [];
+    const key = getUnitKey(currentStage);
+    return stages.filter(stage => getUnitKey(stage) === key);
+  }, [stages, currentStage]);
+  const currentUnitStageIndex = useMemo(() => {
+    if (!currentStage) return stageIndex;
+    const idx = currentUnitStages.findIndex(stage => stage.id === currentStage.id);
+    return idx >= 0 ? idx : stageIndex;
+  }, [currentStage, currentUnitStages, stageIndex]);
   const nextStage = stageIndex >= 0 ? stages[stageIndex + 1] : undefined;
   const stageOriginLabel = currentStage ? formatStageOriginLabel(currentStage) : null;
   const activeMode: LessonMode = isValidMode(mode) ? (mode as LessonMode) : "tiles";
@@ -176,7 +197,9 @@ export const LessonPlayPage = () => {
     );
   }
 
-  const progressRatio = stages.length ? Math.min(stageIndex + (completed ? 1 : 0), stages.length) / stages.length : 0;
+  const progressRatio = currentUnitStages.length
+    ? Math.min(currentUnitStageIndex + (completed ? 1 : 0), currentUnitStages.length) / currentUnitStages.length
+    : 0;
   const progressPercent = Math.round(progressRatio * 100);
 
   const showSidebar = activeMode !== "game";
@@ -208,7 +231,7 @@ export const LessonPlayPage = () => {
             </span>
           </div>
           <div className="rounded-full bg-slate-900 px-4 py-1.5 text-sm font-bold text-white shadow-lg shadow-slate-200">
-            {stageIndex + 1} <span className="text-slate-400">/</span> {stages.length}
+            {Math.max(1, currentUnitStageIndex + 1)} <span className="text-slate-400">/</span> {currentUnitStages.length || stages.length}
           </div>
         </div>
       </header>

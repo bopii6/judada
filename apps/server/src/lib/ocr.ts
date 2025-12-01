@@ -1,4 +1,5 @@
 import * as tencentcloud from "tencentcloud-sdk-nodejs";
+
 import { getEnv } from "../config/env";
 
 // 导入OCR客户端

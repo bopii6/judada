@@ -1,6 +1,7 @@
 import { Prisma, SourceType, VersionStatus } from "@prisma/client";
-import { CoursePackageVersionGetPayload, LessonGetPayload, InputJsonValue } from "../types/prisma-temp";
+
 import { getPrisma } from "../lib/prisma";
+import { CoursePackageVersionGetPayload, InputJsonValue, LessonGetPayload } from "../types/prisma-temp";
 
 const prisma = getPrisma();
 
@@ -98,9 +99,7 @@ export interface CreateCoursePackageVersionInput {
   versionNumber?: number;
 }
 
-const mapToListItem = (
-  pkg: any
-): CoursePackageListItem => ({
+const mapToListItem = (pkg: any): CoursePackageListItem => ({
   id: pkg.id,
   title: pkg.title,
   topic: pkg.topic,
@@ -109,7 +108,7 @@ const mapToListItem = (
   createdAt: pkg.createdAt,
   updatedAt: pkg.updatedAt,
   versionCount: pkg._count?.versions || 0,
-  lessonCount: pkg._count?.lessons || 0,
+  lessonCount: Array.isArray(pkg.lessons) ? pkg.lessons.length : 0,
   currentVersion: pkg.currentVersion
     ? {
         id: pkg.currentVersion.id,
@@ -138,8 +137,18 @@ export const coursePackageRepository = {
         },
         _count: {
           select: {
-            versions: true,
-            lessons: true
+            versions: true
+          }
+        },
+        lessons: {
+          where: {
+            deletedAt: null,
+            unitId: {
+              not: null
+            }
+          },
+          select: {
+            id: true
           }
         }
       }

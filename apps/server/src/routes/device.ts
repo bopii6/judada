@@ -1,5 +1,6 @@
+import { randomUUID } from "node:crypto";
+
 import { Router } from "express";
-import { randomUUID } from "crypto";
 
 const router = Router();
 

@@ -1,10 +1,11 @@
-import { Router } from 'express';
-import { z } from 'zod';
-import jwt from 'jsonwebtoken';
-import Redis from 'ioredis';
-import { emailService } from '../services/email';
-import { getEnv } from '../config/env';
-import { getPrisma } from '../lib/prisma';
+import { Router } from "express";
+import Redis from "ioredis";
+import jwt from "jsonwebtoken";
+import { z } from "zod";
+
+import { getEnv } from "../config/env";
+import { getPrisma } from "../lib/prisma";
+import { emailService } from "../services/email";
 
 const router = Router();
 

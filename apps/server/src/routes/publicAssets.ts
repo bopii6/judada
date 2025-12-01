@@ -1,7 +1,9 @@
-import { Router } from "express";
 import path from "node:path";
-import { getSupabase } from "../lib/supabase";
+
+import { Router } from "express";
+
 import { getEnv } from "../config/env";
+import { getSupabase } from "../lib/supabase";
 
 const router = Router();
 const supabase = getSupabase();

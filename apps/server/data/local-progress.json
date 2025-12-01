@@ -929,6 +929,20 @@
         ],
         "createdAt": "2025-11-30T06:44:05.938Z",
         "updatedAt": "2025-11-30T07:44:14.282Z"
+      },
+      {
+        "userId": "guest-1763547891565-7fvezctmx",
+        "stageId": "387e6a39-253f-41e1-8251-417b44f4936f-0552f29e-a7a9-45b3-bda8-a77aa811db7b",
+        "courseId": "a1187054-09bc-43a1-848e-d832769b5e97",
+        "bestStars": 3,
+        "attempts": 4,
+        "lastPlayedAt": "2025-12-01T00:38:26.502Z",
+        "modes": [
+          "tiles",
+          "type"
+        ],
+        "createdAt": "2025-11-30T09:21:38.749Z",
+        "updatedAt": "2025-12-01T00:38:26.502Z"
       }
     ]
   },
@@ -1090,13 +1104,13 @@
     "guest-1763547891565-7fvezctmx": {
       "userId": "guest-1763547891565-7fvezctmx",
       "totalPlayTime": 0,
-      "totalStars": 167,
-      "completedStages": 59,
+      "totalStars": 170,
+      "completedStages": 60,
       "currentStreak": 0,
       "longestStreak": 0,
-      "lastActiveAt": "2025-11-30T07:44:14.282Z",
+      "lastActiveAt": "2025-12-01T00:38:26.502Z",
       "createdAt": "2025-11-27T02:08:59.713Z",
-      "updatedAt": "2025-11-30T07:44:14.282Z"
+      "updatedAt": "2025-12-01T00:38:26.502Z"
     }
   },
   "daily": {
@@ -1185,11 +1199,20 @@
       {
         "userId": "guest-1763547891565-7fvezctmx",
         "date": "2025-11-30",
-        "completedStages": 40,
-        "starsEarned": 113,
+        "completedStages": 43,
+        "starsEarned": 122,
         "typingStages": 40,
         "createdAt": "2025-11-30T02:34:13.705Z",
-        "updatedAt": "2025-11-30T07:44:14.283Z"
+        "updatedAt": "2025-11-30T09:21:38.770Z"
+      },
+      {
+        "userId": "guest-1763547891565-7fvezctmx",
+        "date": "2025-12-01",
+        "completedStages": 1,
+        "starsEarned": 2,
+        "typingStages": 1,
+        "createdAt": "2025-12-01T00:38:26.503Z",
+        "updatedAt": "2025-12-01T00:38:26.503Z"
       }
     ]
   }

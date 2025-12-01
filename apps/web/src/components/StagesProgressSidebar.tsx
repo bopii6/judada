@@ -44,9 +44,21 @@ const buildPageKey = (stage: CourseStage) => {
     return `${unitKey}__${pageKey}`;
 };
 
+const buildUnitKey = (stage?: CourseStage) => {
+    if (!stage) return "unit-none";
+    if (typeof stage.unitNumber === "number") {
+        return `num-${stage.unitNumber}`;
+    }
+    if (stage.unitName?.trim()) {
+        return `name-${stage.unitName.trim()}`;
+    }
+    return "unit-none";
+};
+
 interface PageGroup {
     key: string;
     unitLabel: string;
+    unitKey: string;
     pageLabel: string;
     stages: { stage: CourseStage; stageIndex: number }[];
 }
@@ -71,6 +83,7 @@ export const StagesProgressSidebar: React.FC<StagesProgressSidebarProps> = ({
                 groups.push({
                     key,
                     unitLabel: buildUnitLabel(stage),
+                    unitKey: buildUnitKey(stage),
                     pageLabel: buildPageLabel(stage),
                     stages: []
                 });
@@ -91,6 +104,23 @@ export const StagesProgressSidebar: React.FC<StagesProgressSidebarProps> = ({
         }
     }, [currentIndex]);
 
+    const currentStage = stages[currentIndex];
+    const currentUnitKey = buildUnitKey(currentStage);
+    const unitStages = useMemo(() => {
+        if (!currentStage) return stages;
+        return stages.filter(stage => buildUnitKey(stage) === currentUnitKey);
+    }, [stages, currentUnitKey, currentStage]);
+    const unitStageIndex = useMemo(() => {
+        if (!currentStage) return currentIndex;
+        const idx = unitStages.findIndex(stage => stage.id === currentStage.id);
+        return idx >= 0 ? idx : currentIndex;
+    }, [unitStages, currentStage, currentIndex]);
+
+    const displayGroups = currentStage ? pageGroups.filter(group => group.unitKey === currentUnitKey) : pageGroups;
+    const progressLabel = unitStages.length
+        ? `${Math.max(1, unitStageIndex + 1)} / ${unitStages.length}`
+        : `${currentIndex + 1} / ${stages.length}`;
+
     return (
         <div className={classNames("flex flex-col h-full bg-white/40 backdrop-blur-sm border-r border-white/60", className)}>
             <div className="p-6 border-b border-white/40">
@@ -99,12 +129,12 @@ export const StagesProgressSidebar: React.FC<StagesProgressSidebarProps> = ({
                     <span>关卡地图</span>
                 </h2>
                 <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wider">
-                    已完成 {currentIndex + 1} / {stages.length}
+                    已完成 {progressLabel}
                 </p>
             </div>
 
             <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
-                {pageGroups.map(group => (
+                {displayGroups.map(group => (
                     <div
                         key={group.key}
                         className="rounded-3xl border border-white/80 bg-gradient-to-b from-white to-slate-50/70 p-4 shadow-sm space-y-4"

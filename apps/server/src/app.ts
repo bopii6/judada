@@ -1,12 +1,13 @@
-import express from "express";
 import cors from "cors";
+import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
+
 import routes from "./routes";
 import { errorHandler } from "./middleware/errorHandler";
 import { notFoundHandler } from "./middleware/notFound";
 
-export const createApp = () => {
+export const createApp = (): express.Application => {
   const app = express();
 
   app.use(cors());

@@ -312,10 +312,19 @@ export const deletePackageMaterial = (packageId: string, assetId: string) =>
 export const getMaterialPreviewUrl = (packageId: string, assetId: string) =>
   apiFetch<{ url: string }>(`/admin/course-packages/${packageId}/materials/${assetId}/preview`);
 
-export const updateMaterialLabel = (packageId: string, assetId: string, label?: string) =>
+export interface UpdateMaterialMetadataPayload {
+  label?: string;
+  lessonTargetCount?: number | null;
+}
+
+export const updateMaterialMetadata = (
+  packageId: string,
+  assetId: string,
+  payload: UpdateMaterialMetadataPayload
+) =>
   apiFetch<{ success: boolean }>(`/admin/course-packages/${packageId}/materials/${assetId}/label`, {
     method: "PATCH",
-    body: JSON.stringify({ label })
+    body: JSON.stringify(payload)
   });
 
 export interface LessonContentPayload {

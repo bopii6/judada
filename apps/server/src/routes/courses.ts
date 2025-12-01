@@ -1,7 +1,8 @@
-﻿import { Router } from "express";
-import { CourseStatus, LessonItemType } from "@prisma/client";
-import { getPrisma } from "../lib/prisma";
+﻿import { CourseStatus, LessonItemType } from "@prisma/client";
+import { Router } from "express";
+
 import { callHunyuanChat } from "../lib/hunyuan";
+import { getPrisma } from "../lib/prisma";
 
 const router: Router = Router();
 const prisma = getPrisma();
@@ -178,24 +179,6 @@ router.get("/:id/questions", async (req, res, next) => {
 
     let stageSequence = 1;
 
-    // 判断字符串是否是课程描述而不是翻译
-    const isLikelyDescription = (text: string) => {
-      if (!text) return false;
-      const patterns = [
-        /通过.*(提升|巩固|加强)/i,
-        /进行.*(训练|练习|学习)/i,
-        /针对.*(词汇|语法|句型|主题)/i,
-        /(掌握|培养|提高).*(能力|表达|技巧)/i,
-        /(记忆|理解).*(词汇|内容)/i,
-        /核心词汇/i,
-        /练习题/i,
-        /阅读理解/i,
-        /口语表达/i,
-        /写作训练/i
-      ];
-      return patterns.some(pattern => pattern.test(text));
-    };
-
     const cleanTranslationText = (text: string) =>
       text
         .replace(/^["'"“”‘’]/, "")
@@ -213,14 +196,10 @@ router.get("/:id/questions", async (req, res, next) => {
         return "";
       }
       
-      // 只使用 payload.translation 或 payload.cn 作为翻译来源
-      let translationCn = (payload.translation as string) || payload.cn || "";
+      // 优先使用管理员手动设置的中文翻译 payload.cn，然后才是自动翻译 payload.translation
+      let translationCn = payload.cn || (payload.translation as string) || "";
       if (translationCn) {
         translationCn = cleanTranslationText(translationCn);
-        if (isLikelyDescription(translationCn)) {
-          console.warn(`[Translation] Provided text looks like description, ignoring. Original: ${translationCn.substring(0, 50)}...`);
-          translationCn = "";
-        }
       }
       
       // 如果翻译不存在或无效，且英文句子存在，必须使用 Hunyuan 生成真正的翻译
@@ -240,14 +219,7 @@ router.get("/:id/questions", async (req, res, next) => {
           
           translationCn = cleanTranslationText(translationResponse);
           
-          // 再次验证生成的内容不是课程描述
-          if (isLikelyDescription(translationCn)) {
-            console.warn(`[Translation] Generated content looks like description, retrying...`);
-            // 如果生成的内容还是像课程描述，返回一个占位符
-            translationCn = "[翻译生成中...]";
-          } else {
-            console.log(`[Translation] Generated: ${translationCn.substring(0, 50)}...`);
-          }
+          console.log(`[Translation] Generated: ${translationCn.substring(0, 50)}...`);
         } catch (error) {
           console.error("[Translation] Failed to translate:", error);
           // 如果翻译失败，返回一个明确的占位符

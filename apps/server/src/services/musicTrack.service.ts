@@ -1,7 +1,15 @@
-import type { Express } from "express";
 import path from "node:path";
-import type { IAudioMetadata } from "music-metadata";
+
 import { Prisma, MusicTrackStatus } from "@prisma/client";
+import type { Express } from "express";
+import type { IAudioMetadata } from "music-metadata";
+
+import { getEnv } from "../config/env";
+import { getPrisma } from "../lib/prisma";
+import { getSupabase } from "../lib/supabase";
+import { HttpError } from "../utils/errors";
+import { slugify } from "../utils/slugify";
+import { transcribeAudioFromUrl } from "./musicTranscription.service";
 
 // 本地类型定义，避免共享包导入问题
 export interface MusicWord {
@@ -19,12 +27,6 @@ export interface MusicPhrase {
   zh?: string;
   tip?: string;
 }
-import { getPrisma } from "../lib/prisma";
-import { getSupabase } from "../lib/supabase";
-import { getEnv } from "../config/env";
-import { slugify } from "../utils/slugify";
-import { HttpError } from "../utils/errors";
-import { transcribeAudioFromUrl } from "./musicTranscription.service";
 
 const prisma = getPrisma();
 const AUDIO_ROOT_FOLDER = "music";

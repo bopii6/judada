@@ -1,17 +1,19 @@
-import type { Express } from "express";
-import { Prisma, SourceType, LessonItemType } from "@prisma/client";
 import path from "node:path";
+
+import type { Express } from "express";
+import { Prisma, SourceType } from "@prisma/client";
+
+import { getEnv } from "../config/env";
+import { enqueuePackageGenerationJob } from "../jobs/packageGeneration.queue";
 import { getPrisma } from "../lib/prisma";
 import { getSupabase } from "../lib/supabase";
-import { getEnv } from "../config/env";
 import {
+  CreateCoursePackageInput,
+  CreateCoursePackageVersionInput,
   coursePackageRepository,
   generationJobRepository,
-  lessonRepository,
-  CreateCoursePackageInput,
-  CreateCoursePackageVersionInput
+  lessonRepository
 } from "../repositories";
-import { enqueuePackageGenerationJob } from "../jobs/packageGeneration.queue";
 
 const prisma = getPrisma();
 const COURSE_COVER_FOLDER = "course-covers";
@@ -800,6 +802,25 @@ export const coursePackageService = {
       lessons: (lessonMap.get(asset.id) ?? []).map(entry => {
         const firstItem = entry.currentVersion?.items?.[0];
         const payload = (firstItem?.payload ?? {}) as Record<string, unknown>;
+        
+        // 详细日志：追踪数据读取
+        const summary = entry.currentVersion?.summary;
+        const payloadCn = payload.cn as string | undefined;
+        const payloadPrompt = payload.prompt as string | undefined;
+        const payloadEn = (payload.en as string) ?? (payload.target as string) ?? (payload.answer as string) ?? null;
+        
+        // 详细日志：打印每个关卡的数据结构
+        console.log(`[DEBUG MaterialLessonTree] Lesson #${entry.sequence} "${entry.title}":`, {
+          lessonId: entry.id,
+          summary: summary || '(null)',
+          payloadKeys: Object.keys(payload),
+          payloadCn: payloadCn || '(null)',
+          payloadPrompt: payloadPrompt || '(null)',
+          payloadEn: payloadEn || '(null)',
+          // 检查是否有问题：如果 cn 等于 summary，说明数据有问题
+          isCnSameAsSummary: payloadCn === summary ? '⚠️ 警告：cn 等于 summary!' : '✓ 正常'
+        });
+        
         return {
           id: entry.id,
           title: entry.title,
@@ -815,7 +836,19 @@ export const coursePackageService = {
             (payload.target as string) ??
             (payload.answer as string) ??
             null,
-          contentCn: (payload.cn as string) ?? (payload.prompt as string) ?? null
+          contentCn: (() => {
+            const cn = (payload.cn as string) ?? (payload.prompt as string) ?? null;
+            const en = (payload.en as string) ?? (payload.target as string) ?? (payload.answer as string) ?? null;
+            // 如果 cn 等于 en，说明存储的是英文而不是翻译，返回 null
+            if (cn && en && cn.trim() === en.trim()) {
+              return null;
+            }
+            // 如果 cn 等于 summary，说明存储的是摘要而不是翻译，返回 null
+            if (cn && summary && cn.trim() === summary.trim()) {
+              return null;
+            }
+            return cn;
+          })()
         };
       })
     }));

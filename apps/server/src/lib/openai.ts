@@ -1,5 +1,7 @@
-import axios, { AxiosInstance } from "axios";
 import https from "node:https";
+
+import axios, { AxiosInstance } from "axios";
+
 import { getEnv } from "../config/env";
 
 type JsonSchemaFormat =

@@ -1,4 +1,5 @@
 import { Prisma, VersionStatus } from "@prisma/client";
+
 import { getPrisma } from "../lib/prisma";
 
 const prisma = getPrisma();
@@ -151,4 +152,3 @@ export const lessonRepository = {
       data
     })
 };
-
