@@ -428,7 +428,7 @@ router.patch("/course-packages/:packageId/materials/:assetId/label", async (req,
     }
     await prisma.asset.update({
       where: { id: asset.id },
-      data: { metadata }
+      data: { metadata: metadata as any }
     });
     res.json({ success: true });
   } catch (error) {
@@ -493,7 +493,7 @@ router.post("/course-packages/:packageId/materials/:assetId/lessons", async (req
           sourceAssetName: asset.originalName,
           sourceAssetOrder:
             typeof asset.metadata === "object" && asset.metadata && "fileIndex" in asset.metadata
-              ? (asset.metadata as Record<string, unknown>).fileIndex ?? null
+              ? Number((asset.metadata as Record<string, unknown>).fileIndex) || null
               : null,
           createdById: null
         }
@@ -589,10 +589,13 @@ router.put("/lessons/:lessonId/content", async (req, res, next) => {
             title: payload.title,
             summary: null,
             difficulty: 1,
-            status: "draft"
+            status: "draft",
+            items: []
           }
         });
-        currentVersionId = version.id;
+        if (version) {
+          currentVersionId = version.id;
+        }
         await tx.lesson.update({
           where: { id: lesson.id },
           data: { currentVersionId }

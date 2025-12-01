@@ -113,7 +113,7 @@ const persistMaterialExtractionStats = async (materials: MaterialExtraction[]) =
 
       await prisma.asset.update({
         where: { id: asset.id },
-        data: { metadata }
+        data: { metadata: metadata as any }
       });
     })
   );
