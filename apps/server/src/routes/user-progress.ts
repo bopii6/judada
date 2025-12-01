@@ -12,7 +12,7 @@ const userProgressSchema = z.object({
   stageId: z.string(),
   courseId: z.string(),
   bestStars: z.number().min(0).max(3),
-  modes: z.array(z.enum(['tiles', 'type']))
+  modes: z.array(z.enum(['tiles', 'type', 'dictation']))
 });
 
 const userStatsSchema = z.object({
@@ -115,13 +115,13 @@ router.post('/progress/stage', authenticateToken, async (req, res) => {
 
     // 鎴愬姛鍐欏叆鏁版嵁搴撳悗锛屼篃鍐欏叆鏈湴闄嶇骇瀛樺偍锛屼繚鎸佷袱绔竴鑷?    localStore.upsertStage(userId, { stageId, courseId, bestStars, modes });
     await updateUserStats(userId, bestStars);
-    await updateDailyLog(userId, bestStars, modes.includes('type') ? 1 : 0);
+    await updateDailyLog(userId, bestStars, modes.some(mode => mode === 'type' || mode === 'dictation') ? 1 : 0);
     await checkAchievements(userId, bestStars);
     const row = (resultRows as any[])[0] ?? null;
     return res.json({ success: true, data: row ?? resultRows });
   } catch {
     localStore.upsertStage(userId, { stageId, courseId, bestStars, modes });
-    localStore.updateDaily(userId, bestStars, modes.includes('type') ? 1 : 0);
+    localStore.updateDaily(userId, bestStars, modes.some(mode => mode === 'type' || mode === 'dictation') ? 1 : 0);
     const data = localStore.getUserAll(userId);
     const stage = data.userProgress.find(p => p.stageId === stageId);
     return res.json({ success: true, data: stage });

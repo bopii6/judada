@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchCourseContent, type CourseStage } from "../api/courses";
 import { AdventureMap } from "../components/AdventureMap";
-import { BookOpen, Clock, Star, Play, CheckCircle2 } from "lucide-react";
+import { BookOpen, Clock, Play, CheckCircle2, Ear } from "lucide-react";
 
 export const CourseOverviewPage = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -57,7 +57,7 @@ export const CourseOverviewPage = () => {
     return <div className="flex min-h-[50vh] items-center justify-center text-slate-500 font-bold">课程不存在或未发布。</div>;
   }
 
-  const handleStartGame = (mode: "tiles" | "type" | "game") => {
+  const handleStartGame = (mode: "tiles" | "type" | "dictation") => {
     if (selectedStageId) {
       navigate(`/play/${courseId}/stages/${selectedStageId}/${mode}`);
     }
@@ -209,19 +209,18 @@ export const CourseOverviewPage = () => {
               </button>
 
               <button
-                onClick={() => handleStartGame("game")}
-                className="group relative flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-100 hover:border-purple-100 hover:bg-purple-50 transition-all text-left overflow-hidden"
+                onClick={() => handleStartGame("dictation")}
+                className="group relative flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-100 hover:border-amber-100 hover:bg-amber-50 transition-all text-left"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="w-12 h-12 rounded-xl bg-slate-900 text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-purple-200">
-                  <Star className="w-6 h-6 fill-current animate-pulse" />
+                <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Ear className="w-6 h-6" />
                 </div>
-                <div className="relative">
-                  <h4 className="font-bold text-slate-800 group-hover:text-purple-700">星际大战</h4>
-                  <p className="text-xs text-slate-400 font-medium group-hover:text-purple-400">寓教于乐，在游戏中消灭单词</p>
+                <div>
+                  <h4 className="font-bold text-slate-800 group-hover:text-amber-700">听写模式</h4>
+                  <p className="text-xs text-slate-400 font-medium group-hover:text-amber-400">听英文句子，根据中文提示默写</p>
                 </div>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                  <span className="px-2 py-1 rounded-lg bg-purple-100 text-[10px] font-bold text-purple-600 uppercase">New</span>
+                <div className="ml-auto">
+                  <span className="px-2 py-1 rounded-lg bg-amber-100 text-[10px] font-bold text-amber-600 uppercase">NEW</span>
                 </div>
               </button>
             </div>

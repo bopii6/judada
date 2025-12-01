@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import classNames from "classnames";
-import { CheckCircle2, PlayCircle, Circle, Map as MapIcon } from "lucide-react";
+import { CheckCircle2, PlayCircle, Circle } from "lucide-react";
 import type { CourseStage } from "../api/courses";
 
 interface StagesProgressSidebarProps {
@@ -123,14 +123,8 @@ export const StagesProgressSidebar: React.FC<StagesProgressSidebarProps> = ({
 
     return (
         <div className={classNames("flex flex-col h-full bg-white/40 backdrop-blur-sm border-r border-white/60", className)}>
-            <div className="p-6 border-b border-white/40">
-                <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
-                    <MapIcon className="w-5 h-5 text-indigo-500" />
-                    <span>关卡地图</span>
-                </h2>
-                <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wider">
-                    已完成 {progressLabel}
-                </p>
+            <div className="px-6 py-3 border-b border-white/40">
+                <p className="text-xs font-semibold text-slate-400">进度 {progressLabel}</p>
             </div>
 
             <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">

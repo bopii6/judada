@@ -6,13 +6,12 @@ import classNames from "classnames";
 import { fetchCourseContent, type CourseStage } from "../../api/courses";
 import { TilesLessonExperience } from "../../components/play/TilesLessonExperience";
 import { TypingLessonExperience } from "../../components/play/TypingLessonExperience";
-import { SpaceBattleExperience } from "../../components/play/SpaceBattleExperience";
 import { StagesProgressSidebar } from "../../components/StagesProgressSidebar";
 import { progressStore } from "../../store/progressStore";
-import { ArrowLeft, Star, Keyboard, MousePointer2, Share2 } from "lucide-react";
+import { ArrowLeft, Star, Keyboard, MousePointer2, Share2, Volume2, LifeBuoy } from "lucide-react";
 import { formatStageOriginLabel } from "../../utils/stageOrigin";
 
-const MODES = ["tiles", "type", "game"] as const;
+const MODES = ["tiles", "type", "dictation"] as const;
 
 type LessonMode = (typeof MODES)[number];
 
@@ -67,6 +66,7 @@ export const LessonPlayPage = () => {
   const nextStage = stageIndex >= 0 ? stages[stageIndex + 1] : undefined;
   const stageOriginLabel = currentStage ? formatStageOriginLabel(currentStage) : null;
   const activeMode: LessonMode = isValidMode(mode) ? (mode as LessonMode) : "tiles";
+  const isDictationMode = activeMode === "dictation";
 
   const [combo, setCombo] = useState(0);
   const [completed, setCompleted] = useState(false);
@@ -74,6 +74,7 @@ export const LessonPlayPage = () => {
   const [stageMistakes, setStageMistakes] = useState(0);
 
   const celebrationTimeoutRef = useRef<number | null>(null);
+  const [dictationHelpLevel, setDictationHelpLevel] = useState<0 | 1 | 2>(0);
   const sessionStartRef = useRef<number>(Date.now());
 
   useEffect(() => {
@@ -148,6 +149,10 @@ export const LessonPlayPage = () => {
     }
   }, []);
 
+  useEffect(() => {
+    setDictationHelpLevel(0);
+  }, [stageId, isDictationMode]);
+
   if (!courseId || !stageId) {
     return <div className="flex min-h-screen items-center justify-center bg-[#FFFBF5] text-slate-500">缺少课程或关卡信息。</div>;
   }
@@ -201,8 +206,15 @@ export const LessonPlayPage = () => {
     ? Math.min(currentUnitStageIndex + (completed ? 1 : 0), currentUnitStages.length) / currentUnitStages.length
     : 0;
   const progressPercent = Math.round(progressRatio * 100);
+  const showSidebar = true;
 
-  const showSidebar = activeMode !== "game";
+  const handleDictationHelp = () => {
+    if (!isDictationMode) return;
+    setDictationHelpLevel(prev => {
+      const next = prev >= 2 ? 2 : ((prev + 1) as 0 | 1 | 2);
+      return next;
+    });
+  };
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#FFFBF5] text-slate-800 font-sans">
@@ -224,18 +236,42 @@ export const LessonPlayPage = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-2 rounded-full bg-white px-3 py-1.5 border border-slate-100 shadow-sm">
-            {activeMode === "tiles" ? <MousePointer2 className="w-3 h-3 text-sky-500" /> : <Keyboard className="w-3 h-3 text-violet-500" />}
-            <span className="text-xs font-bold text-slate-600">
-              {activeMode === "tiles" ? "点词" : activeMode === "type" ? "拼写" : "星际大战"}
-            </span>
+          <div className="hidden sm:flex items-center gap-3">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 border border-slate-100 shadow-sm">
+              {activeMode === "tiles" ? (
+                <MousePointer2 className="w-3 h-3 text-sky-500" />
+              ) : activeMode === "dictation" ? (
+                <Volume2 className="w-3 h-3 text-amber-500" />
+              ) : (
+                <Keyboard className="w-3 h-3 text-violet-500" />
+              )}
+              <span className="text-xs font-bold text-slate-600">
+                {activeMode === "tiles" ? "点词" : activeMode === "type" ? "拼写" : "听写"}
+              </span>
+            </div>
+            {isDictationMode && (
+              <button
+                type="button"
+                onClick={handleDictationHelp}
+                disabled={dictationHelpLevel >= 2}
+                className={classNames(
+                  "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold transition-all border",
+                  dictationHelpLevel >= 2
+                    ? "bg-slate-100 text-slate-400 border-slate-100 cursor-not-allowed"
+                    : "bg-white text-amber-600 border-amber-100 shadow-sm hover:bg-amber-50 hover:text-amber-700"
+                )}
+              >
+                <LifeBuoy className="w-3.5 h-3.5" />
+                {dictationHelpLevel === 0 ? "听不出来？求助" : dictationHelpLevel === 1 ? "再给提示" : "提示已全部展示"}
+              </button>
+            )}
           </div>
           <div className="rounded-full bg-slate-900 px-4 py-1.5 text-sm font-bold text-white shadow-lg shadow-slate-200">
             {Math.max(1, currentUnitStageIndex + 1)} <span className="text-slate-400">/</span> {currentUnitStages.length || stages.length}
           </div>
         </div>
       </header>
-
+      {isDictationMode && null}
       {/* Main Content */}
       <main className="relative z-10 mx-auto flex w-full flex-1 items-center justify-center px-4 pb-10 min-h-[calc(100vh-100px)]">
         {/* Content Container with Sidebar (for typing mode) */}
@@ -298,43 +334,36 @@ export const LessonPlayPage = () => {
               </div>
             ) : (
               <div className="relative z-10 flex h-full flex-col">
-                {/* Progress & Stats Header */}
-                <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex flex-wrap items-center gap-2 min-h-[32px]">
-                    {combo > 1 && (
-                      <span className="px-2 py-1 rounded-lg bg-orange-100 text-[10px] font-bold uppercase tracking-wider text-orange-600 animate-pulse">
-                        Combo x{combo} 🔥
-                      </span>
-                    )}
-                  </div>
+                {!isDictationMode && (
+                  <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap items-center gap-2 min-h-[32px]">
+                      {combo > 1 && (
+                        <span className="px-2 py-1 rounded-lg bg-orange-100 text-[10px] font-bold uppercase tracking-wider text-orange-600 animate-pulse">
+                          Combo x{combo} 🔥
+                        </span>
+                      )}
+                    </div>
 
-                  {/* Progress Bar */}
-                  <div className="w-full sm:w-48">
-                    <div className="flex justify-between text-xs font-bold text-slate-400 mb-1.5">
-                      <span>进度</span>
-                      <span>{progressPercent}%</span>
-                    </div>
-                    <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-sky-400 to-indigo-500 transition-all duration-500 ease-out"
-                        style={{ width: `${progressPercent}%` }}
-                      />
+                    {/* Progress Bar */}
+                    <div className="w-full sm:w-48">
+                      <div className="flex justify-between text-xs font-bold text-slate-400 mb-1.5">
+                        <span>进度</span>
+                        <span>{progressPercent}%</span>
+                      </div>
+                      <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-sky-400 to-indigo-500 transition-all duration-500 ease-out"
+                          style={{ width: `${progressPercent}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Game Area */}
                 <div className="flex-1 flex items-center justify-center min-h-[400px] bg-slate-50/50 rounded-[2rem] border border-slate-100/50 p-4 sm:p-8">
                   {activeMode === "tiles" ? (
                     <TilesLessonExperience
-                      stage={currentStage}
-                      index={stageIndex}
-                      total={stages.length}
-                      onSuccess={handleSuccess}
-                      onMistake={handleMistake}
-                    />
-                  ) : activeMode === "game" ? (
-                    <SpaceBattleExperience
                       stage={currentStage}
                       index={stageIndex}
                       total={stages.length}
@@ -348,6 +377,8 @@ export const LessonPlayPage = () => {
                       total={stages.length}
                       onSuccess={handleSuccess}
                       onMistake={handleMistake}
+                      variant={isDictationMode ? "dictation" : "typing"}
+                      helpLevel={isDictationMode ? dictationHelpLevel : 0}
                     />
                   )}
                 </div>

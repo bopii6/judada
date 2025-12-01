@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-type LessonMode = 'tiles' | 'type';
+type LessonMode = 'tiles' | 'type' | 'dictation';
 
 export interface StageRecord {
   id?: string;

@@ -1,7 +1,7 @@
 import React, { useSyncExternalStore } from "react";
 import { useAuth } from "../hooks/useAuth";
 
-type LessonMode = "tiles" | "type" | "game";
+type LessonMode = "tiles" | "type" | "dictation";
 
 export interface StageRecord {
   stageId: string;
@@ -417,7 +417,7 @@ const recordStageCompletion = ({ stageId, courseId, stars, mode }: StageCompleti
     ...todayLog,
     completedStages: todayLog.completedStages + 1,
     starsEarned: todayLog.starsEarned + stars,
-    typingStages: todayLog.typingStages + (mode === "type" ? 1 : 0)
+    typingStages: todayLog.typingStages + (mode === "type" || mode === "dictation" ? 1 : 0)
   };
 
   state = {

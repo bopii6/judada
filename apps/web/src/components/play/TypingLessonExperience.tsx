@@ -11,6 +11,8 @@ export interface TypingLessonExperienceProps {
   total?: number;
   onSuccess: () => void;
   onMistake: () => void;
+  variant?: "typing" | "dictation";
+  helpLevel?: 0 | 1 | 2;
 }
 
 interface WordSlot {
@@ -68,16 +70,31 @@ const normalizeForCompare = (value: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
-export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLessonExperienceProps) => {
+const getSlotWidthCh = (slot: WordSlot) => {
+  const base = slot.fillableLength || slot.length || 1;
+  return Math.min(Math.max(base, 2.5), 8);
+};
+
+export const TypingLessonExperience = ({
+  stage,
+  onSuccess,
+  onMistake,
+  variant = "typing",
+  helpLevel: externalHelpLevel = 0
+}: TypingLessonExperienceProps) => {
   const answerText = stage.answerEn || stage.promptEn || "";
-  const displaySentence = stage.promptEn || stage.answerEn || "Loading...";
-  const translationText = stage.promptCn || "";
+  const englishPrompt = stage.promptEn || stage.answerEn || "Loading...";
+  const translationText = (stage.promptCn || "").trim();
+  const isDictationMode = variant === "dictation";
+  const displaySentence = isDictationMode ? translationText || "请根据语音提示默写英文句子" : englishPrompt;
   const wordSlots = useMemo(() => buildWordSlots(answerText), [answerText]);
   
   const [wordInputs, setWordInputs] = useState<string[]>([]);
   const [wordErrors, setWordErrors] = useState<Record<number, boolean>>({});
   const [feedback, setFeedback] = useState<{ type: "correct" | "incorrect" | null; message?: string }>({ type: null });
   const [autoCheckLocked, setAutoCheckLocked] = useState(false);
+
+  const prevHelpLevelRef = useRef(externalHelpLevel);
   
   const blockRefs = useRef<Array<HTMLInputElement | null>>([]);
   const successTimeoutRef = useRef<number | null>(null);
@@ -128,7 +145,7 @@ export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLe
     setTimeout(() => {
       focusFirstWritableBlock();
     }, 100);
-  }, [stage, wordSlots, focusFirstWritableBlock]);
+  }, [stage, wordSlots, focusFirstWritableBlock, variant]);
 
   // 键盘事件处理
   const handleWordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
@@ -268,86 +285,121 @@ export const TypingLessonExperience = ({ stage, onSuccess, onMistake }: TypingLe
     };
   }, [stage.answerEn]);
 
+  useEffect(() => {
+    if (!isDictationMode) {
+      prevHelpLevelRef.current = externalHelpLevel;
+      return;
+    }
+    if (externalHelpLevel > prevHelpLevelRef.current) {
+      speak(stage.answerEn, { rate: 0.9, preferredLocales: ["en-US", "en-GB"] });
+    }
+    prevHelpLevelRef.current = externalHelpLevel;
+  }, [externalHelpLevel, isDictationMode, stage.answerEn]);
+
   const requiredWordCount = wordSlots.filter(slot => slot.fillableLength > 0).length;
   const completedWordCount = wordSlots.filter(
     (slot, index) => slot.fillableLength === 0 || (wordInputs[index]?.length ?? 0) === slot.fillableLength
   ).length;
   const isSubmitDisabled = isInputLocked || !requiredWordCount || completedWordCount !== requiredWordCount;
+  const showHintLetters = isDictationMode && externalHelpLevel >= 1;
+  const showAnswerReveal = isDictationMode && externalHelpLevel >= 2;
 
   return (
     <div className="flex h-full w-full flex-col items-center justify-between gap-8">
       <div className="flex-1 flex flex-col items-center justify-center w-full max-w-3xl">
-        <div className="text-center space-y-2">
-          <h3 className="text-2xl sm:text-3xl font-black text-slate-800 leading-relaxed drop-shadow-sm">
-            {displaySentence}
-          </h3>
-          {/* 显示英文句子的中文翻译 */}
-          {translationText && (
-            <p className="text-sm text-slate-500 mt-2">{translationText}</p>
-          )}
+        <div className="w-full">
+          <div className="rounded-[32px] border border-slate-100 bg-gradient-to-br from-white to-slate-50 shadow-sm px-6 py-6 sm:px-10 space-y-4 text-center">
+            {!isDictationMode && (
+              <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                英文句子
+              </div>
+            )}
+
+            <h3 className="text-2xl sm:text-3xl font-black text-slate-800 leading-relaxed drop-shadow-sm max-w-2xl mx-auto">
+              {displaySentence}
+            </h3>
+            {!isDictationMode && translationText && (
+              <p className="text-sm text-slate-500 max-w-2xl mx-auto">{translationText}</p>
+            )}
+
+            {showAnswerReveal && (
+              <div className="px-4 py-3 rounded-2xl bg-amber-50 border border-amber-100 text-amber-700 text-sm font-semibold shadow-sm text-center max-w-2xl mx-auto">
+                {englishPrompt}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Word Slots Input Area - 与音乐闯关一致的布局 */}
         <div className="mt-8 w-full">
-          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-4 px-8 min-h-[120px]">
-            {wordSlots.map((slot, index) => {
-              return (
-                <div key={slot.id} className="flex flex-col items-center">
-                  <div className="flex items-end gap-0.5">
+          <div className="rounded-[32px] border border-slate-100 bg-white/70 px-4 py-6 sm:px-8 shadow-inner">
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              {wordSlots.map((slot, index) => {
+                const slotWidthCh = getSlotWidthCh(slot);
+                const isLockedSlot = slot.fillableLength === 0;
+                return (
+                  <div key={slot.id} className="flex flex-col items-center">
                     <div
                       className={classNames(
-                        "relative group/input",
-                        wordErrors[index] && "lesson-animate-shake"
+                        "relative group/input flex items-center justify-center rounded-2xl border-2 px-4 py-3 bg-white/90 shadow-sm transition-all",
+                        isLockedSlot
+                          ? "border-transparent bg-transparent shadow-none"
+                          : wordErrors[index]
+                            ? "border-rose-200 shadow-rose-100 lesson-animate-shake"
+                            : "border-slate-200 hover:border-indigo-200"
                       )}
                     >
-                      {/* Hint Overlay */}
-                      {!wordInputs[index] && slot.prefill && (
-                        <span className="absolute -left-3 bottom-1 text-lg font-bold text-slate-300 pointer-events-none select-none">
-                          {slot.prefill}
-                        </span>
+                      {isLockedSlot ? (
+                        <span className="text-2xl font-bold text-slate-300">{slot.core}</span>
+                      ) : (
+                        <>
+                          {!wordInputs[index] && (slot.prefill || (showHintLetters && slot.fillableLength > 0)) && (
+                            <span
+                              className={classNames(
+                                "absolute left-3 top-2 text-[10px] font-semibold tracking-[0.3em]",
+                                showHintLetters ? "text-amber-500" : "text-slate-300"
+                              )}
+                            >
+                              {(slot.prefill || slot.core.charAt(0)).toUpperCase()}
+                            </span>
+                          )}
+
+                          <input
+                            ref={element => {
+                              blockRefs.current[index] = element;
+                            }}
+                            value={wordInputs[index] ?? ""}
+                            onChange={event => handleWordInputChange(index, event.target.value)}
+                            onKeyDown={(e) => handleWordKeyDown(e, index)}
+                            maxLength={slot.fillableLength || undefined}
+                            disabled={isInputLocked}
+                            style={{ width: `${slotWidthCh}ch` }}
+                            className={classNames(
+                              "bg-transparent text-2xl font-bold tracking-wide text-center outline-none transition-colors relative z-10",
+                              wordErrors[index] ? "text-rose-500" : "text-slate-900",
+                              "placeholder-transparent"
+                            )}
+                          />
+                          <div
+                            className={classNames(
+                              "absolute inset-x-3 bottom-2 h-0.5 rounded-full transition-all duration-300",
+                              wordErrors[index]
+                                ? "bg-rose-400"
+                                : "bg-slate-200 group-focus-within/input:bg-indigo-500 group-focus-within/input:h-1"
+                            )}
+                          />
+                          {slot.suffix && (
+                            <span className="absolute -right-3 top-1/2 -translate-y-1/2 text-2xl font-bold text-slate-400">
+                              {slot.suffix}
+                            </span>
+                          )}
+                        </>
                       )}
-
-                      <input
-                        ref={element => {
-                          blockRefs.current[index] = element;
-                        }}
-                        value={wordInputs[index] ?? ""}
-                        onChange={event => handleWordInputChange(index, event.target.value)}
-                        onKeyDown={(e) => handleWordKeyDown(e, index)}
-                        maxLength={slot.fillableLength || undefined}
-                        disabled={isInputLocked || slot.fillableLength === 0}
-                        style={{ width: `${Math.max(slot.fillableLength || slot.length || 1, 1.5) * 0.7}em` }}
-                        className={classNames(
-                          "bg-transparent text-3xl font-bold tracking-wide text-center outline-none transition-colors relative z-10",
-                          slot.fillableLength === 0
-                            ? "text-slate-300 cursor-default"
-                            : wordErrors[index]
-                              ? "text-rose-500"
-                              : "text-slate-900",
-                          "placeholder-transparent"
-                        )}
-                      />
-                      {/* Animated Underline */}
-                      <div
-                        className={classNames(
-                          "absolute bottom-0 left-0 right-0 h-0.5 transition-all duration-300 rounded-full",
-                          slot.fillableLength === 0
-                            ? "bg-slate-200"
-                            : wordErrors[index]
-                              ? "bg-rose-400 h-1"
-                              : "bg-slate-300 group-focus-within/input:bg-indigo-500 group-focus-within/input:h-1"
-                        )}
-                      />
                     </div>
-
-                    {/* Suffix */}
-                    {slot.suffix && (
-                      <span className="text-4xl font-bold text-slate-300 mb-1">{slot.suffix}</span>
-                    )}
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
 
           {/* Feedback Message */}

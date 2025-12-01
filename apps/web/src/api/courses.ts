@@ -24,7 +24,7 @@ export interface CourseListResponse {
   filters: CourseFilters;
 }
 
-export type LessonInteractionType = "type" | "tiles" | "listenTap" | "speak" | "game";
+export type LessonInteractionType = "type" | "tiles" | "listenTap" | "speak" | "game" | "dictation";
 
 export interface CourseStage {
   id: string;
