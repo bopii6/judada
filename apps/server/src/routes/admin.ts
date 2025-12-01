@@ -591,7 +591,7 @@ router.put("/lessons/:lessonId/content", async (req, res, next) => {
             difficulty: 1,
             status: "draft"
           }
-        });
+        }) as any;
         if (version) {
           currentVersionId = version.id;
         }
