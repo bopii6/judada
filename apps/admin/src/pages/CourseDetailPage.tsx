@@ -30,7 +30,7 @@ import {
   regeneratePackageMaterial,
   deletePackageMaterial,
   getMaterialPreviewUrl,
-  updateMaterialLabel,
+  updateMaterialMetadata,
   updateLessonContent,
   deleteLessonById,
   createManualLesson,
@@ -105,6 +105,41 @@ const formatMaterialLabel = (material: PackageMaterialSummary) => {
   }
   const metadataLabel = typeof material.metadata?.label === "string" ? material.metadata.label.trim() : "";
   return metadataLabel || material.originalName;
+};
+
+const MATERIAL_LESSON_TARGET_OPTIONS = [3, 5, 8] as const;
+type LessonTargetOption = (typeof MATERIAL_LESSON_TARGET_OPTIONS)[number];
+const DEFAULT_MATERIAL_LESSON_TARGET: LessonTargetOption = 5;
+
+const clampLessonTarget = (value: number): LessonTargetOption => {
+  const min = MATERIAL_LESSON_TARGET_OPTIONS[0];
+  const max = MATERIAL_LESSON_TARGET_OPTIONS[MATERIAL_LESSON_TARGET_OPTIONS.length - 1];
+  const clamped = Math.max(min, Math.min(max, Math.round(value)));
+  return MATERIAL_LESSON_TARGET_OPTIONS.includes(clamped as LessonTargetOption)
+    ? (clamped as LessonTargetOption)
+    : DEFAULT_MATERIAL_LESSON_TARGET;
+};
+
+const getMaterialLessonTarget = (material: PackageMaterialSummary): LessonTargetOption => {
+  const metadata = (material.metadata ?? {}) as Record<string, unknown>;
+  const candidateKeys = [
+    "lessonTargetCount",
+    "lesson_target_count",
+    "targetLessons",
+    "lessonGoal",
+    "targetLessonCount"
+  ];
+  for (const key of candidateKeys) {
+    const numeric = parseNumericValue(metadata?.[key]);
+    if (numeric !== null) {
+      return clampLessonTarget(numeric);
+    }
+  }
+  const fallback = material.lessonCount;
+  if (typeof fallback === "number" && MATERIAL_LESSON_TARGET_OPTIONS.includes(fallback as LessonTargetOption)) {
+    return fallback as LessonTargetOption;
+  }
+  return DEFAULT_MATERIAL_LESSON_TARGET;
 };
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -281,7 +316,7 @@ export const CourseDetailPage = () => {
     const labelToSave = next.trim();
     await runMaterialsAction(
       material.id,
-      () => updateMaterialLabel(id, material.id, labelToSave || undefined),
+      () => updateMaterialMetadata(id, material.id, { label: labelToSave || undefined }),
       "素材备注已更新"
     );
   };
@@ -293,6 +328,17 @@ export const CourseDetailPage = () => {
       material.id,
       () => regeneratePackageMaterial(id, material.id),
       "已触发重新生成任务"
+    );
+  };
+
+  const handleMaterialTargetChange = async (material: PackageMaterialSummary, target: LessonTargetOption) => {
+    if (!id) return;
+    const current = getMaterialLessonTarget(material);
+    if (current === target) return;
+    await runMaterialsAction(
+      material.id,
+      () => updateMaterialMetadata(id, material.id, { lessonTargetCount: target }),
+      `已调整为每次生成 ${target} 个关卡`
     );
   };
 
@@ -598,6 +644,7 @@ export const CourseDetailPage = () => {
                 onPreviewMaterial={handlePreviewMaterial}
                 onRegenerateMaterial={handleRegenerateMaterial}
                 onDeleteMaterial={handleDeleteMaterial}
+                onUpdateMaterialTarget={handleMaterialTargetChange}
               />
             ))}
           </div>
@@ -674,8 +721,9 @@ interface UnitCardProps {
   materialActionId: string | null;
   onRenameMaterial: (material: PackageMaterialSummary) => void;
   onPreviewMaterial: (material: PackageMaterialSummary) => void;
-  onRegenerateMaterial: (material: PackageMaterialSummary) => void;
+  onRegenerateMaterial: (material: PackageMaterialSummary, unitId?: string) => void;
   onDeleteMaterial: (material: PackageMaterialSummary) => void;
+  onUpdateMaterialTarget: (material: PackageMaterialSummary, target: LessonTargetOption) => void;
 }
 
 interface LessonEditorState {
@@ -695,7 +743,8 @@ const UnitCard = ({
   onRenameMaterial,
   onPreviewMaterial,
   onRegenerateMaterial,
-  onDeleteMaterial
+  onDeleteMaterial,
+  onUpdateMaterialTarget
 }: UnitCardProps) => {
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(false);
