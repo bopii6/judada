@@ -260,64 +260,88 @@ export const Membership: React.FC = () => {
 
       {/* Payment Modal */}
       {showQRCode && selectedPlan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200">
-            <button
-              onClick={handleCloseQRCode}
-              className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative bg-white dark:bg-slate-900 rounded-[2rem] p-0 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-6 text-white relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
 
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 mb-4">
-                <QrCode className="w-6 h-6" />
+              <button
+                onClick={handleCloseQRCode}
+                className="absolute top-4 right-4 p-2 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-3 mb-1">
+                <div className="p-2 bg-white/10 rounded-xl backdrop-blur-sm">
+                  <QrCode className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg font-bold">微信扫码支付</h3>
               </div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                微信扫码支付
-              </h3>
-              <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">
-                订单号：{orderId}
+              <p className="text-slate-400 text-xs pl-12">
+                安全支付 · 实时到账
               </p>
             </div>
 
-            <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-6 mb-6 border border-slate-100 dark:border-slate-800">
-              <div className="aspect-square bg-white rounded-xl flex items-center justify-center mb-4 border border-slate-200 border-dashed overflow-hidden p-2">
-                <img 
-                  src="/qrcode.png" 
-                  alt="微信支付二维码" 
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-black text-slate-900 dark:text-white">
-                  ¥{plans.find(p => p.id === selectedPlan)?.price}
+            <div className="p-8">
+              {/* Amount */}
+              <div className="text-center mb-8">
+                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-1">支付金额</p>
+                <div className="flex items-baseline justify-center gap-1 text-slate-900 dark:text-white">
+                  <span className="text-xl font-bold">¥</span>
+                  <span className="text-5xl font-black tracking-tight">{plans.find(p => p.id === selectedPlan)?.price}</span>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">支付金额</p>
               </div>
-            </div>
 
-            <button
-              onClick={handleConfirmPayment}
-              disabled={paymentStatus === 'success'}
-              className={classNames(
-                "w-full py-3.5 rounded-xl font-bold text-sm transition-all",
-                paymentStatus === 'success'
-                  ? "bg-green-500 text-white"
-                  : "bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100"
-              )}
-            >
-              {paymentStatus === 'success' ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Check className="w-4 h-4" />
-                  支付成功
-                </span>
-              ) : paymentStatus === 'pending' ? (
-                "我已完成支付"
-              ) : (
-                "确认支付"
-              )}
-            </button>
+              {/* QR Code Container */}
+              <div className="flex justify-center mb-8">
+                <div className="p-1 bg-white rounded-2xl shadow-lg border border-slate-100 dark:border-slate-800">
+                  <div className="w-48 h-48 bg-white rounded-xl flex items-center justify-center overflow-hidden relative group">
+                    <img
+                      src="/qrcode.png"
+                      alt="微信支付二维码"
+                      className="w-full h-full object-contain"
+                    />
+                    {/* Scan Hint Overlay */}
+                    <div className="absolute inset-0 bg-black/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      <div className="bg-white/90 backdrop-blur px-3 py-1.5 rounded-full text-xs font-bold text-slate-900 shadow-sm">
+                        请使用微信扫一扫
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Order Info */}
+              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 mb-6 flex items-center justify-between text-xs">
+                <span className="text-slate-500 dark:text-slate-400">订单号</span>
+                <span className="font-mono text-slate-700 dark:text-slate-300 select-all">{orderId}</span>
+              </div>
+
+              {/* Action Button */}
+              <button
+                onClick={handleConfirmPayment}
+                disabled={paymentStatus === 'success'}
+                className={classNames(
+                  "w-full py-4 rounded-xl font-bold text-sm transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0",
+                  paymentStatus === 'success'
+                    ? "bg-green-500 text-white shadow-green-500/25"
+                    : "bg-gradient-to-r from-slate-900 to-slate-800 dark:from-white dark:to-slate-200 text-white dark:text-slate-900 shadow-slate-900/20"
+                )}
+              >
+                {paymentStatus === 'success' ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Check className="w-4 h-4" />
+                    支付成功
+                  </span>
+                ) : paymentStatus === 'pending' ? (
+                  "我已完成支付"
+                ) : (
+                  "确认支付"
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

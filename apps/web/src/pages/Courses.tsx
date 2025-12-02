@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchPublishedCourses, type CourseSummary } from "../api/courses";
 import { BookOpen, ArrowRight, Filter, ChevronDown } from "lucide-react";
+import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 
 export const Courses = () => {
   const navigate = useNavigate();
@@ -119,10 +120,10 @@ export const Courses = () => {
               ) : (
                 <div
                   className={`h-full w-full flex items-center justify-center bg-gradient-to-br ${index % 3 === 0
-                      ? "from-sky-100 to-blue-50 dark:from-sky-900/30 dark:to-blue-900/30 text-sky-400 dark:text-sky-300"
-                      : index % 3 === 1
-                        ? "from-orange-100 to-amber-50 dark:from-orange-900/30 dark:to-amber-900/30 text-orange-400 dark:text-orange-300"
-                        : "from-violet-100 to-purple-50 dark:from-violet-900/30 dark:to-purple-900/30 text-violet-400 dark:text-violet-300"
+                    ? "from-sky-100 to-blue-50 dark:from-sky-900/30 dark:to-blue-900/30 text-sky-400 dark:text-sky-300"
+                    : index % 3 === 1
+                      ? "from-orange-100 to-amber-50 dark:from-orange-900/30 dark:to-amber-900/30 text-orange-400 dark:text-orange-300"
+                      : "from-violet-100 to-purple-50 dark:from-violet-900/30 dark:to-purple-900/30 text-violet-400 dark:text-violet-300"
                     }`}
                 >
                   <BookOpen className="w-10 h-10 opacity-50" />
@@ -204,8 +205,8 @@ export const Courses = () => {
         )}
 
         {isLoading && (
-          <div className="col-span-full py-20 text-center text-slate-400 dark:text-slate-500 font-medium">
-            正在加载精彩课程...
+          <div className="col-span-full">
+            <LoadingSpinner text="正在加载课程内容..." />
           </div>
         )}
       </div>

@@ -30,7 +30,7 @@ export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
   // 按单元分组
   const unitGroups = useMemo<UnitGroup[]>(() => {
     const groups: Map<number | null, UnitGroup> = new Map();
-    
+
     stages.forEach(stage => {
       const unitNum = stage.unitNumber ?? null;
       if (!groups.has(unitNum)) {
@@ -166,7 +166,7 @@ export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
         {unitGroups.map((group, groupIndex) => {
           const isExpanded = expandedUnits.has(group.unitNumber);
           const unitProgress = getUnitProgress(group.stages);
-          const unitNodeStates = nodeStates.filter(ns => 
+          const unitNodeStates = nodeStates.filter(ns =>
             group.stages.some(s => s.id === ns.stage.id)
           );
 
@@ -180,7 +180,7 @@ export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
                 <div className={`p-2 rounded-xl ${unitProgress.percentage === 100 ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'}`}>
                   {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                 </div>
-                
+
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="font-bold text-slate-800 dark:text-slate-100 truncate">
@@ -200,7 +200,7 @@ export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
                 {/* Progress Bar */}
                 <div className="hidden sm:flex items-center gap-3 w-32">
                   <div className="flex-1 h-2 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
-                    <div 
+                    <div
                       className={`h-full rounded-full transition-all ${unitProgress.percentage === 100 ? 'bg-emerald-500' : 'bg-orange-500'}`}
                       style={{ width: `${unitProgress.percentage}%` }}
                     />
@@ -253,77 +253,82 @@ const StageCard = ({ stage, completed, unlocked, stars, showArrow, onStart, comp
   const pageNumber = typeof stage.sourceAssetOrder === "number" ? stage.sourceAssetOrder + 1 : null;
 
   return (
-  <div
-    className={`relative flex-shrink-0 w-full ${compact ? 'md:w-52' : 'md:w-64'} flex flex-col items-center text-center group transition-all duration-300 ${unlocked ? "opacity-100" : "opacity-60 grayscale"}`}
-  >
-    {/* Node Circle */}
-    <button
-      onClick={() => unlocked && onStart(stage.id)}
-      disabled={!unlocked}
-      className={`${compact ? 'w-14 h-14 rounded-xl text-lg' : 'w-20 h-20 rounded-[2rem] text-2xl'} flex items-center justify-center font-black shadow-lg transition-transform duration-300 mb-3 relative z-10 ${completed
-        ? "bg-gradient-to-br from-emerald-400 to-teal-500 text-white scale-110 shadow-emerald-200"
-        : unlocked
-          ? "bg-white dark:bg-slate-700 border-4 border-orange-100 dark:border-orange-800 text-orange-500 dark:text-orange-400 hover:scale-110 hover:border-orange-200 dark:hover:border-orange-700 hover:shadow-xl hover:shadow-orange-100 dark:hover:shadow-orange-900/30"
-          : "bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed"
-        }`}
-    >
-      {unlocked ? (
-        completed ? (
-          <Star className={`${compact ? 'w-6 h-6' : 'w-8 h-8'} fill-white`} />
-        ) : (
-          stage.stageSequence
-        )
-      ) : (
-        <Lock className={`${compact ? 'w-5 h-5' : 'w-8 h-8'}`} />
-      )}
-
-      {/* Stars Badge */}
-      {stars > 0 && (
-        <div className="absolute -bottom-1 bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded-full shadow-sm border border-slate-100 dark:border-slate-700 flex gap-0.5">
-          {[...Array(stars)].map((_, i) => (
-            <Star key={i} className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
-          ))}
-        </div>
-      )}
-    </button>
-
-    {/* Content */}
     <div
-      className={`bg-white dark:bg-slate-800 ${compact ? 'p-3' : 'p-4'} rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm w-full ${compact ? 'md:w-48' : 'md:w-56'} group-hover:shadow-md transition-shadow cursor-pointer`}
-      onClick={() => unlocked && onStart(stage.id)}
+      className={`relative flex-shrink-0 flex flex-col items-center text-center group transition-all duration-300 ${unlocked ? "opacity-100" : "opacity-60 grayscale"}`}
+      style={{ width: compact ? '200px' : '240px' }}
     >
-      <div className="flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500 mb-2">
-        <div className="text-left">
-          <p className="font-semibold text-slate-500 dark:text-slate-400">单元</p>
-          <p className="text-slate-800 dark:text-slate-100 font-bold">{stage.unitName || `Unit ${stage.unitNumber ?? "?"}`}</p>
+      {/* Node Circle */}
+      <button
+        onClick={() => unlocked && onStart(stage.id)}
+        disabled={!unlocked}
+        className={`${compact ? 'w-14 h-14 rounded-xl text-lg' : 'w-20 h-20 rounded-[2rem] text-2xl'} flex items-center justify-center font-black shadow-lg transition-transform duration-300 mb-3 relative z-10 ${completed
+          ? "bg-gradient-to-br from-emerald-400 to-teal-500 text-white scale-110 shadow-emerald-200"
+          : unlocked
+            ? "bg-white dark:bg-slate-700 border-4 border-orange-100 dark:border-orange-800 text-orange-500 dark:text-orange-400 hover:scale-110 hover:border-orange-200 dark:hover:border-orange-700 hover:shadow-xl hover:shadow-orange-100 dark:hover:shadow-orange-900/30"
+            : "bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed"
+          }`}
+      >
+        {unlocked ? (
+          completed ? (
+            <Star className={`${compact ? 'w-6 h-6' : 'w-8 h-8'} fill-white`} />
+          ) : (
+            stage.stageSequence
+          )
+        ) : (
+          <Lock className={`${compact ? 'w-5 h-5' : 'w-8 h-8'}`} />
+        )}
+
+        {/* Stars Badge */}
+        {stars > 0 && (
+          <div className="absolute -bottom-1 bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded-full shadow-sm border border-slate-100 dark:border-slate-700 flex gap-0.5">
+            {[...Array(stars)].map((_, i) => (
+              <Star key={i} className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+            ))}
+          </div>
+        )}
+      </button>
+
+      {/* Content */}
+      <div
+        className={`bg-white dark:bg-slate-800 ${compact ? 'p-3' : 'p-4'} rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm w-full group-hover:shadow-md transition-shadow cursor-pointer flex flex-col`}
+        style={{ height: compact ? '160px' : '180px' }}
+        onClick={() => unlocked && onStart(stage.id)}
+      >
+        <div className="flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500 mb-2 flex-shrink-0">
+          <div className="text-left">
+            <p className="font-semibold text-slate-500 dark:text-slate-400">单元</p>
+            <p className="text-slate-800 dark:text-slate-100 font-bold">{stage.unitName || `Unit ${stage.unitNumber ?? "?"}`}</p>
+          </div>
+          <div className="text-right">
+            <p className="font-semibold text-slate-500 dark:text-slate-400">页码</p>
+            <p className="text-slate-800 dark:text-slate-100 font-bold">{pageNumber ? `第 ${pageNumber} 页` : "未标注"}</p>
+          </div>
         </div>
-        <div className="text-right">
-          <p className="font-semibold text-slate-500 dark:text-slate-400">页码</p>
-          <p className="text-slate-800 dark:text-slate-100 font-bold">{pageNumber ? `第 ${pageNumber} 页` : "未标注"}</p>
+
+        <div className="flex-1 flex flex-col justify-center mb-2 min-h-0">
+          <h3 className={`font-bold text-slate-800 dark:text-slate-100 mb-1 ${compact ? 'text-sm' : 'text-base'} line-clamp-2`}>
+            {englishSentence || "暂无句子"}
+          </h3>
+          {translation && (
+            <p className={`text-slate-500 dark:text-slate-400 font-medium line-clamp-2 ${compact ? 'text-xs' : 'text-xs'}`}>
+              {translation}
+            </p>
+          )}
+        </div>
+
+        <div className="flex justify-center mt-auto pt-2 border-t border-slate-50 dark:border-slate-700/50 flex-shrink-0">
+          <span className={`text-xs font-bold ${unlocked ? "text-orange-500 dark:text-orange-400" : "text-slate-400 dark:text-slate-500"}`}>
+            {unlocked ? "点击开始" : "完成上一关解锁"}
+          </span>
         </div>
       </div>
-      <h3 className={`font-bold text-slate-800 dark:text-slate-100 mb-1 ${compact ? 'text-sm' : 'text-base'} line-clamp-2`}>
-        {englishSentence || "暂无句子"}
-      </h3>
-      {translation && (
-        <p className={`text-slate-500 dark:text-slate-400 font-medium line-clamp-2 ${compact ? 'text-xs h-7 mb-2' : 'text-xs h-8 mb-3'}`}>
-          {translation}
-        </p>
+
+      {/* Arrow for mobile */}
+      {showArrow && (
+        <div className="md:hidden my-2 text-slate-300 dark:text-slate-600">
+          <ArrowRight className="w-5 h-5 rotate-90" />
+        </div>
       )}
-
-      <div className="flex justify-center">
-        <span className={`text-xs font-bold ${unlocked ? "text-orange-500 dark:text-orange-400" : "text-slate-400 dark:text-slate-500"}`}>
-          {unlocked ? "点击开始" : "完成上一关解锁"}
-        </span>
-      </div>
     </div>
-
-    {/* Arrow for mobile */}
-    {showArrow && (
-      <div className="md:hidden my-2 text-slate-300 dark:text-slate-600">
-        <ArrowRight className="w-5 h-5 rotate-90" />
-      </div>
-    )}
-  </div>
   );
 };

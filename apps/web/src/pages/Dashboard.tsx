@@ -1,10 +1,11 @@
-﻿import React, { useMemo } from "react";
+﻿import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useProgressStore, getTodayDailyLog, getUserStats } from "../store/progressStore";
 import { fetchPublishedCourses, type CourseSummary } from "../api/courses";
 import { SyncStatus } from "../components/SyncStatus";
 import { DailyQuestBoard } from "../components/DailyQuestBoard";
+import { ParentLearningReport } from "../components/ParentLearningReport";
 import {
   Star,
   TrendingUp,
@@ -20,10 +21,24 @@ import {
   Calendar
 } from "lucide-react";
 
+type TimeRange = '7days' | '2weeks' | '3weeks' | '1month' | '2months' | '1year';
+
+const TIME_RANGE_OPTIONS = [
+  { value: '7days' as TimeRange, label: '近7天', days: 7 },
+  { value: '2weeks' as TimeRange, label: '近2周', days: 14 },
+  { value: '3weeks' as TimeRange, label: '近3周', days: 21 },
+  { value: '1month' as TimeRange, label: '近1月', days: 30 },
+  { value: '2months' as TimeRange, label: '近2月', days: 60 },
+  { value: '1year' as TimeRange, label: '近1年', days: 365 },
+];
+
 export const Dashboard: React.FC = () => {
   const progress = useProgressStore();
   const today = getTodayDailyLog();
   const userStats = getUserStats();
+  const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRange>('7days');
+
+  const selectedDays = TIME_RANGE_OPTIONS.find(opt => opt.value === selectedTimeRange)?.days || 7;
 
   // 获取课程列表，用于推荐
   const { data: coursesData } = useQuery({
@@ -39,15 +54,30 @@ export const Dashboard: React.FC = () => {
     const totalStars = records.reduce((sum, record) => sum + record.bestStars, 0);
     const totalStages = records.length;
     const totalAttempts = records.reduce((sum, record) => sum + record.attempts, 0);
-    
-    // 计算最近7天的学习数据
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
+
+    // 根据选择的时间范围计算学习数据
+    const getLabelForDay = (daysAgo: number, totalDays: number) => {
+      if (daysAgo === 0) return "今天";
+      if (daysAgo === 1) return "昨天";
+
+      const date = new Date();
+      date.setDate(date.getDate() - daysAgo);
+
+      // 如果时间范围较长，显示日期
+      if (totalDays > 30) {
+        return `${date.getMonth() + 1}/${date.getDate()}`;
+      }
+
+      return `${daysAgo}天前`;
+    };
+
+    const timeRangeData = Array.from({ length: selectedDays }, (_, i) => {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
       return {
         date: dateKey,
-        dateLabel: i === 0 ? "今天" : i === 1 ? "昨天" : `${i + 1}天前`,
+        dateLabel: getLabelForDay(i, selectedDays),
         log: progress.daily[dateKey] || {
           completedStages: 0,
           starsEarned: 0,
@@ -70,7 +100,7 @@ export const Dashboard: React.FC = () => {
       totalAttempts,
       currentStreak: userStats?.currentStreak || 0,
       longestStreak: userStats?.longestStreak || 0,
-      last7Days,
+      timeRangeData,
       recentCourses,
       todayProgress: {
         completed: today.completedStages,
@@ -78,7 +108,7 @@ export const Dashboard: React.FC = () => {
         typing: today.typingStages
       }
     };
-  }, [progress, userStats, today, courses]);
+  }, [progress, userStats, today, courses, selectedDays]);
 
   // 计算今日完成度百分比
   const todayCompletion = useMemo(() => {
@@ -95,153 +125,79 @@ export const Dashboard: React.FC = () => {
     <div className="space-y-6 max-w-7xl mx-auto pb-20">
       <SyncStatus />
 
-      {/* Hero Section - 学习概览 */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-600 via-amber-600 to-pink-500 dark:from-orange-700 dark:via-amber-700 dark:to-pink-600 px-8 py-8 shadow-2xl text-white transition-colors">
-        {/* 背景装饰 */}
-        <div className="absolute inset-0 opacity-20 dark:opacity-10">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl" />
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl" />
-        </div>
-
-        <div className="relative z-10">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-8">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-4 py-1.5 text-xs font-bold backdrop-blur-sm border border-white/20 shadow-sm mb-4">
-                <Zap className="w-3.5 h-3.5" />
-                <span>学习仪表盘</span>
-              </div>
-              <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-2 drop-shadow-sm">
-                欢迎回来！
-              </h1>
-              <p className="text-white/90 font-medium text-sm max-w-md">
-                继续你的英语学习之旅，每天进步一点点
-              </p>
-            </div>
-
-            {/* 今日完成度 */}
-            <div className="flex flex-col items-center bg-white/10 backdrop-blur-md rounded-2xl px-6 py-4 border border-white/20 shadow-lg">
-              <div className="text-xs font-bold text-white/80 mb-2 uppercase tracking-wider">今日完成度</div>
-              <div className="relative w-24 h-24 mb-2">
-                <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 100 100">
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="none"
-                    stroke="rgba(255,255,255,0.2)"
-                    strokeWidth="8"
-                  />
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="none"
-                    stroke="white"
-                    strokeWidth="8"
-                    strokeDasharray={`${todayCompletion * 2.51} 251`}
-                    strokeLinecap="round"
-                    className="transition-all duration-500"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-2xl font-black">{todayCompletion}%</span>
-                </div>
-              </div>
-              <div className="text-xs font-bold text-white/80">
-                {stats.todayProgress.completed} 个关卡完成
-              </div>
-            </div>
-          </div>
-
-          {/* 核心数据卡片 */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20">
-              <div className="flex items-center gap-2 mb-2">
-                <Star className="w-5 h-5 text-yellow-300 fill-current" />
-                <span className="text-xs font-bold text-white/80 uppercase tracking-wider">总星星</span>
-              </div>
-              <div className="text-3xl font-black mb-1">{stats.totalStars}</div>
-              <div className="text-xs text-white/70 font-medium">累计获得</div>
-            </div>
-
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20">
-              <div className="flex items-center gap-2 mb-2">
-                <Target className="w-5 h-5 text-emerald-300" />
-                <span className="text-xs font-bold text-white/80 uppercase tracking-wider">完成关卡</span>
-              </div>
-              <div className="text-3xl font-black mb-1">{stats.totalStages}</div>
-              <div className="text-xs text-white/70 font-medium">已通关</div>
-            </div>
-
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20">
-              <div className="flex items-center gap-2 mb-2">
-                <Flame className="w-5 h-5 text-orange-300 fill-current" />
-                <span className="text-xs font-bold text-white/80 uppercase tracking-wider">连续打卡</span>
-              </div>
-              <div className="text-3xl font-black mb-1">{stats.currentStreak}</div>
-              <div className="text-xs text-white/70 font-medium">
-                最长 {stats.longestStreak} 天
-              </div>
-            </div>
-
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="w-5 h-5 text-orange-300" />
-                <span className="text-xs font-bold text-white/80 uppercase tracking-wider">总练习</span>
-              </div>
-              <div className="text-3xl font-black mb-1">{stats.totalAttempts}</div>
-              <div className="text-xs text-white/70 font-medium">累计尝试</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* 主要内容区域 */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* 左侧：每日任务 + 学习趋势 */}
+        {/* 左侧：本周报告 + 学习趋势 */}
         <div className="lg:col-span-2 space-y-6">
-          {/* 每日任务 */}
-          <DailyQuestBoard />
+          {/* 学习报告 */}
+          <ParentLearningReport />
 
           {/* 学习趋势图表 */}
           <section className="rounded-[2rem] bg-white dark:bg-slate-800 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] border border-slate-100 dark:border-slate-700">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-orange-100 dark:bg-orange-900/30 text-orange-500 dark:text-orange-400">
-                  <BarChart3 className="h-6 w-6" />
+            <div className="flex flex-col gap-4 mb-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-orange-100 dark:bg-orange-900/30 text-orange-500 dark:text-orange-400">
+                    <BarChart3 className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-slate-800 dark:text-slate-100">学习趋势</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                      {TIME_RANGE_OPTIONS.find(opt => opt.value === selectedTimeRange)?.label}的学习数据
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-xl font-black text-slate-800 dark:text-slate-100">学习趋势</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">最近7天的学习数据</p>
-                </div>
+              </div>
+
+              {/* 时间范围选择器 */}
+              <div className="flex flex-wrap gap-2">
+                {TIME_RANGE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setSelectedTimeRange(option.value)}
+                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${selectedTimeRange === option.value
+                      ? 'bg-orange-500 text-white shadow-md'
+                      : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                      }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
             </div>
 
             {/* 简化的柱状图 */}
-            <div className="flex items-end justify-between gap-2 h-48">
-              {stats.last7Days.map((day, index) => {
-                const maxValue = Math.max(...stats.last7Days.map(d => d.log.completedStages), 1);
+            <div className="flex items-end justify-between gap-1 h-48 overflow-x-auto">
+              {stats.timeRangeData.map((day, index) => {
+                const maxValue = Math.max(...stats.timeRangeData.map(d => d.log.completedStages), 1);
                 const height = (day.log.completedStages / maxValue) * 100;
-                const isToday = index === stats.last7Days.length - 1;
+                const isToday = index === stats.timeRangeData.length - 1;
+
+                // 根据数据点数量决定是否显示标签
+                const shouldShowLabel = selectedDays <= 30 || index % Math.ceil(selectedDays / 15) === 0 || isToday;
 
                 return (
-                  <div key={day.date} className="flex-1 flex flex-col items-center gap-2">
+                  <div key={day.date} className="flex-1 flex flex-col items-center gap-2" style={{ minWidth: selectedDays > 30 ? '8px' : '20px' }}>
                     <div className="relative w-full flex items-end justify-center" style={{ height: "160px" }}>
                       <div
-                        className={`w-full rounded-t-lg transition-all duration-500 ${
-                          isToday
-                            ? "bg-gradient-to-t from-orange-500 to-amber-500"
-                            : "bg-gradient-to-t from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-700"
-                        }`}
+                        className={`w-full rounded-t-lg transition-all duration-500 ${isToday
+                          ? "bg-gradient-to-t from-orange-500 to-amber-500"
+                          : "bg-gradient-to-t from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-700"
+                          }`}
                         style={{ height: `${Math.max(height, 5)}%` }}
+                        title={`${day.dateLabel}: ${day.log.completedStages}关卡`}
                       />
                     </div>
-                    <div className="text-xs font-bold text-slate-600 dark:text-slate-300 text-center">
-                      {day.log.completedStages}
-                    </div>
-                    <div className="text-[10px] font-medium text-slate-400 dark:text-slate-500 text-center whitespace-nowrap">
-                      {day.dateLabel}
-                    </div>
+                    {day.log.completedStages > 0 && (
+                      <div className="text-xs font-bold text-slate-600 dark:text-slate-300 text-center">
+                        {day.log.completedStages}
+                      </div>
+                    )}
+                    {shouldShowLabel && (
+                      <div className="text-[10px] font-medium text-slate-400 dark:text-slate-500 text-center whitespace-nowrap">
+                        {day.dateLabel}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -329,7 +285,7 @@ export const Dashboard: React.FC = () => {
               <div className="space-y-3">
                 {courses.slice(0, 2).map((course) => {
                   const hasProgress = Object.values(progress.stages).some(r => r.courseId === course.id);
-                  
+
                   return (
                     <Link
                       key={course.id}

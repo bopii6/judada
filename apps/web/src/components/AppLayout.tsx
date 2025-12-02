@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { LogOut, Menu, LogIn, LayoutDashboard, BookOpen, UserRound, Sparkles, Sun, Music3, ArrowRight, Crown } from "lucide-react";
+import { LogOut, Menu, LogIn, LayoutDashboard, BookOpen, UserRound, Sparkles, Music3, ArrowRight, Crown } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { SettingsModal } from "./SettingsModal";
 
@@ -42,7 +42,7 @@ export const AppLayout = () => {
           <div className="flex items-center justify-between px-8 py-8">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-orange-100 text-orange-500">
-                <Sun className="h-6 w-6" />
+                <img src="/icons/bear-icon.svg" alt="Logo" className="h-6 w-6" />
               </div>
               <div>
                 <p className="text-[10px] uppercase tracking-[0.2em] text-orange-400 dark:text-orange-500 font-bold">Jude English</p>
