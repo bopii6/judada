@@ -1,9 +1,10 @@
-import React from "react";
+﻿import React from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./components/AppLayout";
 import { Dashboard } from "./pages/Dashboard";
 import { Courses } from "./pages/Courses";
 import { Profile } from "./pages/Profile";
+import { Membership } from "./pages/Membership";
 import { CourseOverviewPage } from "./pages/CourseOverviewPage";
 import { LessonPlayPage } from "./pages/play/LessonPlayPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -76,8 +77,13 @@ const App = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <div className="flex items-center gap-3">
+          <span className="text-5xl font-black text-orange-600 dark:text-orange-400 loading-number" style={{ animationDelay: '0s' }}>1</span>
+          <span className="text-5xl font-black text-orange-600 dark:text-orange-400 loading-number" style={{ animationDelay: '0.25s' }}>1</span>
+          <span className="text-5xl font-black text-orange-600 dark:text-orange-400 loading-number" style={{ animationDelay: '0.5s' }}>1</span>
+          <span className="text-5xl font-black text-orange-600 dark:text-orange-400 loading-number" style={{ animationDelay: '0.75s' }}>1</span>
+        </div>
       </div>
     );
   }
@@ -91,6 +97,7 @@ const App = () => {
         <Route path="/" element={<Dashboard />} />
         <Route path="/courses" element={<Courses />} />
         <Route path="/courses/:courseId" element={<CourseOverviewPage />} />
+        <Route path="/membership" element={<Membership />} />
         <Route path="/profile" element={<Profile />} />
       </Route>
 

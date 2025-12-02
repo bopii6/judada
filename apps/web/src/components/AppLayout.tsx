@@ -1,17 +1,20 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { LogOut, Menu, LogIn, LayoutDashboard, BookOpen, UserRound, Sparkles, Sun, Music3, ArrowRight } from "lucide-react";
+import { LogOut, Menu, LogIn, LayoutDashboard, BookOpen, UserRound, Sparkles, Sun, Music3, ArrowRight, Crown } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
+import { SettingsModal } from "./SettingsModal";
 
 const links = [
   { to: "/", label: "总览", icon: <LayoutDashboard className="h-5 w-5" /> },
   { to: "/courses", label: "课程", icon: <BookOpen className="h-5 w-5" /> },
   { to: "/lab/music", label: "音乐闯关", icon: <Music3 className="h-5 w-5" /> },
+  { to: "/membership", label: "会员", icon: <Crown className="h-5 w-5" /> },
   { to: "/profile", label: "设置", icon: <UserRound className="h-5 w-5" /> }
 ];
 
 export const AppLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const navigate = useNavigate();
   const { isAuthenticated, logout, getUserAvatar, getUserDisplayName } = useAuth();
@@ -58,30 +61,50 @@ export const AppLayout = () => {
           </div>
 
           <nav className="flex flex-col px-6 py-4 space-y-2">
-            {links.map(link => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                onClick={() => setSidebarOpen(false)}
-                className={({ isActive }) =>
-                  `group flex items-center gap-4 rounded-[1.2rem] px-5 py-4 transition-all duration-300 ${isActive
-                    ? "bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 shadow-sm ring-1 ring-orange-100 dark:ring-orange-800"
-                    : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200"
-                  }`
-                }
-              >
-                <span className={`flex items-center justify-center transition-colors ${
-                  // isActive logic handled by parent class
-                  ""
-                  } group-[.active]:text-orange-500`}>
-                  {link.icon}
-                </span>
-                <span className="text-base font-bold">{link.label}</span>
-              </NavLink>
-            ))}
+            {links.map(link => {
+              if (link.to === '/profile') {
+                return (
+                  <button
+                    key={link.to}
+                    onClick={() => {
+                      setSidebarOpen(false);
+                      setIsSettingsOpen(true);
+                    }}
+                    className="group flex items-center gap-4 rounded-[1.2rem] px-5 py-4 transition-all duration-300 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200 w-full text-left"
+                  >
+                    <span className="flex items-center justify-center transition-colors group-hover:text-slate-700 dark:group-hover:text-slate-200">
+                      {link.icon}
+                    </span>
+                    <span className="text-base font-bold">{link.label}</span>
+                  </button>
+                );
+              }
+              return (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  onClick={() => setSidebarOpen(false)}
+                  className={({ isActive }) =>
+                    `group flex items-center gap-4 rounded-[1.2rem] px-5 py-4 transition-all duration-300 ${isActive
+                      ? "bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 shadow-sm ring-1 ring-orange-100 dark:ring-orange-800"
+                      : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200"
+                    }`
+                  }
+                >
+                  <span className={`flex items-center justify-center transition-colors ${
+                    // isActive logic handled by parent class
+                    ""
+                    } group-[.active]:text-orange-500`}>
+                    {link.icon}
+                  </span>
+                  <span className="text-base font-bold">{link.label}</span>
+                </NavLink>
+              );
+            })}
           </nav>
 
-          <div className="absolute bottom-8 left-6 right-6">
+          <div className="absolute bottom-8 left-6 right-6 space-y-4">
+            {/* Daily Tip */}
             <div className="rounded-[1.5rem] bg-gradient-to-br from-sky-50 to-indigo-50 dark:from-sky-900/30 dark:to-indigo-900/30 px-6 py-5 border border-sky-100 dark:border-sky-800">
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles className="h-4 w-4 text-sky-500 dark:text-sky-400" />
@@ -91,6 +114,41 @@ export const AppLayout = () => {
                 保持好奇心，世界就是你的课堂。
               </p>
             </div>
+
+            {/* User Profile Link */}
+            {isAuthenticated ? (
+              <button
+                onClick={() => {
+                  // navigate("/profile");
+                  setIsSettingsOpen(true);
+                  setSidebarOpen(false);
+                }}
+                className="w-full flex items-center gap-3 p-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group"
+              >
+                <img
+                  src={getUserAvatar()}
+                  alt={getUserDisplayName()}
+                  className="w-10 h-10 rounded-full object-cover ring-2 ring-white dark:ring-slate-700 shadow-sm group-hover:scale-105 transition-transform"
+                />
+                <div className="flex-1 text-left overflow-hidden">
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">
+                    {getUserDisplayName()}
+                  </p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 truncate">
+                    点击查看个人设置
+                  </p>
+                </div>
+                <UserRound className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors" />
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate("/login")}
+                className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-slate-900 text-white font-bold text-sm shadow-lg shadow-slate-200 hover:scale-105 transition-all"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>登录账号</span>
+              </button>
+            )}
           </div>
         </aside>
       )}
@@ -131,56 +189,6 @@ export const AppLayout = () => {
                 </>
               )}
             </div>
-
-            <div className="flex items-center gap-5">
-              {isAuthenticated ? (
-                <div className="relative">
-                  <button
-                    onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-3 rounded-full bg-white dark:bg-slate-800 pl-1.5 pr-4 py-1.5 shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md transition-all"
-                  >
-                    <img
-                      src={getUserAvatar()}
-                      alt={getUserDisplayName()}
-                      className="w-9 h-9 rounded-full object-cover ring-2 ring-orange-100"
-                    />
-                    <span className="hidden sm:block text-sm font-bold text-slate-700 dark:text-slate-200">
-                      {getUserDisplayName()}
-                    </span>
-                  </button>
-
-                  {userMenuOpen && (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={() => setUserMenuOpen(false)} />
-                      <div className="absolute right-0 mt-4 w-60 rounded-[1.5rem] bg-white dark:bg-slate-800 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] border border-slate-100 dark:border-slate-700 z-20 overflow-hidden p-2">
-                        <div className="px-4 py-3 mb-2">
-                          <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{getUserDisplayName()}</p>
-                          <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 font-medium">Keep learning, keep growing</p>
-                        </div>
-                        <button
-                          onClick={() => {
-                            logout();
-                            setUserMenuOpen(false);
-                          }}
-                          className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-bold text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                        >
-                          <LogOut className="h-4 w-4" />
-                          <span>退出登录</span>
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <button
-                  onClick={() => navigate("/login")}
-                  className="flex items-center gap-2 rounded-full bg-slate-900 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-slate-200 hover:bg-slate-800 hover:scale-105 transition-all"
-                >
-                  <LogIn className="h-4 w-4" />
-                  <span>登录</span>
-                </button>
-              )}
-            </div>
           </div>
         </header>
 
@@ -189,7 +197,9 @@ export const AppLayout = () => {
             <Outlet />
           </div>
         </main>
-      </div>
-    </div>
+      </div >
+
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+    </div >
   );
 };
