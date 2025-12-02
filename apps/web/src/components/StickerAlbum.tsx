@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import classNames from "classnames";
 import { Lock, Sparkles, ChevronRight, ChevronLeft } from "lucide-react";
 
@@ -22,7 +22,7 @@ const COLLECTIONS = [
     {
         id: "ocean",
         name: "海洋探险家",
-        theme: "bg-blue-100",
+        theme: "bg-orange-100",
         stickers: [
             { id: "whale", emoji: "🐋", name: "蓝鲸大蓝", rarity: "epic", collected: false },
             { id: "dolphin", emoji: "🐬", name: "海豚飞飞", rarity: "rare", collected: false },

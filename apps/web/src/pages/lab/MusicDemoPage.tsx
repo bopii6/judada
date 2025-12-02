@@ -533,7 +533,7 @@ export const MusicDemoPage = () => {
                                 url={song.coverUrl}
                                 title={song.title}
                                 size="sm"
-                                className="shadow-md shadow-indigo-100"
+                                className="shadow-md shadow-orange-100"
                             />
                             <div>
                                 <h1 className="text-xl font-bold text-slate-900 leading-tight">{song.title}</h1>
@@ -556,7 +556,7 @@ export const MusicDemoPage = () => {
                                 className={classNames(
                                     "flex items-center justify-center w-10 h-10 rounded-full text-xl transition-all duration-300",
                                     interactionMode === "wordBank"
-                                        ? "bg-white text-indigo-600 shadow-md scale-105"
+                                        ? "bg-white text-orange-600 shadow-md scale-105"
                                         : "text-slate-400 hover:text-slate-600"
                                 )}
                                 title="Tap to Fill"
@@ -572,7 +572,7 @@ export const MusicDemoPage = () => {
                                 className={classNames(
                                     "flex items-center justify-center w-10 h-10 rounded-full text-xl transition-all duration-300",
                                     interactionMode === "typing"
-                                        ? "bg-white text-indigo-600 shadow-md scale-105"
+                                        ? "bg-white text-orange-600 shadow-md scale-105"
                                         : "text-slate-400 hover:text-slate-600"
                                 )}
                                 title="Type"
@@ -621,7 +621,7 @@ export const MusicDemoPage = () => {
                                     </div>
                                     <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
                                         <div
-                                            className="h-full bg-indigo-500 transition-all duration-500 ease-out"
+                                            className="h-full bg-orange-500 transition-all duration-500 ease-out"
                                             style={{ width: `${((currentPhraseIndex) / phraseCount) * 100}%` }}
                                         />
                                     </div>
@@ -671,7 +671,7 @@ export const MusicDemoPage = () => {
                                                 ))}
                                             </h3>
                                             {currentPhrase?.zh && (
-                                                <p className="text-xl text-indigo-600 font-medium">
+                                                <p className="text-xl text-orange-600 font-medium">
                                                     {currentPhrase.zh}
                                                 </p>
                                             )}
@@ -728,7 +728,7 @@ export const MusicDemoPage = () => {
                                                                         ? "bg-slate-200"
                                                                         : wordErrors[index]
                                                                             ? "bg-rose-400 h-1"
-                                                                            : "bg-slate-300 group-focus-within/input:bg-indigo-500 group-focus-within/input:h-1"
+                                                                            : "bg-slate-300 group-focus-within/input:bg-orange-500 group-focus-within/input:h-1"
                                                                 )} />
                                                             </div>
 

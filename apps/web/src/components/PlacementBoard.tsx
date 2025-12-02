@@ -115,13 +115,13 @@ export const PlacementBoard = ({ sessionId, questions, onFinished }: PlacementBo
       <div className="flex items-center justify-between text-sm text-slate-500">
         <button
           type="button"
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-500 disabled:opacity-50"
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow hover:bg-orange-500 disabled:opacity-50"
           onClick={handleSubmit}
           disabled={submitting}
         >
           提交
         </button>
-        <button type="button" className="text-xs text-blue-600 hover:underline" onClick={() => speak(currentQuestion.en)}>
+        <button type="button" className="text-xs text-orange-600 hover:underline" onClick={() => speak(currentQuestion.en)}>
           重播语音
         </button>
       </div>

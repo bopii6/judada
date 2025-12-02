@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+﻿import React, { useEffect, useRef } from "react";
 import classNames from "classnames";
 import { CheckCircle2, Music, PlayCircle } from "lucide-react";
 import type { MusicPhrase } from "@judada/shared";
@@ -31,7 +31,7 @@ export const LyricsProgressSidebar: React.FC<LyricsProgressSidebarProps> = ({
         <div className={classNames("flex flex-col h-full bg-white/50 backdrop-blur-sm border-r border-white/60", className)}>
             <div className="p-6 border-b border-white/40">
                 <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
-                    <Music className="w-5 h-5 text-indigo-500" />
+                    <Music className="w-5 h-5 text-orange-500" />
                     <span>关卡地图</span>
                 </h2>
                 <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wider">
@@ -54,7 +54,7 @@ export const LyricsProgressSidebar: React.FC<LyricsProgressSidebarProps> = ({
                                 isCompleted
                                     ? "bg-emerald-50/50 border-emerald-100 text-slate-400"
                                     : isCurrent
-                                        ? "bg-white border-indigo-500 shadow-lg shadow-indigo-500/10 scale-105 z-10"
+                                        ? "bg-white border-orange-500 shadow-lg shadow-orange-500/10 scale-105 z-10"
                                         : "bg-slate-50/50 border-transparent text-slate-300"
                             )}
                         >
@@ -64,7 +64,7 @@ export const LyricsProgressSidebar: React.FC<LyricsProgressSidebarProps> = ({
                                     {isCompleted ? (
                                         <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                                     ) : isCurrent ? (
-                                        <PlayCircle className="w-5 h-5 text-indigo-500 animate-pulse" />
+                                        <PlayCircle className="w-5 h-5 text-orange-500 animate-pulse" />
                                     ) : (
                                         <div className="w-5 h-5 rounded-full border-2 border-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-300">
                                             {index + 1}
@@ -88,7 +88,7 @@ export const LyricsProgressSidebar: React.FC<LyricsProgressSidebarProps> = ({
                                                 {phrase.en}
                                             </p>
                                             {isCurrent && phrase.zh && (
-                                                <p className="text-xs font-medium text-indigo-500 mt-1">
+                                                <p className="text-xs font-medium text-orange-500 mt-1">
                                                     {phrase.zh}
                                                 </p>
                                             )}

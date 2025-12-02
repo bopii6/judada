@@ -124,7 +124,7 @@ export const PracticeBoard = ({ sessionId, questions, onFinished }: PracticeBoar
       <div className="mt-4 flex items-center justify-between text-sm text-slate-500">
         <button
           type="button"
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-500"
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow hover:bg-orange-500"
           onClick={handleSubmit}
         >
           提交

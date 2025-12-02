@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+﻿import React, { useEffect, useMemo, useRef } from "react";
 import classNames from "classnames";
 import { CheckCircle2, PlayCircle, Circle } from "lucide-react";
 import type { CourseStage } from "../api/courses";
@@ -134,7 +134,7 @@ export const StagesProgressSidebar: React.FC<StagesProgressSidebarProps> = ({
                                 <p className="text-base font-black text-slate-900 dark:text-slate-100">{group.unitLabel}</p>
                             </div>
                             <div className="text-right">
-                                <p className="text-base font-black text-indigo-500 dark:text-indigo-400">{group.pageLabel}</p>
+                                <p className="text-base font-black text-orange-500 dark:text-orange-400">{group.pageLabel}</p>
                             </div>
                         </div>
                         <div className="space-y-2">
@@ -150,7 +150,7 @@ export const StagesProgressSidebar: React.FC<StagesProgressSidebarProps> = ({
                                         className={classNames(
                                             "flex items-start gap-3 rounded-2xl border px-3 py-2 transition-all",
                                             isCurrent
-                                                ? "border-indigo-300 dark:border-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 shadow-sm"
+                                                ? "border-orange-300 dark:border-orange-600 bg-orange-50 dark:bg-orange-900/30 shadow-sm"
                                                 : isCompleted
                                                     ? "border-transparent bg-white/70 dark:bg-slate-700/70 text-slate-400 dark:text-slate-500 line-through decoration-emerald-200 dark:decoration-emerald-800"
                                                     : "border-dashed border-slate-200 dark:border-slate-700 bg-white/40 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400"
@@ -160,7 +160,7 @@ export const StagesProgressSidebar: React.FC<StagesProgressSidebarProps> = ({
                                             {isCompleted ? (
                                                 <CheckCircle2 className="w-4 h-4 text-emerald-400 dark:text-emerald-500" />
                                             ) : isCurrent ? (
-                                                <PlayCircle className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+                                                <PlayCircle className="w-4 h-4 text-orange-500 dark:text-orange-400" />
                                             ) : (
                                                 <Circle className="w-4 h-4 text-slate-300 dark:text-slate-600" />
                                             )}

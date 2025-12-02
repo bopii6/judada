@@ -118,13 +118,12 @@ export const Courses = () => {
                 />
               ) : (
                 <div
-                  className={`h-full w-full flex items-center justify-center bg-gradient-to-br ${
-                    index % 3 === 0
+                  className={`h-full w-full flex items-center justify-center bg-gradient-to-br ${index % 3 === 0
                       ? "from-sky-100 to-blue-50 dark:from-sky-900/30 dark:to-blue-900/30 text-sky-400 dark:text-sky-300"
                       : index % 3 === 1
                         ? "from-orange-100 to-amber-50 dark:from-orange-900/30 dark:to-amber-900/30 text-orange-400 dark:text-orange-300"
                         : "from-violet-100 to-purple-50 dark:from-violet-900/30 dark:to-purple-900/30 text-violet-400 dark:text-violet-300"
-                  }`}
+                    }`}
                 >
                   <BookOpen className="w-10 h-10 opacity-50" />
                 </div>
@@ -134,7 +133,7 @@ export const Courses = () => {
               {/* 标签区域 */}
               <div className="absolute top-2 left-2 flex flex-wrap gap-1.5">
                 {course.grade && (
-                  <span className="rounded-md bg-white/95 backdrop-blur-sm px-2 py-0.5 text-[10px] font-bold text-indigo-600 shadow-sm border border-indigo-50">
+                  <span className="rounded-md bg-white/95 backdrop-blur-sm px-2 py-0.5 text-[10px] font-bold text-orange-600 shadow-sm border border-orange-50">
                     {course.grade}
                   </span>
                 )}
@@ -151,7 +150,7 @@ export const Courses = () => {
 
             {/* 内容区域 */}
             <div className="flex flex-1 flex-col p-3 pt-1">
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-0.5 line-clamp-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-0.5 line-clamp-1 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
                 {course.title}
               </h3>
 
@@ -166,7 +165,7 @@ export const Courses = () => {
                 </div>
                 <button
                   type="button"
-                  className="flex items-center gap-1 rounded-md bg-slate-900 dark:bg-slate-700 px-3 py-1.5 text-[10px] font-bold text-white dark:text-slate-100 transition-colors group-hover:bg-indigo-600 dark:group-hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-slate-900 dark:disabled:hover:bg-slate-700"
+                  className="flex items-center gap-1 rounded-md bg-slate-900 dark:bg-slate-700 px-3 py-1.5 text-[10px] font-bold text-white dark:text-slate-100 transition-colors group-hover:bg-orange-600 dark:group-hover:bg-orange-700 disabled:opacity-50 disabled:hover:bg-slate-900 dark:disabled:hover:bg-slate-700"
                   onClick={(e) => {
                     e.preventDefault();
                     handleEnterCourse(course);

@@ -7,7 +7,7 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: "#2563eb",
+          DEFAULT: "#f97316", // orange-500
           foreground: "#ffffff"
         },
         // New "Cute & Playful" Palette

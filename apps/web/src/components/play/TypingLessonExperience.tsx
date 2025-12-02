@@ -2,7 +2,7 @@
 import classNames from "classnames";
 import type { CourseStage } from "../../api/courses";
 import { speak } from "../../hooks/useTTS";
-import { playClickSound, playErrorSound, playSuccessSound } from "../../hooks/useFeedbackSound";
+import { useFeedbackSound } from "../../hooks/useFeedbackSoundHook";
 import { Volume2, Trash2, ArrowRight, CheckCircle2, XCircle } from "lucide-react";
 
 export interface TypingLessonExperienceProps {
@@ -82,6 +82,7 @@ export const TypingLessonExperience = ({
   variant = "typing",
   helpLevel: externalHelpLevel = 0
 }: TypingLessonExperienceProps) => {
+  const { playClickSound, playErrorSound, playSuccessSound } = useFeedbackSound();
   const answerText = stage.answerEn || stage.promptEn || "";
   const englishPrompt = stage.promptEn || stage.answerEn || "Loading...";
   const translationText = (stage.promptCn || "").trim();
@@ -318,7 +319,7 @@ export const TypingLessonExperience = ({
         <div className="w-full mb-10">
           <div className="text-center">
             {!isDictationMode && (
-              <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 dark:bg-indigo-900/30 px-4 py-1.5 text-xs font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider ring-1 ring-indigo-100 dark:ring-indigo-800 mb-6">
+              <div className="inline-flex items-center gap-2 rounded-full bg-orange-50 dark:bg-orange-900/30 px-4 py-1.5 text-xs font-bold text-orange-500 dark:text-orange-400 uppercase tracking-wider ring-1 ring-orange-100 dark:ring-orange-800 mb-6">
                 英文句子
               </div>
             )}
@@ -392,8 +393,8 @@ export const TypingLessonExperience = ({
                               wordErrors[index]
                                 ? "text-rose-500 dark:text-rose-400 border-b-2 border-rose-400 dark:border-rose-500 lesson-animate-shake"
                                 : wordInputs[index]
-                                  ? "text-slate-800 dark:text-slate-100 border-b-2 border-indigo-400 dark:border-indigo-500"
-                                  : "text-slate-800 dark:text-slate-100 border-b-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-indigo-300 dark:hover:border-indigo-500 focus:border-solid focus:border-indigo-500 dark:focus:border-indigo-400",
+                                  ? "text-slate-800 dark:text-slate-100 border-b-2 border-orange-400 dark:border-orange-500"
+                                  : "text-slate-800 dark:text-slate-100 border-b-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-orange-300 dark:hover:border-orange-500 focus:border-solid focus:border-orange-500 dark:focus:border-orange-400",
                               "placeholder-transparent"
                             )}
                             autoComplete="off"
@@ -461,8 +462,8 @@ export const TypingLessonExperience = ({
                                 wordErrors[index]
                                   ? "text-rose-500 dark:text-rose-400 border-b-2 border-rose-400 dark:border-rose-500 lesson-animate-shake"
                                   : wordInputs[index]
-                                    ? "text-slate-800 dark:text-slate-100 border-b-2 border-indigo-400 dark:border-indigo-500"
-                                    : "text-slate-800 dark:text-slate-100 border-b-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-indigo-300 dark:hover:border-indigo-500 focus:border-solid focus:border-indigo-500 dark:focus:border-indigo-400",
+                                    ? "text-slate-800 dark:text-slate-100 border-b-2 border-orange-400 dark:border-orange-500"
+                                    : "text-slate-800 dark:text-slate-100 border-b-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-orange-300 dark:hover:border-orange-500 focus:border-solid focus:border-orange-500 dark:focus:border-orange-400",
                                 "placeholder-transparent"
                               )}
                               autoComplete="off"

@@ -72,7 +72,7 @@ export const CourseOverviewPage = () => {
       <header className="relative overflow-hidden rounded-[2rem] bg-white dark:bg-slate-800 p-6 sm:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] border border-slate-100 dark:border-slate-700">
         {/* Background Decorations */}
         <div className="absolute top-0 right-0 -mt-20 -mr-20 w-96 h-96 bg-gradient-to-br from-orange-100/50 to-amber-100/50 rounded-full blur-3xl opacity-60 pointer-events-none"></div>
-        <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-80 h-80 bg-gradient-to-tr from-sky-100/50 to-indigo-100/50 rounded-full blur-3xl opacity-60 pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-80 h-80 bg-gradient-to-tr from-orange-100/50 to-orange-100/50 rounded-full blur-3xl opacity-60 pointer-events-none"></div>
 
         <div className="relative z-10 flex flex-col md:flex-row gap-8 items-start">
           {/* Cover Image */}
@@ -85,7 +85,7 @@ export const CourseOverviewPage = () => {
                 className="h-32 w-32 sm:h-40 sm:w-40 rounded-2xl object-cover shadow-lg rotate-3 hover:rotate-0 transition-transform duration-500"
               />
             ) : (
-              <div className="h-32 w-32 sm:h-40 sm:w-40 rounded-2xl bg-gradient-to-br from-violet-100 to-fuchsia-50 flex items-center justify-center text-violet-300 shadow-sm rotate-3 hover:rotate-0 transition-transform duration-500">
+              <div className="h-32 w-32 sm:h-40 sm:w-40 rounded-2xl bg-gradient-to-br from-amber-100 to-fuchsia-50 flex items-center justify-center text-amber-300 shadow-sm rotate-3 hover:rotate-0 transition-transform duration-500">
                 <BookOpen className="w-16 h-16" />
               </div>
             )}
@@ -97,7 +97,7 @@ export const CourseOverviewPage = () => {
               {/* 标签区域 */}
               <div className="flex flex-wrap items-center gap-2 mb-3">
                 {course.grade && (
-                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 px-2.5 py-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800">
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-orange-50 dark:bg-orange-900/30 px-2.5 py-1 text-xs font-bold text-orange-600 dark:text-orange-400 border border-orange-100 dark:border-orange-800">
                     {course.grade}
                   </span>
                 )}
@@ -128,7 +128,7 @@ export const CourseOverviewPage = () => {
             <div className="flex flex-wrap gap-4 pt-2">
               {course.unitCount && course.unitCount > 1 && (
                 <div className="flex items-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-700 px-4 py-2 rounded-xl">
-                  <div className="w-2 h-2 rounded-full bg-indigo-400"></div>
+                  <div className="w-2 h-2 rounded-full bg-orange-400"></div>
                   {course.unitCount} 个单元
                 </div>
               )}
@@ -172,7 +172,7 @@ export const CourseOverviewPage = () => {
             </button>
 
             <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400 mb-4 text-2xl font-black">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-orange-50 dark:bg-orange-900/30 text-orange-500 dark:text-orange-400 mb-4 text-2xl font-black">
                 {selectedStage.stageSequence}
               </div>
               <h3 className="text-2xl font-black text-slate-800 dark:text-slate-100 mb-2">
@@ -184,27 +184,27 @@ export const CourseOverviewPage = () => {
             <div className="grid gap-4">
               <button
                 onClick={() => handleStartGame("tiles")}
-                className="group relative flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 hover:border-indigo-100 dark:hover:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all text-left"
+                className="group relative flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 hover:border-orange-100 dark:hover:border-orange-800 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all text-left"
               >
-                <div className="w-12 h-12 rounded-xl bg-sky-100 dark:bg-sky-900/30 text-sky-500 dark:text-sky-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <div className="w-12 h-12 rounded-xl bg-orange-100 dark:bg-orange-900/30 text-orange-500 dark:text-orange-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                   <Play className="w-6 h-6 fill-current" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-800 dark:text-slate-100 group-hover:text-indigo-700 dark:group-hover:text-indigo-400">点词模式</h4>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 font-medium group-hover:text-indigo-400 dark:group-hover:text-indigo-500">轻松入门，点击单词完成句子</p>
+                  <h4 className="font-bold text-slate-800 dark:text-slate-100 group-hover:text-orange-700 dark:group-hover:text-orange-400">点词模式</h4>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 font-medium group-hover:text-orange-400 dark:group-hover:text-orange-500">轻松入门，点击单词完成句子</p>
                 </div>
               </button>
 
               <button
                 onClick={() => handleStartGame("type")}
-                className="group relative flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 hover:border-violet-100 dark:hover:border-violet-800 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all text-left"
+                className="group relative flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 hover:border-amber-100 dark:hover:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all text-left"
               >
-                <div className="w-12 h-12 rounded-xl bg-violet-100 dark:bg-violet-900/30 text-violet-500 dark:text-violet-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <div className="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-500 dark:text-amber-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-800 dark:text-slate-100 group-hover:text-violet-700 dark:group-hover:text-violet-400">拼写模式</h4>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 font-medium group-hover:text-violet-400 dark:group-hover:text-violet-500">挑战自我，键盘输入完整单词</p>
+                  <h4 className="font-bold text-slate-800 dark:text-slate-100 group-hover:text-amber-700 dark:group-hover:text-amber-400">拼写模式</h4>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 font-medium group-hover:text-amber-400 dark:group-hover:text-amber-500">挑战自我，键盘输入完整单词</p>
                 </div>
               </button>
 

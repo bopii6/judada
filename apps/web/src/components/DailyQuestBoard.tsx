@@ -1,4 +1,4 @@
-import { DAILY_TASKS, getTodayDailyLog, useProgressStore } from "../store/progressStore";
+﻿import { DAILY_TASKS, getTodayDailyLog, useProgressStore } from "../store/progressStore";
 import { CheckCircle2, Circle, Trophy } from "lucide-react";
 
 export const DailyQuestBoard = () => {
@@ -33,7 +33,7 @@ export const DailyQuestBoard = () => {
               key={task.id}
               className={`group relative overflow-hidden rounded-2xl border-2 transition-all duration-300 ${completed
                   ? "border-emerald-100 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-900/20"
-                  : "border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-700 hover:border-indigo-100 dark:hover:border-indigo-800 hover:shadow-sm"
+                  : "border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-700 hover:border-orange-100 dark:hover:border-orange-800 hover:shadow-sm"
                 }`}
             >
               {/* Progress Bar Background */}
@@ -56,7 +56,7 @@ export const DailyQuestBoard = () => {
                 </div>
 
                 <div className="text-right">
-                  <span className={`text-sm font-bold font-mono ${completed ? "text-emerald-600 dark:text-emerald-400" : "text-indigo-500 dark:text-indigo-400"}`}>
+                  <span className={`text-sm font-bold font-mono ${completed ? "text-emerald-600 dark:text-emerald-400" : "text-orange-500 dark:text-orange-400"}`}>
                     {Math.min(progress, task.target)}
                     <span className="text-slate-400 dark:text-slate-500 mx-1">/</span>
                     {task.target}

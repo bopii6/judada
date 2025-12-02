@@ -2,7 +2,7 @@
 import classNames from "classnames";
 import type { CourseStage } from "../../api/courses";
 import { speak } from "../../hooks/useTTS";
-import { playClickSound, playErrorSound, playSuccessSound } from "../../hooks/useFeedbackSound";
+import { useFeedbackSound } from "../../hooks/useFeedbackSoundHook";
 import { Volume2, RotateCcw } from "lucide-react";
 
 export interface TilesLessonExperienceProps {
@@ -49,6 +49,7 @@ const restoreTokenIntoPool = (pool: TokenChip[], token: TokenChip) => {
 };
 
 export const TilesLessonExperience = ({ stage, onSuccess, onMistake }: TilesLessonExperienceProps) => {
+  const { playClickSound, playErrorSound, playSuccessSound } = useFeedbackSound();
   const canonicalTokens = useMemo(() => createTokenChips(stage), [stage]);
   const [pool, setPool] = useState<TokenChip[]>(() => initializePool(canonicalTokens));
   const [selected, setSelected] = useState<TokenChip[]>([]);
@@ -165,7 +166,7 @@ export const TilesLessonExperience = ({ stage, onSuccess, onMistake }: TilesLess
       "rounded-2xl bg-white dark:bg-slate-700 border-b-4 border-slate-200 dark:border-slate-600 px-6 py-3 text-lg font-bold text-slate-700 dark:text-slate-200 shadow-sm transition-all active:border-b-0 active:translate-y-1 hover:-translate-y-0.5",
       {
         "opacity-50 pointer-events-none": disabled,
-        "hover:border-indigo-200 dark:hover:border-indigo-600 hover:text-indigo-600 dark:hover:text-indigo-400": !disabled
+        "hover:border-orange-200 dark:hover:border-orange-600 hover:text-orange-600 dark:hover:text-orange-400": !disabled
       }
     );
 
@@ -191,7 +192,7 @@ export const TilesLessonExperience = ({ stage, onSuccess, onMistake }: TilesLess
             {selected.map(token => (
               <span
                 key={token.id}
-                className="rounded-xl bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 px-4 py-2 text-lg font-bold shadow-sm animate-in zoom-in duration-200"
+                className="rounded-xl bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 px-4 py-2 text-lg font-bold shadow-sm animate-in zoom-in duration-200"
               >
                 {token.text}
               </span>

@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+﻿import React, { useRef } from "react";
 import { X, Volume2, BookOpen } from "lucide-react";
 import classNames from "classnames";
 import { WordDefinition } from "../data/dictionary";
@@ -32,7 +32,7 @@ export const WordDetailSidebar = ({ word, definition, isOpen, isLoading, onClose
 
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50 backdrop-blur-sm">
-                <div className="flex items-center gap-2 text-indigo-600 font-bold">
+                <div className="flex items-center gap-2 text-orange-600 font-bold">
                     <BookOpen className="w-5 h-5" />
                     <span>单词助手</span>
                 </div>
@@ -49,7 +49,7 @@ export const WordDetailSidebar = ({ word, definition, isOpen, isLoading, onClose
                 {isLoading ? (
                     <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 space-y-4">
                         <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center">
-                            <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+                            <div className="w-8 h-8 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin" />
                         </div>
                         <p>正在查询单词...</p>
                     </div>
@@ -57,7 +57,7 @@ export const WordDetailSidebar = ({ word, definition, isOpen, isLoading, onClose
                     <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                         {/* Word Header */}
                         <div className="text-center space-y-4">
-                            <div className="inline-flex items-center justify-center w-24 h-24 rounded-[2rem] bg-gradient-to-br from-indigo-50 to-violet-50 text-6xl shadow-inner border border-white">
+                            <div className="inline-flex items-center justify-center w-24 h-24 rounded-[2rem] bg-gradient-to-br from-orange-50 to-amber-50 text-6xl shadow-inner border border-white">
                                 {definition.emoji || "📝"}
                             </div>
                             <div>
@@ -65,7 +65,7 @@ export const WordDetailSidebar = ({ word, definition, isOpen, isLoading, onClose
                                     {definition.word}
                                 </h2>
                                 {definition.translation && (
-                                    <p className="text-2xl font-bold text-indigo-600 mb-2">
+                                    <p className="text-2xl font-bold text-orange-600 mb-2">
                                         {definition.translation}
                                     </p>
                                 )}
@@ -76,7 +76,7 @@ export const WordDetailSidebar = ({ word, definition, isOpen, isLoading, onClose
                                     {definition.audioUrl && (
                                         <button
                                             onClick={playAudio}
-                                            className="p-1.5 text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors active:scale-95"
+                                            className="p-1.5 text-orange-500 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-colors active:scale-95"
                                         >
                                             <Volume2 className="w-5 h-5" />
                                         </button>
@@ -88,7 +88,7 @@ export const WordDetailSidebar = ({ word, definition, isOpen, isLoading, onClose
                         {/* Definition Card */}
                         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 space-y-4">
                             <div>
-                                <span className="inline-block px-2 py-1 rounded-md bg-indigo-100 text-indigo-700 text-xs font-bold uppercase tracking-wider mb-2">
+                                <span className="inline-block px-2 py-1 rounded-md bg-orange-100 text-orange-700 text-xs font-bold uppercase tracking-wider mb-2">
                                     {definition.partOfSpeech}
                                 </span>
                                 {/* Chinese Translation */}
@@ -108,7 +108,7 @@ export const WordDetailSidebar = ({ word, definition, isOpen, isLoading, onClose
                                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
                                         Example
                                     </p>
-                                    <p className="text-slate-600 italic border-l-2 border-indigo-200 pl-3 py-1">
+                                    <p className="text-slate-600 italic border-l-2 border-orange-200 pl-3 py-1">
                                         &ldquo;{definition.example}&rdquo;
                                     </p>
                                 </div>

@@ -6,8 +6,8 @@ import { progressStore } from "../store/progressStore";
 
 const features = [
   {
-    icon: <BookOpen className="h-7 w-7 text-sky-500" />,
-    bg: "bg-sky-100",
+    icon: <BookOpen className="h-7 w-7 text-orange-500" />,
+    bg: "bg-orange-100",
     title: "轻松学英语",
     description: "像玩游戏一样有趣，涵盖听说读写全方位练习"
   },
@@ -18,8 +18,8 @@ const features = [
     description: "AI 老师为你量身定制，每天进步一点点"
   },
   {
-    icon: <Target className="h-7 w-7 text-violet-500" />,
-    bg: "bg-violet-100",
+    icon: <Target className="h-7 w-7 text-amber-500" />,
+    bg: "bg-amber-100",
     title: "闯关大冒险",
     description: "完成挑战赢取奖励，学习不再枯燥"
   },
@@ -70,7 +70,7 @@ export const LoginPage: React.FC = () => {
     <div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center px-6 py-12 font-sans text-slate-700 relative overflow-hidden">
       {/* Playful Background Blobs */}
       <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-orange-100/60 rounded-full blur-3xl animate-pulse" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-sky-100/60 rounded-full blur-3xl animate-pulse delay-1000" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-orange-100/60 rounded-full blur-3xl animate-pulse delay-1000" />
       <div className="absolute top-[40%] right-[20%] w-[300px] h-[300px] bg-emerald-100/40 rounded-full blur-3xl animate-pulse delay-2000" />
 
       <div className="relative z-10 max-w-6xl w-full grid lg:grid-cols-2 gap-20 items-center">

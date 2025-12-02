@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+﻿import React, { useMemo } from "react";
 import classNames from "classnames";
 import { Music } from "lucide-react";
 import { getCachedCoverUrl } from "../utils/musicAssetCache";
@@ -12,13 +12,13 @@ interface MusicCoverProps {
 
 const GRADIENTS = [
     "from-rose-400 to-orange-300",
-    "from-violet-600 to-indigo-600",
-    "from-cyan-500 to-blue-500",
+    "from-amber-600 to-orange-600",
+    "from-cyan-500 to-orange-500",
     "from-emerald-400 to-cyan-400",
     "from-fuchsia-500 to-pink-500",
     "from-amber-200 to-yellow-400",
     "from-teal-400 to-yellow-200",
-    "from-blue-600 to-violet-600",
+    "from-orange-600 to-amber-600",
 ];
 
 export const MusicCover = ({ url, title, className, size = "md" }: MusicCoverProps) => {
@@ -42,8 +42,8 @@ export const MusicCover = ({ url, title, className, size = "md" }: MusicCoverPro
     // Sticker shadow color based on gradient
     const shadowColorClass = useMemo(() => {
         if (gradient.includes("rose") || gradient.includes("pink")) return "shadow-rose-200";
-        if (gradient.includes("violet") || gradient.includes("indigo")) return "shadow-indigo-200";
-        if (gradient.includes("cyan") || gradient.includes("blue")) return "shadow-blue-200";
+        if (gradient.includes("violet") || gradient.includes("orange")) return "shadow-orange-200";
+        if (gradient.includes("cyan") || gradient.includes("blue")) return "shadow-orange-200";
         if (gradient.includes("emerald") || gradient.includes("teal")) return "shadow-emerald-200";
         if (gradient.includes("amber") || gradient.includes("yellow")) return "shadow-amber-200";
         return "shadow-slate-200";

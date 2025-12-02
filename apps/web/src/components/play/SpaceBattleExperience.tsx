@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+﻿import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Rocket, Crosshair, Target } from "lucide-react";
 import { CourseStage } from "../../api/courses";
 import classNames from "classnames";
@@ -270,7 +270,7 @@ export const SpaceBattleExperience: React.FC<SpaceBattleExperienceProps> = ({
                 {[...Array(30)].map((_, i) => (
                     <div
                         key={`star-2-${i}`}
-                        className="absolute bg-blue-200 rounded-full"
+                        className="absolute bg-orange-200 rounded-full"
                         style={{
                             width: Math.random() * 3 + 1 + 'px',
                             height: Math.random() * 3 + 1 + 'px',
@@ -318,7 +318,7 @@ export const SpaceBattleExperience: React.FC<SpaceBattleExperienceProps> = ({
                     </div>
                     <button
                         onClick={onSuccess}
-                        className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-lg transition-all transform hover:scale-105 shadow-lg shadow-indigo-500/50"
+                        className="px-8 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-bold text-lg transition-all transform hover:scale-105 shadow-lg shadow-orange-500/50"
                     >
                         CONTINUE
                     </button>
@@ -346,7 +346,7 @@ export const SpaceBattleExperience: React.FC<SpaceBattleExperienceProps> = ({
                             {/* Alien/Asteroid Graphic */}
                             <div className={classNames(
                                 "w-12 h-12 mb-2 rounded-full flex items-center justify-center shadow-lg transition-all",
-                                currentTargetId === target.id ? "bg-red-500 shadow-red-500/50" : "bg-indigo-600 shadow-indigo-500/30"
+                                currentTargetId === target.id ? "bg-red-500 shadow-red-500/50" : "bg-orange-600 shadow-orange-500/30"
                             )}>
                                 <div className="text-2xl">👾</div>
                             </div>
@@ -385,7 +385,7 @@ export const SpaceBattleExperience: React.FC<SpaceBattleExperienceProps> = ({
             <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20">
                 <div className="relative">
                     <div className="w-16 h-16 bg-slate-800 rounded-xl flex items-center justify-center border-2 border-slate-600 shadow-xl transform rotate-45">
-                        <Rocket className="w-10 h-10 text-sky-400 transform -rotate-45" />
+                        <Rocket className="w-10 h-10 text-orange-400 transform -rotate-45" />
                     </div>
                     {/* Engine Flame */}
                     <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-4 h-8 bg-orange-500 blur-md animate-pulse" />

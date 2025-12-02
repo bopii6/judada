@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import classNames from 'classnames';
 
 export const Mascot = () => {
@@ -27,8 +27,8 @@ export const Mascot = () => {
         <div className="fixed bottom-8 right-8 z-40 hidden md:block pointer-events-none">
             <div className="relative w-32 h-32">
                 {/* Speech Bubble */}
-                <div className="absolute -top-16 -left-20 bg-white px-4 py-2 rounded-2xl rounded-br-none shadow-lg border-2 border-indigo-100 animate-bounce duration-[3000ms]">
-                    <p className="text-sm font-bold text-indigo-600 whitespace-nowrap">Ready to play? 🎵</p>
+                <div className="absolute -top-16 -left-20 bg-white px-4 py-2 rounded-2xl rounded-br-none shadow-lg border-2 border-orange-100 animate-bounce duration-[3000ms]">
+                    <p className="text-sm font-bold text-orange-600 whitespace-nowrap">Ready to play? 🎵</p>
                 </div>
 
                 {/* Bear Body */}

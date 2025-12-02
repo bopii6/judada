@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+﻿import React, { useState, useRef } from 'react';
 import { useSoundEffects } from '../../hooks/useSoundEffects';
 
 // 世界城市数据 - 包含丰富的文化信息
@@ -32,7 +32,7 @@ const WORLD_CITIES = [
         icon: '🗼',
         landmark: '埃菲尔铁塔',
         landmarkEn: 'Eiffel Tower',
-        bgColor: 'from-blue-800 to-indigo-900',
+        bgColor: 'from-orange-800 to-orange-900',
         funFact: '埃菲尔铁塔每7年要刷一次漆，需要60吨油漆！',
         weather: '🌤️',
         sentences: [
@@ -645,7 +645,7 @@ export const TelegraphPage = () => {
                                             <div className="text-xs text-gray-400">成功电报</div>
                                         </div>
                                         <div>
-                                            <div className="text-2xl font-bold text-blue-400">
+                                            <div className="text-2xl font-bold text-orange-400">
                                                 {stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0}%
                                             </div>
                                             <div className="text-xs text-gray-400">准确率</div>

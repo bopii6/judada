@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import classNames from "classnames";
 import { format, subDays, eachDayOfInterval, isSameDay } from "date-fns";
 
@@ -87,8 +87,8 @@ export const ActivityGarden: React.FC<ActivityGardenProps> = ({ className }) => 
                                     "w-full h-full rounded-2xl flex items-center justify-center text-2xl transition-all duration-300 cursor-default border-2",
                                     level === 0 ? "bg-emerald-50 border-emerald-100 text-emerald-200/50" :
                                         level === 1 ? "bg-emerald-100 border-emerald-200 text-emerald-600" :
-                                            level === 2 ? "bg-sky-100 border-sky-200 text-sky-600" :
-                                                level === 3 ? "bg-purple-100 border-purple-200 text-purple-600" :
+                                            level === 2 ? "bg-orange-100 border-orange-200 text-orange-600" :
+                                                level === 3 ? "bg-amber-100 border-amber-200 text-amber-600" :
                                                     "bg-pink-100 border-pink-200 text-pink-600 shadow-md shadow-pink-100",
                                     isToday && "ring-4 ring-yellow-200 ring-offset-2"
                                 )}

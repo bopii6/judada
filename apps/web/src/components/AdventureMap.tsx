@@ -1,4 +1,4 @@
-import type { CourseStage } from "../api/courses";
+﻿import type { CourseStage } from "../api/courses";
 import { useMemo, useState } from "react";
 import { useProgressStore } from "../store/progressStore";
 import { Map as MapIcon, Star, Lock, ArrowRight, ChevronDown, ChevronRight } from "lucide-react";
@@ -112,10 +112,10 @@ export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
     return (
       <div className="rounded-[2.5rem] bg-white dark:bg-slate-800 p-8 sm:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] border border-slate-100 dark:border-slate-700 relative overflow-hidden">
         {/* Background Decoration */}
-        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-sky-400 via-indigo-400 to-violet-400"></div>
+        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-orange-400 via-orange-400 to-amber-400"></div>
 
         <div className="flex items-center gap-3 mb-8">
-          <div className="p-2.5 rounded-xl bg-sky-100 dark:bg-sky-900/30 text-sky-500 dark:text-sky-400">
+          <div className="p-2.5 rounded-xl bg-orange-100 dark:bg-orange-900/30 text-orange-500 dark:text-orange-400">
             <MapIcon className="w-6 h-6" />
           </div>
           <div>
@@ -150,10 +150,10 @@ export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
   return (
     <div className="rounded-[2.5rem] bg-white dark:bg-slate-800 p-8 sm:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] border border-slate-100 dark:border-slate-700 relative overflow-hidden">
       {/* Background Decoration */}
-      <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-sky-400 via-indigo-400 to-violet-400"></div>
+      <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-orange-400 via-orange-400 to-amber-400"></div>
 
       <div className="flex items-center gap-3 mb-8">
-        <div className="p-2.5 rounded-xl bg-sky-100 dark:bg-sky-900/30 text-sky-500 dark:text-sky-400">
+        <div className="p-2.5 rounded-xl bg-orange-100 dark:bg-orange-900/30 text-orange-500 dark:text-orange-400">
           <MapIcon className="w-6 h-6" />
         </div>
         <div>
@@ -177,7 +177,7 @@ export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
                 onClick={() => toggleUnit(group.unitNumber)}
                 className="w-full flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors text-left"
               >
-                <div className={`p-2 rounded-xl ${unitProgress.percentage === 100 ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'}`}>
+                <div className={`p-2 rounded-xl ${unitProgress.percentage === 100 ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'}`}>
                   {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                 </div>
                 
@@ -201,7 +201,7 @@ export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
                 <div className="hidden sm:flex items-center gap-3 w-32">
                   <div className="flex-1 h-2 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
                     <div 
-                      className={`h-full rounded-full transition-all ${unitProgress.percentage === 100 ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+                      className={`h-full rounded-full transition-all ${unitProgress.percentage === 100 ? 'bg-emerald-500' : 'bg-orange-500'}`}
                       style={{ width: `${unitProgress.percentage}%` }}
                     />
                   </div>
@@ -263,7 +263,7 @@ const StageCard = ({ stage, completed, unlocked, stars, showArrow, onStart, comp
       className={`${compact ? 'w-14 h-14 rounded-xl text-lg' : 'w-20 h-20 rounded-[2rem] text-2xl'} flex items-center justify-center font-black shadow-lg transition-transform duration-300 mb-3 relative z-10 ${completed
         ? "bg-gradient-to-br from-emerald-400 to-teal-500 text-white scale-110 shadow-emerald-200"
         : unlocked
-          ? "bg-white dark:bg-slate-700 border-4 border-indigo-100 dark:border-indigo-800 text-indigo-500 dark:text-indigo-400 hover:scale-110 hover:border-indigo-200 dark:hover:border-indigo-700 hover:shadow-xl hover:shadow-indigo-100 dark:hover:shadow-indigo-900/30"
+          ? "bg-white dark:bg-slate-700 border-4 border-orange-100 dark:border-orange-800 text-orange-500 dark:text-orange-400 hover:scale-110 hover:border-orange-200 dark:hover:border-orange-700 hover:shadow-xl hover:shadow-orange-100 dark:hover:shadow-orange-900/30"
           : "bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed"
         }`}
     >
@@ -312,7 +312,7 @@ const StageCard = ({ stage, completed, unlocked, stars, showArrow, onStart, comp
       )}
 
       <div className="flex justify-center">
-        <span className={`text-xs font-bold ${unlocked ? "text-indigo-500 dark:text-indigo-400" : "text-slate-400 dark:text-slate-500"}`}>
+        <span className={`text-xs font-bold ${unlocked ? "text-orange-500 dark:text-orange-400" : "text-slate-400 dark:text-slate-500"}`}>
           {unlocked ? "点击开始" : "完成上一关解锁"}
         </span>
       </div>

@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+﻿import React, { useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Play, ChevronRight, ChevronLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -31,7 +31,7 @@ export const MusicLevelSelectionPage = () => {
     };
 
     return (
-        <div className="min-h-screen w-full bg-gradient-to-r from-sky-200 via-indigo-200 to-purple-200 text-slate-800 font-sans overflow-hidden flex flex-col">
+        <div className="min-h-screen w-full bg-gradient-to-r from-orange-200 via-orange-200 to-amber-200 text-slate-800 font-sans overflow-hidden flex flex-col">
             {/* Background Elements (Parallax-ish) */}
             <div className="fixed inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-[10%] left-[5%] w-32 h-32 bg-white/30 rounded-full blur-3xl" />
@@ -64,13 +64,13 @@ export const MusicLevelSelectionPage = () => {
                 {/* Navigation Buttons (Desktop) */}
                 <button
                     onClick={() => scroll("left")}
-                    className="hidden md:flex absolute left-8 z-30 w-14 h-14 rounded-full bg-white/80 backdrop-blur-md shadow-lg items-center justify-center hover:scale-110 active:scale-95 transition-all text-slate-600 hover:text-indigo-600"
+                    className="hidden md:flex absolute left-8 z-30 w-14 h-14 rounded-full bg-white/80 backdrop-blur-md shadow-lg items-center justify-center hover:scale-110 active:scale-95 transition-all text-slate-600 hover:text-orange-600"
                 >
                     <ChevronLeft className="w-8 h-8" />
                 </button>
                 <button
                     onClick={() => scroll("right")}
-                    className="hidden md:flex absolute right-8 z-30 w-14 h-14 rounded-full bg-white/80 backdrop-blur-md shadow-lg items-center justify-center hover:scale-110 active:scale-95 transition-all text-slate-600 hover:text-indigo-600"
+                    className="hidden md:flex absolute right-8 z-30 w-14 h-14 rounded-full bg-white/80 backdrop-blur-md shadow-lg items-center justify-center hover:scale-110 active:scale-95 transition-all text-slate-600 hover:text-orange-600"
                 >
                     <ChevronRight className="w-8 h-8" />
                 </button>
@@ -99,7 +99,7 @@ export const MusicLevelSelectionPage = () => {
                                 className="block w-[280px] md:w-[320px] transition-transform duration-500 hover:-translate-y-4"
                             >
                                 {/* Card / Island */}
-                                <div className="bg-white rounded-[2.5rem] p-4 shadow-xl shadow-indigo-900/10 border-[6px] border-white group-hover:shadow-2xl group-hover:shadow-indigo-500/20 transition-all duration-300 relative overflow-hidden">
+                                <div className="bg-white rounded-[2.5rem] p-4 shadow-xl shadow-orange-900/10 border-[6px] border-white group-hover:shadow-2xl group-hover:shadow-orange-500/20 transition-all duration-300 relative overflow-hidden">
 
                                     {/* Level Badge */}
                                     <div className="absolute top-4 left-4 z-20 bg-slate-900 text-white text-xs font-black px-3 py-1 rounded-full shadow-md">
@@ -117,7 +117,7 @@ export const MusicLevelSelectionPage = () => {
 
                                         {/* Play Button Overlay */}
                                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 bg-black/10 backdrop-blur-[1px]">
-                                            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg transform scale-50 group-hover:scale-100 transition-transform duration-300 text-indigo-600">
+                                            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg transform scale-50 group-hover:scale-100 transition-transform duration-300 text-orange-600">
                                                 <Play className="w-8 h-8 fill-current ml-1" />
                                             </div>
                                         </div>
@@ -125,7 +125,7 @@ export const MusicLevelSelectionPage = () => {
 
                                     {/* Info */}
                                     <div className="text-center space-y-1 pb-2">
-                                        <h3 className="text-xl font-black text-slate-800 line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                                        <h3 className="text-xl font-black text-slate-800 line-clamp-1 group-hover:text-orange-600 transition-colors">
                                             {track.title}
                                         </h3>
                                         {track.titleCn && (

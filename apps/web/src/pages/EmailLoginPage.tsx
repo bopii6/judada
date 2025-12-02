@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Mail, ArrowLeft, CheckCircle, Send, Timer } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
@@ -108,7 +108,7 @@ export default function EmailLoginPage() {
     <div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center px-4 py-12 font-sans text-slate-700 relative overflow-hidden">
       {/* Playful Background Blobs */}
       <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-orange-100/60 rounded-full blur-3xl animate-pulse" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-sky-100/60 rounded-full blur-3xl animate-pulse delay-1000" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-orange-100/60 rounded-full blur-3xl animate-pulse delay-1000" />
 
       <div className="relative z-10 max-w-md w-full">
         <button
@@ -123,7 +123,7 @@ export default function EmailLoginPage() {
 
         <div className="bg-white rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] p-8 sm:p-10 border border-slate-100 relative overflow-hidden">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-sky-100 text-sky-500 rounded-2xl mb-4 shadow-sm transform -rotate-3">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-orange-100 text-orange-500 rounded-2xl mb-4 shadow-sm transform -rotate-3">
               <Mail className="w-8 h-8" />
             </div>
             <h1 className="text-2xl font-black text-slate-800">邮箱验证登录</h1>
@@ -151,7 +151,7 @@ export default function EmailLoginPage() {
                   value={formData.email}
                   onChange={e => setFormData({ ...formData, email: e.target.value })}
                   placeholder="name@example.com"
-                  className="block w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-sky-400 transition-all font-medium"
+                  className="block w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-400 transition-all font-medium"
                   onKeyPress={e => e.key === "Enter" && sendCode()}
                 />
               </div>
@@ -159,7 +159,7 @@ export default function EmailLoginPage() {
               <button
                 onClick={sendCode}
                 disabled={loading || !formData.email}
-                className="w-full group relative overflow-hidden px-8 py-4 rounded-2xl bg-sky-500 text-white text-lg font-bold shadow-lg shadow-sky-200 hover:bg-sky-400 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
+                className="w-full group relative overflow-hidden px-8 py-4 rounded-2xl bg-orange-500 text-white text-lg font-bold shadow-lg shadow-orange-200 hover:bg-orange-400 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 <span className="relative flex items-center justify-center gap-2">
                   {loading ? "发送中..." : "发送验证码"}
@@ -187,7 +187,7 @@ export default function EmailLoginPage() {
                     setFormData({ ...formData, code: value });
                   }}
                   placeholder="000000"
-                  className="block w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-800 placeholder-slate-300 focus:outline-none focus:bg-white focus:border-sky-400 transition-all font-mono text-center text-2xl tracking-widest font-bold"
+                  className="block w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-800 placeholder-slate-300 focus:outline-none focus:bg-white focus:border-orange-400 transition-all font-mono text-center text-2xl tracking-widest font-bold"
                   onKeyPress={e => e.key === "Enter" && verifyCode()}
                 />
               </div>
@@ -196,7 +196,7 @@ export default function EmailLoginPage() {
                 <button
                   onClick={verifyCode}
                   disabled={loading || formData.code.length !== 6}
-                  className="flex-1 bg-sky-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-sky-200 hover:bg-sky-400 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                  className="flex-1 bg-orange-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-orange-200 hover:bg-orange-400 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   {loading ? "验证中..." : "登录"}
                 </button>
@@ -204,7 +204,7 @@ export default function EmailLoginPage() {
                 <button
                   onClick={resendCode}
                   disabled={countdown > 0}
-                  className="px-6 py-4 border-2 border-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 hover:text-sky-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[100px]"
+                  className="px-6 py-4 border-2 border-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 hover:text-orange-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[100px]"
                 >
                   {countdown > 0 ? (
                     <span className="flex items-center gap-1">

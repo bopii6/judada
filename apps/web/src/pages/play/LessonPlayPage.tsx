@@ -217,12 +217,12 @@ export const LessonPlayPage = () => {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans selection:bg-indigo-100 dark:selection:bg-indigo-900 selection:text-indigo-700 dark:selection:text-indigo-300 transition-colors">
+    <div className="relative min-h-screen overflow-hidden bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans selection:bg-orange-100 dark:selection:bg-orange-900 selection:text-orange-700 dark:selection:text-orange-300 transition-colors">
       {/* Elegant Background Elements */}
       <div className="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-[-20%] left-[-10%] w-[800px] h-[800px] bg-indigo-200/20 dark:bg-indigo-900/20 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-normal animate-blob" />
-        <div className="absolute top-[-10%] right-[-20%] w-[600px] h-[600px] bg-purple-200/20 dark:bg-purple-900/20 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-normal animate-blob animation-delay-2000" />
-        <div className="absolute bottom-[-20%] left-[20%] w-[600px] h-[600px] bg-pink-200/20 dark:bg-pink-900/20 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-normal animate-blob animation-delay-4000" />
+        <div className="absolute top-[-20%] left-[-10%] w-[800px] h-[800px] bg-orange-200/20 dark:bg-orange-900/20 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-normal animate-blob" />
+        <div className="absolute top-[-10%] right-[-20%] w-[600px] h-[600px] bg-amber-200/20 dark:bg-amber-900/20 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-normal animate-blob animation-delay-2000" />
+        <div className="absolute bottom-[-20%] left-[20%] w-[600px] h-[600px] bg-orange-200/20 dark:bg-orange-900/20 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-normal animate-blob animation-delay-4000" />
       </div>
 
       {/* Top Navigation */}
@@ -244,7 +244,7 @@ export const LessonPlayPage = () => {
           <div className="hidden sm:flex items-center gap-3">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/80 dark:bg-slate-700/80 px-4 py-2 border border-slate-200/60 dark:border-slate-600/60 shadow-sm backdrop-blur-sm">
               {activeMode === "tiles" ? (
-                <MousePointer2 className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
+                <MousePointer2 className="w-3.5 h-3.5 text-orange-500 dark:text-orange-400" />
               ) : activeMode === "dictation" ? (
                 <Volume2 className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
               ) : (
@@ -357,7 +357,7 @@ export const LessonPlayPage = () => {
                       </div>
                       <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/60 dark:bg-slate-700/60 backdrop-blur-sm ring-1 ring-slate-200/50 dark:ring-slate-700/50">
                         <div
-                          className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 shadow-[0_0_10px_rgba(99,102,241,0.5)] transition-all duration-500 ease-out"
+                          className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-500 shadow-[0_0_10px_rgba(251,146,60,0.5)] transition-all duration-500 ease-out"
                           style={{ width: `${progressPercent}%` }}
                         />
                       </div>

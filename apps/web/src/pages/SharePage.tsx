@@ -1,4 +1,4 @@
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+﻿import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Trophy, Star, Share2, Copy, ArrowLeft } from "lucide-react";
@@ -89,7 +89,7 @@ export const SharePage = () => {
             </div>
             <p className="text-xs font-semibold tracking-[0.8em] text-slate-400 uppercase">Mission Complete</p>
             <h1 className="text-3xl sm:text-4xl font-black text-slate-900">{courseTitle}</h1>
-            <p className="text-sm font-semibold text-indigo-500 tracking-[0.4em] uppercase">
+            <p className="text-sm font-semibold text-orange-500 tracking-[0.4em] uppercase">
               {stageTotal} 个练习 · {formatDuration(elapsedSeconds)}
             </p>
           </div>
@@ -100,7 +100,7 @@ export const SharePage = () => {
               <p className="text-3xl font-black text-slate-800">{comboStreak || stageTotal}</p>
               <p className="text-sm text-slate-500 mt-1">{comboMessage}</p>
             </div>
-            <div className="rounded-2xl bg-white/80 py-5 px-6 text-left border border-white/80 shadow-md shadow-indigo-100/50">
+            <div className="rounded-2xl bg-white/80 py-5 px-6 text-left border border-white/80 shadow-md shadow-orange-100/50">
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-[0.3em] mb-2">星级</p>
               <div className="flex items-center gap-2 text-yellow-400">
                 {[...Array(3)].map((_, idx) => (
