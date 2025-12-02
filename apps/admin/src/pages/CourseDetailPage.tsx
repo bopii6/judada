@@ -26,6 +26,7 @@ import {
   unpublishUnit,
   deleteUnit,
   uploadUnitMaterial,
+  UploadUnitMaterialOptions,
   uploadUnitCover,
   regeneratePackageMaterial,
   deletePackageMaterial,
@@ -34,6 +35,7 @@ import {
   updateLessonContent,
   deleteLessonById,
   createManualLesson,
+  importTextbookPdf,
   type UpdateCoursePackagePayload,
   type CreateUnitPayload,
   type UpdateUnitPayload
@@ -49,6 +51,10 @@ const statusTextMap: Record<string, string> = {
 
 const MAX_COVER_SIZE = 5 * 1024 * 1024;
 const MAX_UPLOAD_SIZE = 15 * 1024 * 1024;
+const MAX_PDF_UPLOAD_SIZE = 80 * 1024 * 1024;
+const DEFAULT_PDF_SPLIT_PAGES = 8;
+const MIN_PDF_SPLIT_PAGES = 1;
+const MAX_PDF_SPLIT_PAGES = 16;
 
 const formatBytes = (bytes?: number | null) => {
   if (!bytes) return "未知大小";
@@ -68,6 +74,23 @@ const parseNumericValue = (value: unknown): number | null => {
     }
   }
   return null;
+};
+
+const getMaterialPageRange = (material: PackageMaterialSummary): { start: number; end: number } | null => {
+  const metadata = (material.metadata ?? {}) as Record<string, unknown>;
+  const rangeCandidate = metadata.pageRange;
+  if (!rangeCandidate || typeof rangeCandidate !== "object") {
+    return null;
+  }
+  const range = rangeCandidate as Record<string, unknown>;
+  const start = parseNumericValue(range.start);
+  const end = parseNumericValue(range.end);
+  if (start === null || end === null) {
+    return null;
+  }
+  const normalizedStart = Math.max(1, Math.round(start));
+  const normalizedEnd = Math.max(normalizedStart, Math.round(end));
+  return { start: normalizedStart, end: normalizedEnd };
 };
 
 const getMaterialPageNumber = (material: PackageMaterialSummary): number | null => {
@@ -98,6 +121,10 @@ const getMaterialPageNumber = (material: PackageMaterialSummary): number | null 
 };
 
 const formatMaterialLabel = (material: PackageMaterialSummary) => {
+  const range = getMaterialPageRange(material);
+  if (range) {
+    return range.start === range.end ? `Page ${range.start}` : `Pages ${range.start}-${range.end}`;
+  }
   const pageNumber = getMaterialPageNumber(material);
   if (pageNumber !== null) {
     const normalized = Math.max(1, Math.round(pageNumber));
@@ -170,6 +197,7 @@ export const CourseDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const coverInputRef = useRef<HTMLInputElement | null>(null);
+  const fullBookInputRef = useRef<HTMLInputElement | null>(null);
   const [coverError, setCoverError] = useState<string | null>(null);
   const [coverSuccess, setCoverSuccess] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
@@ -185,6 +213,7 @@ export const CourseDetailPage = () => {
   const [newUnitTitle, setNewUnitTitle] = useState("");
   const [newUnitDescription, setNewUnitDescription] = useState("");
   const [newUnitSequence, setNewUnitSequence] = useState("");
+  const [bookImportMessage, setBookImportMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const {
     data,
@@ -299,6 +328,38 @@ export const CourseDetailPage = () => {
       setNewUnitDescription("");
       setNewUnitSequence("");
       void refetchUnits();
+    }
+  });
+
+  const importBookMutation = useMutation({
+    mutationFn: async (file: File) => {
+      if (!id) throw new Error("课程包ID缺失");
+      return importTextbookPdf(id, file);
+    },
+    onMutate: () => {
+      setBookImportMessage(null);
+    },
+    onSuccess: result => {
+      const unitCount = result.units.length;
+      const message =
+        unitCount > 0
+          ? `已解析 ${unitCount} 个单元，系统正在为每个单元生成关卡`
+          : "上传成功，但未解析到单元信息";
+      setBookImportMessage({
+        type: unitCount > 0 ? "success" : "error",
+        text: message
+      });
+      void refetchUnits();
+      void refetchMaterials();
+      void queryClient.invalidateQueries({ queryKey: ["generation-jobs"] });
+    },
+    onError: failure => {
+      setBookImportMessage({ type: "error", text: (failure as Error).message });
+    },
+    onSettled: () => {
+      if (fullBookInputRef.current) {
+        fullBookInputRef.current.value = "";
+      }
     }
   });
 
@@ -432,6 +493,28 @@ export const CourseDetailPage = () => {
     coverMutation.mutate(file);
   };
 
+  const handleFullBookUploadClick = () => {
+    setBookImportMessage(null);
+    fullBookInputRef.current?.click();
+  };
+
+  const handleFullBookFileChange: ChangeEventHandler<HTMLInputElement> = event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_PDF_UPLOAD_SIZE) {
+      setBookImportMessage({ type: "error", text: "整本教材 PDF 不能超过 80MB" });
+      event.target.value = "";
+      return;
+    }
+    const isPdf = file.type.includes("pdf") || file.name.toLowerCase().endsWith(".pdf");
+    if (!isPdf) {
+      setBookImportMessage({ type: "error", text: "请上传 PDF 格式的教材" });
+      event.target.value = "";
+      return;
+    }
+    importBookMutation.mutate(file);
+  };
+
   const handleBasicInfoChange =
     (key: "title" | "topic" | "description") =>
     (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -553,6 +636,36 @@ export const CourseDetailPage = () => {
         hidden
         onChange={handleCoverFileChange}
       />
+      <input
+        ref={fullBookInputRef}
+        type="file"
+        accept="application/pdf"
+        hidden
+        onChange={handleFullBookFileChange}
+      />
+
+      <section className="textbook-import-card">
+        <div className="textbook-import-info">
+          <div>
+            <h2>整书自动导入</h2>
+            <p>上传包含目录的完整 PDF，系统会根据目录自动创建单元并生成关卡。</p>
+          </div>
+          {bookImportMessage && (
+            <p className={`textbook-import-message ${bookImportMessage.type}`}>{bookImportMessage.text}</p>
+          )}
+        </div>
+        <div className="textbook-import-actions">
+          <button
+            type="button"
+            className="primary"
+            onClick={handleFullBookUploadClick}
+            disabled={importBookMutation.isPending}
+          >
+            {importBookMutation.isPending ? "解析中..." : "📚 上传整本教材"}
+          </button>
+          <p className="textbook-import-hint">PDF ≤ 80MB，目录需带有单元名称与页码</p>
+        </div>
+      </section>
 
       {(coverError || coverSuccess || updateError || updateSuccess) && (
         <div className="course-detail-upload-feedback-stack">
@@ -790,6 +903,8 @@ const UnitCard = ({
   const [uploadMessage, setUploadMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [lessonMessage, setLessonMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [lessonEditor, setLessonEditor] = useState<LessonEditorState | null>(null);
+  const [autoSplitPdf, setAutoSplitPdf] = useState(false);
+  const [splitPageCount, setSplitPageCount] = useState(DEFAULT_PDF_SPLIT_PAGES);
 
   const updateMutation = useMutation({
     mutationFn: (payload: UpdateUnitPayload) => updateUnit(unit.id, payload),
@@ -868,10 +983,12 @@ const UnitCard = ({
     }
   });
 
+  type UploadMaterialPayload = { files: File[]; options?: UploadUnitMaterialOptions };
+
   const uploadMaterialMutation = useMutation({
-    mutationFn: (files: File[]) => uploadUnitMaterial(unit.id, files),
+    mutationFn: (payload: UploadMaterialPayload) => uploadUnitMaterial(unit.id, payload.files, payload.options),
     onSuccess: (result) => {
-      setUploadMessage({ type: "success", text: result.message || "素材上传成功，正在生成关卡..." });
+      setUploadMessage({ type: "success", text: result.message || "素材上传成功，正在生成关卡中..." });
       onUpdate();
       void queryClient.invalidateQueries({ queryKey: ["generation-jobs"] });
     },
@@ -896,9 +1013,44 @@ const UnitCard = ({
     fileInputRef.current?.click();
   };
 
+  const handleSplitPageInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const raw = Number(event.target.value);
+    if (Number.isNaN(raw)) {
+      setSplitPageCount(DEFAULT_PDF_SPLIT_PAGES);
+      return;
+    }
+    const clamped = Math.max(MIN_PDF_SPLIT_PAGES, Math.min(MAX_PDF_SPLIT_PAGES, Math.round(raw)));
+    setSplitPageCount(clamped);
+  };
+
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
+
+    if (autoSplitPdf) {
+      if (files.length > 1) {
+        setUploadMessage({ type: "error", text: "自动切分模式一次仅支持一个 PDF" });
+        return;
+      }
+      const target = files[0];
+      const name = target.name.toLowerCase();
+      const isPdf = target.type.includes('pdf') || name.endsWith('.pdf');
+      if (!isPdf) {
+        setUploadMessage({ type: "error", text: "请上传 PDF 文档以便自动切分" });
+        return;
+      }
+      if (target.size > MAX_PDF_UPLOAD_SIZE) {
+        setUploadMessage({ type: "error", text: "PDF 体积超过 80MB，暂无法切分" });
+        return;
+      }
+      uploadMaterialMutation.mutate({
+        files,
+        options: { splitPdf: true, splitPageCount }
+      });
+      e.target.value = "";
+      return;
+    }
+
     if (files.length > 10) {
       setUploadMessage({ type: "error", text: "最多只能上传10张图片" });
       return;
@@ -908,7 +1060,7 @@ const UnitCard = ({
       setUploadMessage({ type: "error", text: "文件大小不能超过15MB" });
       return;
     }
-    uploadMaterialMutation.mutate(files);
+    uploadMaterialMutation.mutate({ files });
     e.target.value = "";
   };
 
@@ -1087,20 +1239,6 @@ const UnitCard = ({
               </div>
             </div>
           )}
-
-          {/* 关卡列表 */}
-          <div className="unit-lessons">
-            <h4>关卡列表</h4>
-            {lessonCount === 0 ? (
-              <p className="lessons-empty">暂无关卡，请上传素材自动生成</p>
-            ) : (
-              <div className="lessons-grid">
-                {unit.lessons?.map(lesson => (
-                  <LessonCard key={lesson.id} lesson={lesson} />
-                ))}
-              </div>
-            )}
-          </div>
 
           <div className="unit-materials-tree">
             <h4>素材与关卡树</h4>

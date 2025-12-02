@@ -1,4 +1,4 @@
-import path from "node:path";
+﻿import path from "node:path";
 
 import type { Express } from "express";
 import { Prisma, SourceType } from "@prisma/client";
@@ -7,6 +7,8 @@ import { getEnv } from "../config/env";
 import { enqueuePackageGenerationJob } from "../jobs/packageGeneration.queue";
 import { getPrisma } from "../lib/prisma";
 import { getSupabase } from "../lib/supabase";
+import { splitPdfIntoChunks, extractPdfRange } from "../utils/pdfSplit";
+import { extractTextbookToc } from "../utils/textbookToc";
 import {
   CreateCoursePackageInput,
   CreateCoursePackageVersionInput,
@@ -16,11 +18,19 @@ import {
 } from "../repositories";
 
 const prisma = getPrisma();
+type UploadableFile = Pick<Express.Multer.File, "originalname" | "mimetype" | "size" | "buffer">;
 const COURSE_COVER_FOLDER = "course-covers";
 const COURSE_COVER_ROUTE_PREFIX = "/api/course-covers";
 const ALLOWED_COVER_MIME = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 const COVER_PATH_REGEX = /course-covers\/.+$/;
 let hasEnsuredCoverBucket = false;
+const MAX_UPLOAD_FILES = 10;
+const MAX_SPLIT_PDF_PARTS = 200;
+const DEFAULT_SPLIT_PAGE_COUNT = 8;
+const MIN_SPLIT_PAGE_COUNT = 1;
+const MAX_SPLIT_PAGE_COUNT = 16;
+const MAX_DIRECT_FILE_SIZE = 15 * 1024 * 1024; // 15MB 图片/小文件限制
+const MAX_SPLITTABLE_PDF_SIZE = 80 * 1024 * 1024; // 80MB 单个PDF上限，用于自动切分
 
 const sanitizeCoverFileName = (name: string) => {
   if (!name) return "cover";
@@ -97,7 +107,25 @@ export interface GenerateFromUploadInput {
   files?: Express.Multer.File[];
   triggeredById?: string | null;
   unitId?: string | null; // 关联的单元ID
+  splitPdf?: boolean;
+  splitPageCount?: number;
+  fileMetadata?: Array<Record<string, unknown>>;
+  maxFileCountOverride?: number;
 }
+
+const isPdfFile = (file: UploadableFile | null | undefined) => {
+  if (!file) return false;
+  const mime = file.mimetype?.toLowerCase() ?? "";
+  if (mime.includes("pdf")) return true;
+  const ext = path.extname(file.originalname ?? "").toLowerCase();
+  return ext === ".pdf";
+};
+
+const clampSplitPageCount = (value?: number) => {
+  if (typeof value !== "number") return DEFAULT_SPLIT_PAGE_COUNT;
+  if (Number.isNaN(value)) return DEFAULT_SPLIT_PAGE_COUNT;
+  return Math.min(Math.max(Math.round(value), MIN_SPLIT_PAGE_COUNT), MAX_SPLIT_PAGE_COUNT);
+};
 
 export interface UpdatePackagePayload {
   title?: string;
@@ -296,19 +324,76 @@ export const coursePackageService = {
 
   /**
    * 上传 PDF/图片并创建生成任务。
-   * 支持单文件或多文件上传（最多10张图片）
+   * 支持单文件或多文件上传，若开启自动切分可将整本 PDF 拆成多个素材。
    */
-  enqueueGenerationFromUpload: async ({ packageId, file, files, triggeredById = null, unitId = null }: GenerateFromUploadInput) => {
-    // 支持单文件或多文件上传
-    const filesToUpload = files && files.length > 0 ? files : (file ? [file] : []);
-    
+  enqueueGenerationFromUpload: async ({
+    packageId,
+    file,
+    files,
+    triggeredById = null,
+    unitId = null,
+    splitPdf = false,
+    splitPageCount,
+    fileMetadata = [],
+    maxFileCountOverride
+  }: GenerateFromUploadInput) => {
+    let filesToUpload: UploadableFile[] =
+      files && files.length > 0 ? (files as UploadableFile[]) : file ? ([file] as UploadableFile[]) : [];
+
     if (filesToUpload.length === 0) {
       throw new Error("请上传有效的文件");
     }
 
-    // 限制最多10张图片
-    if (filesToUpload.length > 10) {
-      throw new Error("最多只能上传10张图片");
+    const normalizedSplitPages = clampSplitPageCount(splitPageCount);
+    const shouldSplitPdf = splitPdf && filesToUpload.length === 1 && isPdfFile(filesToUpload[0]);
+    const baseMetadata = fileMetadata.map(entry => ({ ...entry }));
+    const cloneMetadataList = (length: number, source: Array<Record<string, unknown>>) =>
+      Array.from({ length }, (_, index) => ({ ...(source[index] ?? {}) }));
+    let perFileMetadata = cloneMetadataList(filesToUpload.length, baseMetadata);
+
+    if (shouldSplitPdf) {
+      const targetFile = filesToUpload[0];
+      if (targetFile.size > MAX_SPLITTABLE_PDF_SIZE) {
+        throw new Error("PDF 文件过大，暂不支持自动切分（上限 80MB）");
+      }
+
+      const originalExt = path.extname(targetFile.originalname || ".pdf") || ".pdf";
+      const baseName = path.basename(targetFile.originalname || "material.pdf", originalExt);
+      const chunks = await splitPdfIntoChunks(targetFile.buffer, {
+        pagesPerChunk: normalizedSplitPages,
+        maxChunks: MAX_SPLIT_PDF_PARTS
+      });
+
+      if (chunks.length === 0) {
+        throw new Error("未能从 PDF 中读取有效页面");
+      }
+
+      const metadataForChunks = chunks.map(chunk => ({
+        ...(baseMetadata[0] ?? {}),
+        pageRange: { start: chunk.pageStart, end: chunk.pageEnd, total: chunk.totalPages },
+        splitIndex: chunk.chunkIndex,
+        splitCount: chunks.length
+      }));
+
+      filesToUpload = chunks.map(chunk => {
+        const paddedStart = String(chunk.pageStart).padStart(2, "0");
+        const paddedEnd = String(chunk.pageEnd).padStart(2, "0");
+        const chunkName = `${baseName}-p${paddedStart}-p${paddedEnd}${originalExt}`;
+        return {
+          originalname: chunkName,
+          mimetype: targetFile.mimetype || "application/pdf",
+          size: chunk.buffer.byteLength,
+          buffer: chunk.buffer
+        };
+      });
+      perFileMetadata = metadataForChunks;
+    } else {
+      perFileMetadata = cloneMetadataList(filesToUpload.length, baseMetadata);
+    }
+
+    const maxAllowed = shouldSplitPdf ? MAX_SPLIT_PDF_PARTS : maxFileCountOverride ?? MAX_UPLOAD_FILES;
+    if (filesToUpload.length > maxAllowed) {
+      throw new Error(`最多只能上传 ${maxAllowed} 份素材`);
     }
 
     const { SUPABASE_STORAGE_BUCKET } = getEnv();
@@ -322,6 +407,10 @@ export const coursePackageService = {
       if (!currentFile || !currentFile.buffer?.length) {
         continue;
       }
+
+       if (!shouldSplitPdf && currentFile.size > MAX_DIRECT_FILE_SIZE) {
+         throw new Error("文件大小不能超过15MB");
+       }
 
       const originalName = currentFile.originalname || `upload-${i}.bin`;
       const ext = path.extname(originalName).toLowerCase();
@@ -348,6 +437,25 @@ export const coursePackageService = {
       const sourceType: SourceType =
         contentType.includes("pdf") || originalName.toLowerCase().endsWith(".pdf") ? "pdf_upload" : "image_ocr";
 
+      const extra = perFileMetadata[i] ?? {};
+      const metadata: Record<string, unknown> = {
+        uploadedAt: new Date().toISOString(),
+        originalFileName: originalName,
+        fileIndex: i,
+        totalFiles: filesToUpload.length,
+        ...extra
+      };
+      if (extra?.pageRange) {
+        metadata.pageRange = extra.pageRange;
+      }
+      if (shouldSplitPdf) {
+        metadata.splitInfo = {
+          chunkIndex: extra?.splitIndex ?? i,
+          chunkCount: extra?.splitCount ?? filesToUpload.length,
+          splitPageCount: normalizedSplitPages
+        };
+      }
+
       const asset = await prisma.asset.create({
         data: {
           packageId,
@@ -356,12 +464,7 @@ export const coursePackageService = {
           mimeType: contentType,
           fileSize: currentFile.size,
           sourceType,
-          metadata: {
-            uploadedAt: new Date().toISOString(),
-            originalFileName: originalName,
-            fileIndex: i,
-            totalFiles: filesToUpload.length
-          }
+          metadata
         }
       });
 
@@ -760,6 +863,127 @@ export const coursePackageService = {
     return { job, assets };
   },
 
+  /**
+   * 上传整本教材 PDF，解析目录并自动创建单元和生成任务
+   */
+  importTextbookFromPdf: async (
+    packageId: string,
+    file: Express.Multer.File,
+    triggeredById?: string | null
+  ) => {
+    if (!file || !file.buffer?.length) {
+      const error = new Error("请上传完整的教材 PDF");
+      (error as any).status = 400;
+      throw error;
+    }
+
+    if (!isPdfFile(file)) {
+      const error = new Error("仅支持上传 PDF 格式的教材文件");
+      (error as any).status = 400;
+      throw error;
+    }
+
+    const tocResult = await extractTextbookToc(file.buffer);
+    if (!tocResult.units.length) {
+      throw new Error("未能从教材目录中解析出单元信息，请检查目录排版");
+    }
+
+    const allUnits = await prisma.unit.findMany({
+      where: { packageId },
+      orderBy: { sequence: "asc" }
+    });
+    const activeUnits = allUnits.filter(unit => unit.deletedAt === null);
+    const existingMap = new Map(activeUnits.map(unit => [unit.title.toLowerCase(), unit]));
+    const existingSequences = new Set(allUnits.map(unit => unit.sequence));
+    let sequenceCursor = activeUnits.reduce((max, unit) => Math.max(max, unit.sequence ?? 0), 0);
+    const createdUnits: Array<{
+      unitId: string;
+      title: string;
+      pageStart: number;
+      pageEnd: number;
+      jobId: string;
+    }> = [];
+
+    for (const entry of tocResult.units) {
+      const titleFromToc = entry.topic ? `${entry.unitLabel} ${entry.topic}` : entry.unitLabel;
+      const normalizedTitle = titleFromToc.trim() || entry.unitLabel;
+      const normalizedKey = normalizedTitle.toLowerCase();
+      let unit = existingMap.get(normalizedKey);
+
+      if (!unit) {
+        sequenceCursor += 1;
+        while (existingSequences.has(sequenceCursor)) {
+          sequenceCursor += 1;
+        }
+        unit = await prisma.unit.create({
+          data: {
+            packageId,
+            sequence: sequenceCursor,
+            title: normalizedTitle,
+            description: entry.topic ?? null,
+            status: "draft"
+          }
+        });
+        existingSequences.add(sequenceCursor);
+        existingMap.set(normalizedKey, unit);
+      }
+
+      const safeName = normalizedTitle.replace(/[\\/:*?"<>|]+/g, "-").slice(0, 48) || `unit-${sequenceCursor}`;
+      const perPageFiles: UploadableFile[] = [];
+      const fileMetadata: Record<string, unknown>[] = [];
+      for (let page = entry.startPage; page <= entry.endPage; page++) {
+        const slice = await extractPdfRange(file.buffer, page, page);
+        perPageFiles.push({
+          originalname: `${safeName}-page-${page}.pdf`,
+          mimetype: file.mimetype || "application/pdf",
+          size: slice.buffer.byteLength,
+          buffer: slice.buffer
+        });
+        fileMetadata.push({
+          source: "textbook_import",
+          pageRange: {
+            start: page,
+            end: page,
+            total: slice.totalPages
+          },
+          lessonPages: [page],
+          lessonTargetCount: 5
+        });
+      }
+
+      const { job } = await coursePackageService.enqueueGenerationFromUpload({
+        packageId,
+        files: perPageFiles,
+        triggeredById: triggeredById ?? null,
+        unitId: unit.id,
+        fileMetadata,
+        maxFileCountOverride: perPageFiles.length
+      });
+
+      createdUnits.push({
+        unitId: unit.id,
+        title: unit.title,
+        pageStart: entry.startPage,
+        pageEnd: entry.endPage,
+        jobId: job.id
+      });
+    }
+
+    const reorderedUnits = await prisma.unit.findMany({
+      where: { packageId, deletedAt: null },
+      orderBy: { createdAt: "asc" }
+    });
+    await prisma.$transaction(
+      reorderedUnits.map((unit, index) =>
+        prisma.unit.update({
+          where: { id: unit.id },
+          data: { sequence: index + 1 }
+        })
+      )
+    );
+
+    return { units: createdUnits };
+  },
   getMaterialLessonTree: async (packageId: string) => {
     const [assets, lessons] = await Promise.all([
       prisma.asset.findMany({
@@ -919,3 +1143,4 @@ export const coursePackageService = {
     return { url: result.data.signedUrl };
   }
 };
+

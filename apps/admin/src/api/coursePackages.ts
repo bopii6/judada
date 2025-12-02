@@ -446,11 +446,22 @@ export const deleteUnit = (unitId: string) =>
   );
 
 // 为单元上传素材并生成关卡
-export const uploadUnitMaterial = (unitId: string, files: File[]) => {
+export interface UploadUnitMaterialOptions {
+  splitPdf?: boolean;
+  splitPageCount?: number;
+}
+
+export const uploadUnitMaterial = (unitId: string, files: File[], options?: UploadUnitMaterialOptions) => {
   const formData = new FormData();
   files.forEach((f) => {
     formData.append("files", f);
   });
+  if (options?.splitPdf) {
+    formData.append("splitPdf", "true");
+    if (options.splitPageCount) {
+      formData.append("splitPageCount", String(options.splitPageCount));
+    }
+  }
   return apiFetch<{ success: boolean; job: GenerationJob; assets: PackageAssetSummary[]; message: string }>(
     `/admin/units/${unitId}/generate`,
     {
@@ -466,6 +477,26 @@ export const uploadUnitCover = (unitId: string, file: File) => {
   formData.append("file", file);
   return apiFetch<{ unit: UnitSummary; coverUrl: string }>(
     `/admin/units/${unitId}/cover`,
+    {
+      method: "POST",
+      body: formData
+    }
+  );
+};
+
+export interface TextbookImportUnitSummary {
+  unitId: string;
+  title: string;
+  pageStart: number;
+  pageEnd: number;
+  jobId: string;
+}
+
+export const importTextbookPdf = (packageId: string, file: File) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiFetch<{ success: boolean; units: TextbookImportUnitSummary[] }>(
+    `/admin/course-packages/${packageId}/textbook-import`,
     {
       method: "POST",
       body: formData

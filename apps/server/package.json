@@ -41,6 +41,7 @@
     "nodemailer": "^6.9.8",
     "openai": "^4.26.0",
     "papaparse": "^5.4.1",
+    "pdf-lib": "^1.17.1",
     "pdf-parse": "^1.1.1",
     "tencentcloud-sdk-nodejs": "^4.1.136",
     "uuid": "^13.0.0",

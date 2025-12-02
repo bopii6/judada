@@ -15,7 +15,7 @@ const router: ExpressRouter = Router();
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 15 * 1024 * 1024 // 15MB
+    fileSize: 80 * 1024 * 1024 // 80MB，支持整本教材 PDF
   }
 });
 
@@ -192,16 +192,42 @@ router.post(
         return;
       }
 
+      const splitPdfFlag = req.body?.splitPdf === "true" || req.body?.splitPdf === "1";
+      const splitPageCountRaw =
+        typeof req.body?.splitPageCount === "string" ? Number(req.body.splitPageCount) : undefined;
+      const normalizedSplitPageCount =
+        typeof splitPageCountRaw === "number" && Number.isFinite(splitPageCountRaw) ? splitPageCountRaw : undefined;
+
       const { job, assets } = await coursePackageService.enqueueGenerationFromUpload({
         packageId: req.params.id,
         files: files && files.length > 0 ? files : (file ? [file] : []),
-        triggeredById: parsed.data.triggeredById ?? null
+        triggeredById: parsed.data.triggeredById ?? null,
+        splitPdf: splitPdfFlag,
+        splitPageCount: normalizedSplitPageCount
       });
 
       res.status(202).json({
         job,
         assets: assets || []
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.post(
+  "/course-packages/:id/textbook-import",
+  upload.single("file"),
+  async (req, res, next) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "请上传整本教材 PDF" });
+        return;
+      }
+      const userId = (req as any).user?.id ?? null;
+      const result = await coursePackageService.importTextbookFromPdf(req.params.id, req.file, userId);
+      res.json({ success: true, ...result });
     } catch (error) {
       next(error);
     }
@@ -817,12 +843,20 @@ router.post(
         return;
       }
 
+      const splitPdfFlag = req.body?.splitPdf === "true" || req.body?.splitPdf === "1";
+      const splitPageCountRaw =
+        typeof req.body?.splitPageCount === "string" ? Number(req.body.splitPageCount) : undefined;
+      const normalizedSplitPageCount =
+        typeof splitPageCountRaw === "number" && Number.isFinite(splitPageCountRaw) ? splitPageCountRaw : undefined;
+
       // 调用课程包服务上传素材，关联到单元
       const result = await coursePackageService.enqueueGenerationFromUpload({
         packageId: unit.packageId,
         files,
         triggeredById: undefined,
-        unitId
+        unitId,
+        splitPdf: splitPdfFlag,
+        splitPageCount: normalizedSplitPageCount
       });
 
       res.status(201).json({
