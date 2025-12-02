@@ -282,11 +282,12 @@ export const Membership: React.FC = () => {
             </div>
 
             <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-6 mb-6 border border-slate-100 dark:border-slate-800">
-              <div className="aspect-square bg-white rounded-xl flex items-center justify-center mb-4 border border-slate-200 border-dashed">
-                <div className="text-center">
-                  <QrCode className="w-16 h-16 text-slate-300 mx-auto mb-2" />
-                  <p className="text-xs text-slate-400">二维码加载区域</p>
-                </div>
+              <div className="aspect-square bg-white rounded-xl flex items-center justify-center mb-4 border border-slate-200 border-dashed overflow-hidden p-2">
+                <img 
+                  src="/qrcode.png" 
+                  alt="微信支付二维码" 
+                  className="w-full h-full object-contain"
+                />
               </div>
               <div className="text-center">
                 <div className="text-2xl font-black text-slate-900 dark:text-white">
