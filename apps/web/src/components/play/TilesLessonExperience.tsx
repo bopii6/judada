@@ -154,18 +154,18 @@ export const TilesLessonExperience = ({ stage, onSuccess, onMistake }: TilesLess
   const answerBoxClass = classNames(
     "min-h-[120px] w-full rounded-[2rem] border-2 px-8 py-6 text-2xl font-bold tracking-wide shadow-sm transition-all duration-300 flex items-center",
     {
-      "border-slate-100 bg-white": status === "idle",
-      "lesson-animate-shake border-red-200 bg-red-50 ring-4 ring-red-100": status === "error",
-      "lesson-animate-pop border-emerald-200 bg-emerald-50 ring-4 ring-emerald-100": status === "success"
+      "border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800": status === "idle",
+      "lesson-animate-shake border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 ring-4 ring-red-100 dark:ring-red-900/30": status === "error",
+      "lesson-animate-pop border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 ring-4 ring-emerald-100 dark:ring-emerald-900/30": status === "success"
     }
   );
 
   const tileButtonClass = (disabled: boolean) =>
     classNames(
-      "rounded-2xl bg-white border-b-4 border-slate-200 px-6 py-3 text-lg font-bold text-slate-700 shadow-sm transition-all active:border-b-0 active:translate-y-1 hover:-translate-y-0.5",
+      "rounded-2xl bg-white dark:bg-slate-700 border-b-4 border-slate-200 dark:border-slate-600 px-6 py-3 text-lg font-bold text-slate-700 dark:text-slate-200 shadow-sm transition-all active:border-b-0 active:translate-y-1 hover:-translate-y-0.5",
       {
         "opacity-50 pointer-events-none": disabled,
-        "hover:border-indigo-200 hover:text-indigo-600": !disabled
+        "hover:border-indigo-200 dark:hover:border-indigo-600 hover:text-indigo-600 dark:hover:text-indigo-400": !disabled
       }
     );
 
@@ -173,25 +173,25 @@ export const TilesLessonExperience = ({ stage, onSuccess, onMistake }: TilesLess
     <div className="flex h-full w-full flex-col items-center justify-between gap-8">
       <div className="flex-1 flex flex-col items-center justify-center gap-8 w-full max-w-3xl">
         <div className="text-center space-y-2">
-          <h3 className="text-2xl sm:text-3xl font-black text-slate-800 leading-relaxed">
+          <h3 className="text-2xl sm:text-3xl font-black text-slate-800 dark:text-slate-100 leading-relaxed">
             {displaySentence}
           </h3>
           {translationText && (
-            <p className="text-sm text-slate-500 mt-2">{translationText}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{translationText}</p>
           )}
         </div>
 
         <div className={answerBoxClass}>
           <div className="flex flex-wrap items-center gap-3 w-full">
             {selected.length === 0 && (
-              <span className="text-lg font-medium text-slate-300 select-none">
+              <span className="text-lg font-medium text-slate-300 dark:text-slate-600 select-none">
                 点击下方词块组成句子
               </span>
             )}
             {selected.map(token => (
               <span
                 key={token.id}
-                className="rounded-xl bg-sky-100 text-sky-700 border border-sky-200 px-4 py-2 text-lg font-bold shadow-sm animate-in zoom-in duration-200"
+                className="rounded-xl bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 px-4 py-2 text-lg font-bold shadow-sm animate-in zoom-in duration-200"
               >
                 {token.text}
               </span>
@@ -212,17 +212,17 @@ export const TilesLessonExperience = ({ stage, onSuccess, onMistake }: TilesLess
             </button>
           ))}
           {!pool.length && selected.length !== canonicalTokens.length && (
-            <div className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-400">
+            <div className="rounded-xl bg-slate-100 dark:bg-slate-700 px-4 py-2 text-sm font-bold text-slate-400 dark:text-slate-500">
               所有词块都已使用
             </div>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-4 w-full justify-center border-t border-slate-100 pt-6">
+      <div className="flex items-center gap-4 w-full justify-center border-t border-slate-100 dark:border-slate-700 pt-6">
         <button
           type="button"
-          className="flex items-center gap-2 rounded-xl px-4 py-2 text-slate-500 font-bold hover:bg-slate-100 transition-colors"
+          className="flex items-center gap-2 rounded-xl px-4 py-2 text-slate-500 dark:text-slate-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
           onClick={() => {
             playClickSound();
             speak(stage.answerEn, { rate: 0.95, preferredLocales: ["en-US", "en-GB"] });
@@ -231,10 +231,10 @@ export const TilesLessonExperience = ({ stage, onSuccess, onMistake }: TilesLess
           <Volume2 className="w-5 h-5" />
           <span className="text-sm">再听一遍 (Space)</span>
         </button>
-        <div className="h-4 w-px bg-slate-200"></div>
+        <div className="h-4 w-px bg-slate-200 dark:bg-slate-700"></div>
         <button
           type="button"
-          className="flex items-center gap-2 rounded-xl px-4 py-2 text-slate-500 font-bold hover:bg-slate-100 transition-colors disabled:opacity-40"
+          className="flex items-center gap-2 rounded-xl px-4 py-2 text-slate-500 dark:text-slate-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-40"
           onClick={() => {
             playClickSound();
             handleUndo();

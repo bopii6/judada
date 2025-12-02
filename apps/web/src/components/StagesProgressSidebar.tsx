@@ -122,25 +122,19 @@ export const StagesProgressSidebar: React.FC<StagesProgressSidebarProps> = ({
         : `${currentIndex + 1} / ${stages.length}`;
 
     return (
-        <div className={classNames("flex flex-col h-full bg-white/40 backdrop-blur-sm border-r border-white/60", className)}>
-            <div className="px-6 py-3 border-b border-white/40">
-                <p className="text-xs font-semibold text-slate-400">进度 {progressLabel}</p>
-            </div>
-
+        <div className={classNames("flex flex-col h-full bg-white/40 dark:bg-slate-800/40 backdrop-blur-sm border-r border-white/60 dark:border-slate-700/60", className)}>
             <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
                 {displayGroups.map(group => (
                     <div
                         key={group.key}
-                        className="rounded-3xl border border-white/80 bg-gradient-to-b from-white to-slate-50/70 p-4 shadow-sm space-y-4"
+                        className="rounded-3xl border border-white/80 dark:border-slate-700/80 bg-gradient-to-b from-white to-slate-50/70 dark:from-slate-800 dark:to-slate-900/70 p-4 shadow-sm space-y-4"
                     >
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-400">单元</p>
-                                <p className="text-base font-black text-slate-900 mt-1">{group.unitLabel}</p>
+                                <p className="text-base font-black text-slate-900 dark:text-slate-100">{group.unitLabel}</p>
                             </div>
                             <div className="text-right">
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-400">页码</p>
-                                <p className="text-base font-black text-indigo-500 mt-1">{group.pageLabel}</p>
+                                <p className="text-base font-black text-indigo-500 dark:text-indigo-400">{group.pageLabel}</p>
                             </div>
                         </div>
                         <div className="space-y-2">
@@ -156,27 +150,27 @@ export const StagesProgressSidebar: React.FC<StagesProgressSidebarProps> = ({
                                         className={classNames(
                                             "flex items-start gap-3 rounded-2xl border px-3 py-2 transition-all",
                                             isCurrent
-                                                ? "border-indigo-300 bg-indigo-50 shadow-sm"
+                                                ? "border-indigo-300 dark:border-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 shadow-sm"
                                                 : isCompleted
-                                                    ? "border-transparent bg-white/70 text-slate-400 line-through decoration-emerald-200"
-                                                    : "border-dashed border-slate-200 bg-white/40 text-slate-500"
+                                                    ? "border-transparent bg-white/70 dark:bg-slate-700/70 text-slate-400 dark:text-slate-500 line-through decoration-emerald-200 dark:decoration-emerald-800"
+                                                    : "border-dashed border-slate-200 dark:border-slate-700 bg-white/40 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400"
                                         )}
                                     >
                                         <div className="mt-1">
                                             {isCompleted ? (
-                                                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                                <CheckCircle2 className="w-4 h-4 text-emerald-400 dark:text-emerald-500" />
                                             ) : isCurrent ? (
-                                                <PlayCircle className="w-4 h-4 text-indigo-500" />
+                                                <PlayCircle className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
                                             ) : (
-                                                <Circle className="w-4 h-4 text-slate-300" />
+                                                <Circle className="w-4 h-4 text-slate-300 dark:text-slate-600" />
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0 space-y-1">
-                                            <p className={classNames("text-sm font-semibold", isCurrent ? "text-slate-900" : undefined)}>
+                                            <p className={classNames("text-sm font-semibold", isCurrent ? "text-slate-900 dark:text-slate-100" : undefined)}>
                                                 {english || "未提供句子"}
                                             </p>
                                             {stage.promptCn && (
-                                                <p className="text-xs text-slate-500">
+                                                <p className="text-xs text-slate-500 dark:text-slate-400">
                                                     {stage.promptCn}
                                                 </p>
                                             )}

@@ -88,17 +88,17 @@ export const TypingLessonExperience = ({
   const isDictationMode = variant === "dictation";
   const displaySentence = isDictationMode ? translationText || "请根据语音提示默写英文句子" : englishPrompt;
   const wordSlots = useMemo(() => buildWordSlots(answerText), [answerText]);
-  
+
   const [wordInputs, setWordInputs] = useState<string[]>([]);
   const [wordErrors, setWordErrors] = useState<Record<number, boolean>>({});
   const [feedback, setFeedback] = useState<{ type: "correct" | "incorrect" | null; message?: string }>({ type: null });
   const [autoCheckLocked, setAutoCheckLocked] = useState(false);
 
   const prevHelpLevelRef = useRef(externalHelpLevel);
-  
+
   const blockRefs = useRef<Array<HTMLInputElement | null>>([]);
   const successTimeoutRef = useRef<number | null>(null);
-  
+
   // 输入锁定：当答案正确时锁定输入（与音乐闯关保持一致）
   const isInputLocked = feedback.type === "correct";
 
@@ -227,7 +227,7 @@ export const TypingLessonExperience = ({
       setFeedback({ type: "correct", message: "Perfect!" });
       setAutoCheckLocked(false);
       playSuccessSound();
-      
+
       successTimeoutRef.current = window.setTimeout(() => {
         setWordInputs(wordSlots.map(() => ""));
         setWordErrors({});
@@ -304,63 +304,76 @@ export const TypingLessonExperience = ({
   const showHintLetters = isDictationMode && externalHelpLevel >= 1;
   const showAnswerReveal = isDictationMode && externalHelpLevel >= 2;
 
+  // 计算单词数量，分成两行，第二行比第一行长
+  const totalSlots = wordSlots.length;
+  // 第一行约占总数的40%，第二行约60%，确保第二行更长
+  const firstLineCount = Math.max(1, Math.floor(totalSlots * 0.4));
+  const firstLineSlots = wordSlots.slice(0, firstLineCount);
+  const secondLineSlots = wordSlots.slice(firstLineCount);
+
   return (
-    <div className="flex h-full w-full flex-col items-center justify-between gap-8">
-      <div className="flex-1 flex flex-col items-center justify-center w-full max-w-3xl">
-        <div className="w-full">
-          <div className="rounded-[32px] border border-slate-100 bg-gradient-to-br from-white to-slate-50 shadow-sm px-6 py-6 sm:px-10 space-y-4 text-center">
+    <div className="flex h-full w-full flex-col items-center justify-center gap-6">
+      <div className="flex flex-col items-center justify-center w-full max-w-4xl">
+        {/* Title Section */}
+        <div className="w-full mb-10">
+          <div className="text-center">
             {!isDictationMode && (
-              <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 dark:bg-indigo-900/30 px-4 py-1.5 text-xs font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider ring-1 ring-indigo-100 dark:ring-indigo-800 mb-6">
                 英文句子
               </div>
             )}
 
-            <h3 className="text-2xl sm:text-3xl font-black text-slate-800 leading-relaxed drop-shadow-sm max-w-2xl mx-auto">
+            <h3 className="text-3xl sm:text-4xl font-black text-slate-800 dark:text-slate-100 leading-tight tracking-tight drop-shadow-sm max-w-3xl mx-auto">
               {displaySentence}
             </h3>
+          </div>
+        </div>
+
+        {/* Translation Section - First Red Box Area */}
+        <div className="w-full mb-14 min-h-[60px] flex items-center justify-center">
+          <div className="text-center">
             {!isDictationMode && translationText && (
-              <p className="text-sm text-slate-500 max-w-2xl mx-auto">{translationText}</p>
+              <p className="text-lg text-slate-500 dark:text-slate-400 font-medium max-w-2xl mx-auto leading-relaxed">{translationText}</p>
             )}
 
             {showAnswerReveal && (
-              <div className="px-4 py-3 rounded-2xl bg-amber-50 border border-amber-100 text-amber-700 text-sm font-semibold shadow-sm text-center max-w-2xl mx-auto">
+              <div className="px-6 py-4 rounded-2xl bg-amber-50 dark:bg-amber-900/30 border border-amber-100 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-base font-bold shadow-sm text-center max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-2">
                 {englishPrompt}
               </div>
             )}
           </div>
         </div>
 
-        {/* Word Slots Input Area - 与音乐闯关一致的布局 */}
-        <div className="mt-8 w-full">
-          <div className="rounded-[32px] border border-slate-100 bg-white/70 px-4 py-6 sm:px-8 shadow-inner">
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              {wordSlots.map((slot, index) => {
+        {/* Word Slots Input Area - Second Red Box Area (Two Rows) */}
+        <div className="w-full mb-20">
+          <div className="flex flex-col items-center justify-center gap-y-6">
+            {/* First Row */}
+            <div className="flex flex-wrap items-baseline justify-center gap-x-1.5 leading-relaxed max-w-3xl">
+              {firstLineSlots.map((slot, index) => {
                 const slotWidthCh = getSlotWidthCh(slot);
                 const isLockedSlot = slot.fillableLength === 0;
                 return (
-                  <div key={slot.id} className="flex flex-col items-center">
+                  <div key={slot.id} className="inline-flex items-baseline">
                     <div
                       className={classNames(
-                        "relative group/input flex items-center justify-center rounded-2xl border-2 px-4 py-3 bg-white/90 shadow-sm transition-all",
+                        "relative inline-flex items-center justify-center transition-all duration-200",
                         isLockedSlot
-                          ? "border-transparent bg-transparent shadow-none"
-                          : wordErrors[index]
-                            ? "border-rose-200 shadow-rose-100 lesson-animate-shake"
-                            : "border-slate-200 hover:border-indigo-200"
+                          ? "px-1"
+                          : "px-2"
                       )}
                     >
                       {isLockedSlot ? (
-                        <span className="text-2xl font-bold text-slate-300">{slot.core}</span>
+                        <span className="text-3xl sm:text-4xl font-bold text-slate-700 dark:text-slate-200 select-none">{slot.core}</span>
                       ) : (
                         <>
                           {!wordInputs[index] && (slot.prefill || (showHintLetters && slot.fillableLength > 0)) && (
                             <span
                               className={classNames(
-                                "absolute left-3 top-2 text-[10px] font-semibold tracking-[0.3em]",
-                                showHintLetters ? "text-amber-500" : "text-slate-300"
+                                "absolute left-1/2 -translate-x-1/2 bottom-1 text-xs font-medium tracking-[0.15em] pointer-events-none transition-opacity",
+                                showHintLetters ? "text-amber-400/80 dark:text-amber-500/80" : "text-slate-300/60 dark:text-slate-600/60"
                               )}
                             >
-                              {(slot.prefill || slot.core.charAt(0)).toUpperCase()}
+                              {(slot.prefill || slot.core).toUpperCase()}
                             </span>
                           )}
 
@@ -375,21 +388,21 @@ export const TypingLessonExperience = ({
                             disabled={isInputLocked}
                             style={{ width: `${slotWidthCh}ch` }}
                             className={classNames(
-                              "bg-transparent text-2xl font-bold tracking-wide text-center outline-none transition-colors relative z-10",
-                              wordErrors[index] ? "text-rose-500" : "text-slate-900",
+                              "bg-transparent text-3xl sm:text-4xl font-bold tracking-wide text-center outline-none transition-all relative z-10 font-mono pb-1",
+                              wordErrors[index]
+                                ? "text-rose-500 dark:text-rose-400 border-b-2 border-rose-400 dark:border-rose-500 lesson-animate-shake"
+                                : wordInputs[index]
+                                  ? "text-slate-800 dark:text-slate-100 border-b-2 border-indigo-400 dark:border-indigo-500"
+                                  : "text-slate-800 dark:text-slate-100 border-b-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-indigo-300 dark:hover:border-indigo-500 focus:border-solid focus:border-indigo-500 dark:focus:border-indigo-400",
                               "placeholder-transparent"
                             )}
+                            autoComplete="off"
+                            autoCorrect="off"
+                            spellCheck="false"
                           />
-                          <div
-                            className={classNames(
-                              "absolute inset-x-3 bottom-2 h-0.5 rounded-full transition-all duration-300",
-                              wordErrors[index]
-                                ? "bg-rose-400"
-                                : "bg-slate-200 group-focus-within/input:bg-indigo-500 group-focus-within/input:h-1"
-                            )}
-                          />
+
                           {slot.suffix && (
-                            <span className="absolute -right-3 top-1/2 -translate-y-1/2 text-2xl font-bold text-slate-400">
+                            <span className="ml-0.5 text-3xl sm:text-4xl font-bold text-slate-700 dark:text-slate-200 select-none">
                               {slot.suffix}
                             </span>
                           )}
@@ -400,75 +413,145 @@ export const TypingLessonExperience = ({
                 );
               })}
             </div>
+
+            {/* Second Row */}
+            {secondLineSlots.length > 0 && (
+              <div className="flex flex-wrap items-baseline justify-center gap-x-1.5 leading-relaxed max-w-3xl">
+                {secondLineSlots.map((slot, originalIndex) => {
+                  const index = firstLineCount + originalIndex;
+                  const slotWidthCh = getSlotWidthCh(slot);
+                  const isLockedSlot = slot.fillableLength === 0;
+                  return (
+                    <div key={slot.id} className="inline-flex items-baseline">
+                      <div
+                        className={classNames(
+                          "relative inline-flex items-center justify-center transition-all duration-200",
+                          isLockedSlot
+                            ? "px-1"
+                            : "px-2"
+                        )}
+                      >
+                        {isLockedSlot ? (
+                          <span className="text-3xl sm:text-4xl font-bold text-slate-700 dark:text-slate-200 select-none">{slot.core}</span>
+                        ) : (
+                          <>
+                            {!wordInputs[index] && (slot.prefill || (showHintLetters && slot.fillableLength > 0)) && (
+                              <span
+                                className={classNames(
+                                  "absolute left-1/2 -translate-x-1/2 bottom-1 text-xs font-medium tracking-[0.15em] pointer-events-none transition-opacity",
+                                  showHintLetters ? "text-amber-400/80 dark:text-amber-500/80" : "text-slate-300/60 dark:text-slate-600/60"
+                                )}
+                              >
+                                {(slot.prefill || slot.core).toUpperCase()}
+                              </span>
+                            )}
+
+                            <input
+                              ref={element => {
+                                blockRefs.current[index] = element;
+                              }}
+                              value={wordInputs[index] ?? ""}
+                              onChange={event => handleWordInputChange(index, event.target.value)}
+                              onKeyDown={(e) => handleWordKeyDown(e, index)}
+                              maxLength={slot.fillableLength || undefined}
+                              disabled={isInputLocked}
+                              style={{ width: `${slotWidthCh}ch` }}
+                              className={classNames(
+                                "bg-transparent text-3xl sm:text-4xl font-bold tracking-wide text-center outline-none transition-all relative z-10 font-mono pb-1",
+                                wordErrors[index]
+                                  ? "text-rose-500 dark:text-rose-400 border-b-2 border-rose-400 dark:border-rose-500 lesson-animate-shake"
+                                  : wordInputs[index]
+                                    ? "text-slate-800 dark:text-slate-100 border-b-2 border-indigo-400 dark:border-indigo-500"
+                                    : "text-slate-800 dark:text-slate-100 border-b-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-indigo-300 dark:hover:border-indigo-500 focus:border-solid focus:border-indigo-500 dark:focus:border-indigo-400",
+                                "placeholder-transparent"
+                              )}
+                              autoComplete="off"
+                              autoCorrect="off"
+                              spellCheck="false"
+                            />
+
+                            {slot.suffix && (
+                              <span className="ml-0.5 text-3xl sm:text-4xl font-bold text-slate-700 dark:text-slate-200 select-none">
+                                {slot.suffix}
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Feedback Message */}
-          {feedback.type && (
-            <div className="mt-6 flex justify-center">
+          <div className="h-12 mt-8 flex items-center justify-center">
+            {feedback.type && (
               <div
                 className={classNames(
-                  "flex items-center gap-3 px-5 py-3 rounded-full text-sm font-bold uppercase tracking-wider shadow-lg border animate-in fade-in zoom-in duration-300",
+                  "flex items-center gap-3 px-6 py-3 rounded-2xl text-base font-bold shadow-xl border animate-in fade-in zoom-in duration-300",
                   feedback.type === "correct"
-                    ? "bg-emerald-50 text-emerald-600 border-emerald-100 shadow-emerald-100"
-                    : "bg-rose-50 text-rose-600 border-rose-100 shadow-rose-100"
+                    ? "bg-emerald-500 dark:bg-emerald-600 text-white border-emerald-600 dark:border-emerald-500 shadow-emerald-500/30"
+                    : "bg-white dark:bg-slate-800 text-rose-500 dark:text-rose-400 border-rose-100 dark:border-rose-800 shadow-rose-200 dark:shadow-rose-900/30"
                 )}
               >
                 {feedback.type === "correct" ? (
-                  <CheckCircle2 className="w-5 h-5" />
+                  <CheckCircle2 className="w-6 h-6" />
                 ) : (
-                  <XCircle className="w-5 h-5" />
+                  <XCircle className="w-6 h-6" />
                 )}
                 {feedback.message}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Bottom Action Bar */}
-      <div className="flex items-center gap-4 w-full justify-center border-t border-slate-100 pt-6">
-        <button
-          type="button"
-          className="group flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-white font-bold shadow-lg shadow-slate-200 hover:bg-indigo-600 hover:scale-105 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-          onClick={() => {
-            playClickSound();
-            checkAnswer();
-          }}
-          disabled={isSubmitDisabled}
-        >
-          <span>提交</span>
-          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-        </button>
+        {/* Bottom Action Bar - Third Red Box Area */}
+        <div className="flex items-center gap-3 w-full justify-center pt-10">
+          <button
+            type="button"
+            className="group flex items-center gap-2 rounded-xl bg-slate-900 dark:bg-slate-700 px-5 py-2.5 text-white dark:text-slate-100 text-sm font-semibold shadow-lg shadow-slate-900/20 dark:shadow-slate-900/40 hover:bg-slate-800 dark:hover:bg-slate-600 hover:scale-[1.02] transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-none"
+            onClick={() => {
+              playClickSound();
+              checkAnswer();
+            }}
+            disabled={isSubmitDisabled}
+          >
+            <span>提交答案</span>
+            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          </button>
 
-        <div className="h-8 w-px bg-slate-200 mx-2"></div>
+          <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 mx-2"></div>
 
-        <button
-          type="button"
-          className="p-3 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-          title="重播提示 (Ctrl + Space)"
-          onClick={() => {
-            playClickSound();
-            speak(stage.answerEn, { rate: 0.95, preferredLocales: ["en-US", "en-GB"] });
-          }}
-        >
-          <Volume2 className="w-5 h-5" />
-        </button>
+          <button
+            type="button"
+            className="p-2.5 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-all active:scale-95"
+            title="重播提示 (Ctrl + Space)"
+            onClick={() => {
+              playClickSound();
+              speak(stage.answerEn, { rate: 0.95, preferredLocales: ["en-US", "en-GB"] });
+            }}
+          >
+            <Volume2 className="w-4 h-4" />
+          </button>
 
-        <button
-          type="button"
-          className="p-3 rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-          title="清空"
-          onClick={() => {
-            playClickSound();
-            setWordInputs(wordSlots.map(() => ""));
-            setWordErrors({});
-            setFeedback({ type: null });
-            setAutoCheckLocked(false);
-            focusFirstWritableBlock();
-          }}
-        >
-          <Trash2 className="w-5 h-5" />
-        </button>
+          <button
+            type="button"
+            className="p-2.5 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:text-rose-500 dark:hover:text-rose-400 transition-all active:scale-95"
+            title="清空"
+            onClick={() => {
+              playClickSound();
+              setWordInputs(wordSlots.map(() => ""));
+              setWordErrors({});
+              setFeedback({ type: null });
+              setAutoCheckLocked(false);
+              focusFirstWritableBlock();
+            }}
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );

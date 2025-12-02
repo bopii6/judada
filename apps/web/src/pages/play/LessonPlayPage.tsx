@@ -217,35 +217,40 @@ export const LessonPlayPage = () => {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#FFFBF5] text-slate-800 font-sans">
-      {/* Playful Background Blobs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-orange-100/60 rounded-full blur-3xl animate-pulse" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-sky-100/60 rounded-full blur-3xl animate-pulse delay-1000" />
+    <div className="relative min-h-screen overflow-hidden bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans selection:bg-indigo-100 dark:selection:bg-indigo-900 selection:text-indigo-700 dark:selection:text-indigo-300 transition-colors">
+      {/* Elegant Background Elements */}
+      <div className="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-[-20%] left-[-10%] w-[800px] h-[800px] bg-indigo-200/20 dark:bg-indigo-900/20 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-normal animate-blob" />
+        <div className="absolute top-[-10%] right-[-20%] w-[600px] h-[600px] bg-purple-200/20 dark:bg-purple-900/20 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-normal animate-blob animation-delay-2000" />
+        <div className="absolute bottom-[-20%] left-[20%] w-[600px] h-[600px] bg-pink-200/20 dark:bg-pink-900/20 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-normal animate-blob animation-delay-4000" />
+      </div>
 
       {/* Top Navigation */}
-      <header className="relative z-20 mx-auto flex w-full items-center justify-between px-6 py-5 sm:px-8 bg-[#FFFBF5]/80 backdrop-blur-md border-b border-slate-200/50">
+      <header className="relative z-20 mx-auto flex w-full items-center justify-between px-6 py-4 sm:px-8 bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border-b border-white/50 dark:border-slate-700/50 sticky top-0">
         <div className="flex items-center gap-4">
           <button
             type="button"
-            className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
+            className="group inline-flex items-center gap-2 text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
             onClick={handleBack}
           >
-            <ArrowLeft className="w-4 h-4" />
+            <div className="p-2 rounded-full bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 group-hover:border-slate-300 dark:group-hover:border-slate-500 group-hover:shadow-sm transition-all">
+              <ArrowLeft className="w-4 h-4" />
+            </div>
             <span>返回课程</span>
           </button>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex items-center gap-3">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 border border-slate-100 shadow-sm">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/80 dark:bg-slate-700/80 px-4 py-2 border border-slate-200/60 dark:border-slate-600/60 shadow-sm backdrop-blur-sm">
               {activeMode === "tiles" ? (
-                <MousePointer2 className="w-3 h-3 text-sky-500" />
+                <MousePointer2 className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
               ) : activeMode === "dictation" ? (
-                <Volume2 className="w-3 h-3 text-amber-500" />
+                <Volume2 className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
               ) : (
-                <Keyboard className="w-3 h-3 text-violet-500" />
+                <Keyboard className="w-3.5 h-3.5 text-violet-500 dark:text-violet-400" />
               )}
-              <span className="text-xs font-bold text-slate-600">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
                 {activeMode === "tiles" ? "点词" : activeMode === "type" ? "拼写" : "听写"}
               </span>
             </div>
@@ -255,10 +260,10 @@ export const LessonPlayPage = () => {
                 onClick={handleDictationHelp}
                 disabled={dictationHelpLevel >= 2}
                 className={classNames(
-                  "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold transition-all border",
+                  "inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-all border",
                   dictationHelpLevel >= 2
-                    ? "bg-slate-100 text-slate-400 border-slate-100 cursor-not-allowed"
-                    : "bg-white text-amber-600 border-amber-100 shadow-sm hover:bg-amber-50 hover:text-amber-700"
+                    ? "bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500 border-slate-100 dark:border-slate-600 cursor-not-allowed"
+                    : "bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-800 shadow-sm hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:text-amber-700 dark:hover:text-amber-300"
                 )}
               >
                 <LifeBuoy className="w-3.5 h-3.5" />
@@ -266,65 +271,65 @@ export const LessonPlayPage = () => {
               </button>
             )}
           </div>
-          <div className="rounded-full bg-slate-900 px-4 py-1.5 text-sm font-bold text-white shadow-lg shadow-slate-200">
-            {Math.max(1, currentUnitStageIndex + 1)} <span className="text-slate-400">/</span> {currentUnitStages.length || stages.length}
+          <div className="rounded-full bg-slate-900 dark:bg-slate-700 px-5 py-2 text-sm font-bold text-white dark:text-slate-100 shadow-lg shadow-slate-900/20 dark:shadow-slate-900/40 ring-2 ring-white dark:ring-slate-600">
+            {Math.max(1, currentUnitStageIndex + 1)} <span className="text-slate-500 dark:text-slate-400 mx-1">/</span> {currentUnitStages.length || stages.length}
           </div>
         </div>
       </header>
       {isDictationMode && null}
       {/* Main Content */}
-      <main className="relative z-10 mx-auto flex w-full flex-1 items-center justify-center px-4 pb-10 min-h-[calc(100vh-100px)]">
+      <main className="relative z-10 mx-auto flex w-full flex-1 items-center justify-center px-4 py-6 sm:py-10 min-h-[calc(100vh-80px)]">
         {/* Content Container with Sidebar (for typing mode) */}
         <div
           className={classNames(
-            "flex w-full max-w-6xl gap-8 overflow-hidden",
+            "flex w-full max-w-7xl gap-6 lg:gap-10",
             showSidebar ? "flex-row" : "flex-col"
           )}
         >
           {/* Stages Progress Sidebar (Desktop) */}
           {showSidebar && (
-            <div className="hidden lg:block w-72 shrink-0 h-[calc(100vh-140px)] sticky top-0">
+            <div className="hidden lg:block w-72 shrink-0 h-[calc(100vh-160px)] sticky top-24">
               <StagesProgressSidebar
                 stages={stages}
                 currentIndex={stageIndex}
-                className="rounded-3xl border border-white/60 shadow-sm overflow-hidden h-full"
+                className="rounded-[2rem] border border-white/60 dark:border-slate-700/60 bg-white/60 dark:bg-slate-800/60 backdrop-blur-md shadow-sm overflow-hidden h-full"
               />
             </div>
           )}
 
-          {/* Game Card */}
+          {/* Game Area - No Card Container */}
           <section
             className={classNames(
-              "relative overflow-hidden rounded-3xl bg-white p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border border-slate-100",
-              showSidebar ? "flex-1 min-w-0" : "w-full max-w-4xl"
+              "relative",
+              showSidebar ? "flex-1 min-w-0" : "w-full max-w-4xl mx-auto"
             )}
           >
 
             {completed ? (
-              <div className="relative z-10 flex h-full flex-col items-center justify-center text-center py-20">
-                <div className="w-24 h-24 bg-yellow-100 rounded-full flex items-center justify-center mb-6 animate-bounce">
-                  <Trophy className="w-12 h-12 text-yellow-500" />
+              <div className="relative z-10 flex h-full flex-col items-center justify-center text-center py-24 px-6">
+                <div className="w-32 h-32 bg-gradient-to-br from-yellow-100 to-amber-100 rounded-full flex items-center justify-center mb-8 animate-bounce shadow-inner">
+                  <Trophy className="w-16 h-16 text-amber-500" />
                 </div>
-                <h2 className="text-4xl font-black text-slate-800 mb-4">太棒了！全季通关</h2>
-                <p className="max-w-md text-lg text-slate-500 font-medium mb-8">
+                <h2 className="text-4xl sm:text-5xl font-black text-slate-800 dark:text-slate-100 mb-6 tracking-tight">太棒了！全季通关</h2>
+                <p className="max-w-md text-lg text-slate-500 dark:text-slate-400 font-medium mb-12 leading-relaxed">
                   你已经完成了本课程的所有关卡，休息一下，或者挑战新的课程吧！
                 </p>
-                <div className="flex gap-3 text-5xl mb-10">
+                <div className="flex gap-4 text-6xl mb-12">
                   {[...Array(3)].map((_, idx) => (
                     <Star key={idx} className="fill-yellow-400 text-yellow-400 animate-pulse drop-shadow-sm" style={{ animationDelay: `${idx * 0.15}s` }} />
                   ))}
                 </div>
-                <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
                   <button
                     type="button"
-                    className="flex-1 rounded-2xl bg-slate-900 px-10 py-4 text-lg font-bold text-white shadow-xl hover:scale-105 transition-transform"
+                    className="flex-1 rounded-2xl bg-slate-900 px-8 py-4 text-lg font-bold text-white shadow-xl shadow-slate-900/20 hover:scale-[1.02] hover:bg-slate-800 transition-all active:scale-[0.98]"
                     onClick={handleBack}
                   >
                     返回课程中心
                   </button>
                   <button
                     type="button"
-                    className="flex-1 rounded-2xl border-2 border-slate-900 px-10 py-4 text-lg font-bold text-slate-900 hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+                    className="flex-1 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-8 py-4 text-lg font-bold text-slate-700 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
                     onClick={handleShare}
                   >
                     <Share2 className="w-5 h-5" />
@@ -335,24 +340,24 @@ export const LessonPlayPage = () => {
             ) : (
               <div className="relative z-10 flex h-full flex-col">
                 {!isDictationMode && (
-                  <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex flex-wrap items-center gap-2 min-h-[32px]">
                       {combo > 1 && (
-                        <span className="px-2 py-1 rounded-lg bg-orange-100 text-[10px] font-bold uppercase tracking-wider text-orange-600 animate-pulse">
+                        <span className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold uppercase tracking-wider shadow-lg shadow-orange-500/30 animate-pulse">
                           Combo x{combo} 🔥
                         </span>
                       )}
                     </div>
 
                     {/* Progress Bar */}
-                    <div className="w-full sm:w-48">
-                      <div className="flex justify-between text-xs font-bold text-slate-400 mb-1.5">
+                    <div className="w-full sm:w-56">
+                      <div className="flex justify-between text-xs font-bold text-slate-400 dark:text-slate-500 mb-2">
                         <span>进度</span>
                         <span>{progressPercent}%</span>
                       </div>
-                      <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/60 dark:bg-slate-700/60 backdrop-blur-sm ring-1 ring-slate-200/50 dark:ring-slate-700/50">
                         <div
-                          className="h-full rounded-full bg-gradient-to-r from-sky-400 to-indigo-500 transition-all duration-500 ease-out"
+                          className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 shadow-[0_0_10px_rgba(99,102,241,0.5)] transition-all duration-500 ease-out"
                           style={{ width: `${progressPercent}%` }}
                         />
                       </div>
@@ -361,7 +366,7 @@ export const LessonPlayPage = () => {
                 )}
 
                 {/* Game Area */}
-                <div className="flex-1 flex items-center justify-center min-h-[400px] bg-slate-50/50 rounded-[2rem] border border-slate-100/50 p-4 sm:p-8">
+                <div className="flex-1 flex items-center justify-center min-h-[400px]">
                   {activeMode === "tiles" ? (
                     <TilesLessonExperience
                       stage={currentStage}
@@ -390,15 +395,15 @@ export const LessonPlayPage = () => {
 
       {/* Celebration Overlay */}
       {celebration && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 backdrop-blur-sm">
-          <div className="relative flex flex-col items-center rounded-[2.5rem] bg-white px-12 py-10 text-center shadow-[0_20px_80px_rgba(0,0,0,0.2)] animate-in zoom-in-95 duration-300">
-            <div className="mb-6 flex gap-3 text-6xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 dark:bg-slate-950/60 backdrop-blur-sm p-4">
+          <div className="relative flex flex-col items-center w-full max-w-sm rounded-[2.5rem] bg-white dark:bg-slate-800 px-8 py-12 text-center shadow-2xl animate-in zoom-in-95 duration-300">
+            <div className="mb-8 flex gap-2 text-6xl">
               {[...Array(celebration.stars)].map((_, idx) => (
-                <Star key={idx} className="fill-yellow-400 text-yellow-400 animate-bounce drop-shadow-md" style={{ animationDelay: `${idx * 0.1}s` }} />
+                <Star key={idx} className="fill-yellow-400 text-yellow-400 animate-bounce drop-shadow-lg" style={{ animationDelay: `${idx * 0.1}s` }} />
               ))}
             </div>
-            <h3 className="text-3xl font-black text-slate-800 mb-2">{celebration.message}</h3>
-            <p className="text-slate-500 font-bold text-lg">连击 x{celebration.combo}</p>
+            <h3 className="text-3xl font-black text-slate-800 dark:text-slate-100 mb-3 tracking-tight">{celebration.message}</h3>
+            <p className="text-slate-500 dark:text-slate-400 font-bold text-lg bg-slate-100 dark:bg-slate-700 px-4 py-1 rounded-full">连击 x{celebration.combo}</p>
           </div>
         </div>
       )}
