@@ -19,6 +19,55 @@ import {
 
 const prisma = getPrisma();
 type UploadableFile = Pick<Express.Multer.File, "originalname" | "mimetype" | "size" | "buffer">;
+type IncomingUploadFile = Express.Multer.File | UploadableFile;
+
+const toUploadableFile = (file: IncomingUploadFile): UploadableFile => ({
+  originalname: file.originalname,
+  mimetype: file.mimetype,
+  size: file.size,
+  buffer: file.buffer
+});
+
+const normalizeUploadableFiles = (items?: IncomingUploadFile[]): UploadableFile[] =>
+  (items ?? []).map(toUploadableFile);
+
+const toJsonValue = (value: unknown): Prisma.JsonValue | undefined => {
+  if (value === null) return null;
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return value;
+  }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (Array.isArray(value)) {
+    const result = value
+      .map(item => toJsonValue(item))
+      .filter((item): item is Prisma.JsonValue => item !== undefined);
+    return result as Prisma.JsonArray;
+  }
+  if (typeof value === "object" && value) {
+    return Object.entries(value as Record<string, unknown>).reduce<Prisma.JsonObject>((acc, [key, entry]) => {
+      const sanitized = toJsonValue(entry);
+      if (sanitized !== undefined) {
+        acc[key] = sanitized;
+      }
+      return acc;
+    }, {});
+  }
+  return undefined;
+};
+
+const toJsonObject = (value: Record<string, unknown>): Prisma.JsonObject => {
+  const jsonObject: Prisma.JsonObject = {};
+  for (const [key, entry] of Object.entries(value)) {
+    const sanitized = toJsonValue(entry);
+    if (sanitized !== undefined) {
+      jsonObject[key] = sanitized;
+    }
+  }
+  return jsonObject;
+};
+
 const COURSE_COVER_FOLDER = "course-covers";
 const COURSE_COVER_ROUTE_PREFIX = "/api/course-covers";
 const ALLOWED_COVER_MIME = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
@@ -103,8 +152,8 @@ export interface CreatePackagePayload extends CreateCoursePackageInput {
 
 export interface GenerateFromUploadInput {
   packageId: string;
-  file?: Express.Multer.File;
-  files?: Express.Multer.File[];
+  file?: IncomingUploadFile;
+  files?: IncomingUploadFile[];
   triggeredById?: string | null;
   unitId?: string | null; // 关联的单元ID
   splitPdf?: boolean;
@@ -338,7 +387,7 @@ export const coursePackageService = {
     maxFileCountOverride
   }: GenerateFromUploadInput) => {
     let filesToUpload: UploadableFile[] =
-      files && files.length > 0 ? (files as UploadableFile[]) : file ? ([file] as UploadableFile[]) : [];
+      files && files.length > 0 ? normalizeUploadableFiles(files) : file ? [toUploadableFile(file)] : [];
 
     if (filesToUpload.length === 0) {
       throw new Error("请上传有效的文件");
@@ -346,8 +395,8 @@ export const coursePackageService = {
 
     const normalizedSplitPages = clampSplitPageCount(splitPageCount);
     const shouldSplitPdf = splitPdf && filesToUpload.length === 1 && isPdfFile(filesToUpload[0]);
-    const baseMetadata = fileMetadata.map(entry => ({ ...entry }));
-    const cloneMetadataList = (length: number, source: Array<Record<string, unknown>>) =>
+    const baseMetadata = fileMetadata.map(entry => toJsonObject(entry ?? {}));
+    const cloneMetadataList = (length: number, source: Prisma.JsonObject[]) =>
       Array.from({ length }, (_, index) => ({ ...(source[index] ?? {}) }));
     let perFileMetadata = cloneMetadataList(filesToUpload.length, baseMetadata);
 
@@ -368,12 +417,14 @@ export const coursePackageService = {
         throw new Error("未能从 PDF 中读取有效页面");
       }
 
-      const metadataForChunks = chunks.map(chunk => ({
-        ...(baseMetadata[0] ?? {}),
-        pageRange: { start: chunk.pageStart, end: chunk.pageEnd, total: chunk.totalPages },
-        splitIndex: chunk.chunkIndex,
-        splitCount: chunks.length
-      }));
+      const metadataForChunks: Prisma.JsonObject[] = chunks.map(chunk =>
+        toJsonObject({
+          ...(baseMetadata[0] ?? {}),
+          pageRange: { start: chunk.pageStart, end: chunk.pageEnd, total: chunk.totalPages },
+          splitIndex: chunk.chunkIndex,
+          splitCount: chunks.length
+        })
+      );
 
       filesToUpload = chunks.map(chunk => {
         const paddedStart = String(chunk.pageStart).padStart(2, "0");
@@ -437,23 +488,24 @@ export const coursePackageService = {
       const sourceType: SourceType =
         contentType.includes("pdf") || originalName.toLowerCase().endsWith(".pdf") ? "pdf_upload" : "image_ocr";
 
-      const extra = perFileMetadata[i] ?? {};
-      const metadata: Record<string, unknown> = {
+      const extra = perFileMetadata[i] ?? ({} as Prisma.JsonObject);
+      const metadata = toJsonObject({
         uploadedAt: new Date().toISOString(),
         originalFileName: originalName,
         fileIndex: i,
         totalFiles: filesToUpload.length,
         ...extra
-      };
-      if (extra?.pageRange) {
-        metadata.pageRange = extra.pageRange;
-      }
+      });
       if (shouldSplitPdf) {
-        metadata.splitInfo = {
-          chunkIndex: extra?.splitIndex ?? i,
-          chunkCount: extra?.splitCount ?? filesToUpload.length,
+        const splitData = extra as Record<string, unknown>;
+        const splitInfo = toJsonValue({
+          chunkIndex: typeof splitData.splitIndex === "number" ? (splitData.splitIndex as number) : i,
+          chunkCount: typeof splitData.splitCount === "number" ? (splitData.splitCount as number) : filesToUpload.length,
           splitPageCount: normalizedSplitPages
-        };
+        });
+        if (splitInfo !== undefined) {
+          metadata.splitInfo = splitInfo;
+        }
       }
 
       const asset = await prisma.asset.create({

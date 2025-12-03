@@ -24,7 +24,7 @@ export const AppLayout = () => {
   const isCoursesPage = location.pathname === "/courses" || location.pathname.startsWith("/courses/");
 
   return (
-    <div className="flex min-h-screen bg-[#FFFBF5] dark:bg-slate-900 text-slate-700 dark:text-slate-100 font-sans relative overflow-hidden transition-colors">
+    <div className="flex h-screen bg-[#FFFBF5] dark:bg-slate-900 text-slate-700 dark:text-slate-100 font-sans relative overflow-hidden transition-colors">
       {/* Mobile Overlay */}
       {sidebarOpen && (
         <div
@@ -36,7 +36,7 @@ export const AppLayout = () => {
       {/* Sidebar - Hidden on Courses Page */}
       {!isCoursesPage && (
         <aside
-          className={`fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-slate-800 border-r border-slate-100 dark:border-slate-700 shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.3)] transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          className={`fixed inset-y-0 left-0 z-50 w-56 bg-white dark:bg-slate-800 border-r border-slate-100 dark:border-slate-700 shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.3)] transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
             }`}
         >
           <div className="flex items-center justify-between px-8 py-8">
@@ -104,16 +104,7 @@ export const AppLayout = () => {
           </nav>
 
           <div className="absolute bottom-8 left-6 right-6 space-y-4">
-            {/* Daily Tip */}
-            <div className="rounded-[1.5rem] bg-gradient-to-br from-sky-50 to-indigo-50 dark:from-sky-900/30 dark:to-indigo-900/30 px-6 py-5 border border-sky-100 dark:border-sky-800">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles className="h-4 w-4 text-sky-500 dark:text-sky-400" />
-                <p className="text-xs font-bold text-sky-600 dark:text-sky-400">每日小贴士</p>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                保持好奇心，世界就是你的课堂。
-              </p>
-            </div>
+
 
             {/* User Profile Link */}
             {isAuthenticated ? (

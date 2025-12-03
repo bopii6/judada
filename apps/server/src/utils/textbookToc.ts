@@ -16,6 +16,13 @@ export interface TextbookTocResult {
   totalPages: number;
 }
 
+type PdfPageData = {
+  pageNumber: number;
+  getTextContent: () => Promise<{
+    items: Array<{ str?: string; hasEOL?: boolean }>;
+  }>;
+};
+
 const normalizeLine = (line: string) => line.replace(/\s+/g, " ").trim();
 
 const cleanTopicText = (value: string | undefined | null) => {
@@ -285,7 +292,7 @@ ${tocText}`;
 export const extractTextbookToc = async (buffer: Buffer): Promise<TextbookTocResult> => {
   const pageTexts: string[] = [];
   const data = await pdf(buffer, {
-    pagerender: async pageData => {
+    pagerender: async (pageData: PdfPageData) => {
       const textContent = await pageData.getTextContent();
       const lines: string[] = [];
       let currentLine = "";
