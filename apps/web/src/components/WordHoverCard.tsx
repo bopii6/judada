@@ -1,7 +1,7 @@
 ﻿import React, { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchWordDefinition } from "../api/dictionary";
-import { Sparkles } from "lucide-react";
+import { LoadingSpinner } from "./ui/LoadingSpinner";
 
 interface WordHoverCardProps {
     word: string;
@@ -69,10 +69,7 @@ export const WordHoverCard: React.FC<WordHoverCardProps> = ({ word, children, on
                         <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white rotate-45 border-b border-r border-orange-50" />
 
                         {isLoading ? (
-                            <div className="flex items-center justify-center py-2 gap-2 text-orange-400">
-                                <Sparkles className="w-4 h-4 animate-spin" />
-                                <span className="text-xs font-bold">Thinking...</span>
-                            </div>
+                            <LoadingSpinner variant="inline" text="AI 正在思考..." />
                         ) : definition ? (
                             <div className="text-center">
                                 <div className="flex items-center justify-center gap-2 mb-1">

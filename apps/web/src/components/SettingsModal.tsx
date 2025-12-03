@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
-import { X, Volume2, Monitor, User, Info, Keyboard, Check, ChevronRight, Play, Mic } from "lucide-react";
+import { X, Volume2, Monitor, User, Info, Keyboard, Check, ChevronRight, Play, Mic, LogOut, Smartphone, Mail, Shield } from "lucide-react";
 import classNames from "classnames";
 import { useTheme } from "../contexts/ThemeContext";
 import { useAuth } from "../hooks/useAuth";
 import { speak, useVoices } from "../hooks/useTTS";
+import { useSoundEffect } from "../contexts/SoundEffectContext";
+import { useNavigate } from "react-router-dom";
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -25,8 +27,10 @@ const VOICE_KEY = "judada:voice";
 export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
     const [activeTab, setActiveTab] = useState<TabId>('input');
     const { theme, setTheme } = useTheme();
-    const { getUserDisplayName, getUserAvatar } = useAuth();
+    const { getUserDisplayName, getUserAvatar, user, logout } = useAuth();
     const voices = useVoices();
+    const { soundMode, setSoundMode } = useSoundEffect();
+    const navigate = useNavigate();
 
     // Settings States
     const [voiceUri, setVoiceUri] = useState<string | null>(() => localStorage.getItem(VOICE_KEY));
@@ -34,12 +38,19 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
     const [isTextBoxMode, setIsTextBoxMode] = useState(false);
     const [ignoreCase, setIgnoreCase] = useState(true);
     const [typingDelay, setTypingDelay] = useState(0);
+    const [lastActiveSoundMode, setLastActiveSoundMode] = useState(soundMode === "off" ? "telegraph" : soundMode);
 
     useEffect(() => {
         if (voiceUri) {
             localStorage.setItem(VOICE_KEY, voiceUri);
         }
     }, [voiceUri]);
+
+    useEffect(() => {
+        if (soundMode !== "off") {
+            setLastActiveSoundMode(soundMode);
+        }
+    }, [soundMode]);
 
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
@@ -51,11 +62,28 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
 
     if (!isOpen) return null;
 
+    const isSoundMuted = soundMode === "off";
+
     const previewVoice = () => {
         const voice = voices.find(item => item.voiceURI === voiceUri);
         setIsPlaying(true);
         speak("Hello, let's practice English together!", { voice });
         setTimeout(() => setIsPlaying(false), 2000);
+    };
+
+    const toggleSoundEffects = () => {
+        if (isSoundMuted) {
+            setSoundMode(lastActiveSoundMode);
+        } else {
+            setLastActiveSoundMode(soundMode);
+            setSoundMode("off");
+        }
+    };
+
+    const handleLogout = () => {
+        logout();
+        onClose();
+        navigate("/login");
     };
 
     return (
@@ -209,6 +237,25 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                             {/* SOUND SETTINGS */}
                             {activeTab === 'sound' && (
                                 <div className="space-y-8">
+                                    <div className="p-5 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-between gap-6">
+                                        <div>
+                                            <div className="font-bold text-slate-900 dark:text-white text-lg">界面点击音效</div>
+                                            <p className="text-sm text-slate-500 mt-1">
+                                                {isSoundMuted ? "当前已关闭所有界面音效" : "开启后按钮、闯关操作会伴随轻微提示音"}
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={toggleSoundEffects}
+                                            className={classNames(
+                                                "px-5 py-2 rounded-full font-bold transition-all border text-sm",
+                                                isSoundMuted
+                                                    ? "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500"
+                                                    : "bg-green-500/10 border-green-500/40 text-green-600 dark:text-green-400"
+                                            )}
+                                        >
+                                            {isSoundMuted ? "已关闭" : "已开启"}
+                                        </button>
+                                    </div>
                                     <div className="space-y-4">
                                         <label className="block font-bold text-slate-900 dark:text-white text-lg">语音引擎</label>
                                         <div className="relative">
@@ -298,7 +345,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
 
                             {/* ACCOUNT SETTINGS */}
                             {activeTab === 'account' && (
-                                <div className="space-y-6">
+                                <div className="space-y-8">
                                     <div className="flex items-center gap-6 p-6 bg-slate-50 dark:bg-slate-800 rounded-2xl">
                                         <img
                                             src={getUserAvatar()}
@@ -307,26 +354,72 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                         />
                                         <div>
                                             <h4 className="text-xl font-bold text-slate-900 dark:text-white">{getUserDisplayName()}</h4>
-                                            <p className="text-slate-500 dark:text-slate-400">user@example.com</p>
+                                            <p className="text-slate-500 dark:text-slate-400">{user?.email ?? "当前为游客账号"}</p>
                                             <button className="mt-2 text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
                                                 更换头像
                                             </button>
                                         </div>
                                     </div>
 
-                                    <div className="space-y-3">
+                                    <section className="space-y-3">
+                                        <p className="text-xs font-bold tracking-[0.2em] text-slate-400 uppercase">账号与安全</p>
                                         <button className="w-full flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left">
-                                            <span className="font-bold text-slate-700 dark:text-slate-200">修改密码</span>
+                                            <div className="flex items-center gap-3">
+                                                <Shield className="w-5 h-5 text-orange-500" />
+                                                <div>
+                                                    <span className="font-bold text-slate-700 dark:text-slate-200">修改密码</span>
+                                                    <p className="text-xs text-slate-400">建议定期更新，保护账号安全</p>
+                                                </div>
+                                            </div>
                                             <ChevronRight className="w-5 h-5 text-slate-400" />
                                         </button>
                                         <button className="w-full flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left">
-                                            <span className="font-bold text-slate-700 dark:text-slate-200">绑定手机</span>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-sm text-slate-400">138****8888</span>
-                                                <ChevronRight className="w-5 h-5 text-slate-400" />
+                                            <div className="flex items-center gap-3">
+                                                <Mail className="w-5 h-5 text-sky-500" />
+                                                <div>
+                                                    <span className="font-bold text-slate-700 dark:text-slate-200">管理登录邮箱</span>
+                                                    <p className="text-xs text-slate-400">{user?.email ?? "暂未绑定邮箱"}</p>
+                                                </div>
                                             </div>
+                                            <ChevronRight className="w-5 h-5 text-slate-400" />
                                         </button>
-                                    </div>
+                                        <button className="w-full flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left">
+                                            <div className="flex items-center gap-3">
+                                                <Smartphone className="w-5 h-5 text-amber-500" />
+                                                <div>
+                                                    <span className="font-bold text-slate-700 dark:text-slate-200">登录设备管理</span>
+                                                    <p className="text-xs text-slate-400">查看并退出不常用设备</p>
+                                                </div>
+                                            </div>
+                                            <ChevronRight className="w-5 h-5 text-slate-400" />
+                                        </button>
+                                    </section>
+
+                                    <section className="space-y-3">
+                                        <p className="text-xs font-bold tracking-[0.2em] text-slate-400 uppercase">数据与支持</p>
+                                        <button className="w-full flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left">
+                                            <div>
+                                                <span className="font-bold text-slate-700 dark:text-slate-200">导出学习记录</span>
+                                                <p className="text-xs text-slate-400">以 CSV 形式保存课程与闯关数据</p>
+                                            </div>
+                                            <ChevronRight className="w-5 h-5 text-slate-400" />
+                                        </button>
+                                        <button className="w-full flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left">
+                                            <div>
+                                                <span className="font-bold text-slate-700 dark:text-slate-200">联系客服</span>
+                                                <p className="text-xs text-slate-400">遇到问题？我们随时为你解答</p>
+                                            </div>
+                                            <ChevronRight className="w-5 h-5 text-slate-400" />
+                                        </button>
+                                    </section>
+
+                                    <button
+                                        onClick={handleLogout}
+                                        className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl font-bold text-red-500 border border-red-100 dark:border-red-900/40 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all"
+                                    >
+                                        <LogOut className="w-5 h-5" />
+                                        退出登录
+                                    </button>
                                 </div>
                             )}
 

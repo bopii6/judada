@@ -22,6 +22,9 @@ export default {
       },
       animation: {
         blob: "blob 7s infinite",
+        "bear-float": "bear-float 3s ease-in-out infinite",
+        "bear-spin": "bear-spin 10s linear infinite",
+        "bear-spin-fast": "bear-spin 6s linear infinite"
       },
       keyframes: {
         blob: {
@@ -38,6 +41,15 @@ export default {
             transform: "translate(0px, 0px) scale(1)",
           },
         },
+        "bear-float": {
+          "0%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-6px)" },
+          "100%": { transform: "translateY(0px)" }
+        },
+        "bear-spin": {
+          "0%": { transform: "rotate(0deg)" },
+          "100%": { transform: "rotate(360deg)" }
+        }
       },
     }
   },

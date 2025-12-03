@@ -17,6 +17,7 @@ import { useAuth } from "./hooks/useAuth";
 import { useCloudSync, progressStore } from "./store/progressStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchMusicTracks } from "./api/music";
+import { LoadingSpinner } from "./components/ui/LoadingSpinner";
 
 const App = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -43,13 +44,8 @@ const App = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-        <div className="flex items-center gap-3">
-          <span className="text-5xl font-black text-orange-600 dark:text-orange-400 loading-number" style={{ animationDelay: '0s' }}>1</span>
-          <span className="text-5xl font-black text-orange-600 dark:text-orange-400 loading-number" style={{ animationDelay: '0.25s' }}>1</span>
-          <span className="text-5xl font-black text-orange-600 dark:text-orange-400 loading-number" style={{ animationDelay: '0.5s' }}>1</span>
-          <span className="text-5xl font-black text-orange-600 dark:text-orange-400 loading-number" style={{ animationDelay: '0.75s' }}>1</span>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-[#FFFBF5] dark:bg-slate-900">
+        <LoadingSpinner text="正在唤醒小熊老师..." />
       </div>
     );
   }

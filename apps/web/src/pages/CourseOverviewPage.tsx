@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchCourseContent, type CourseStage } from "../api/courses";
 import { AdventureMap } from "../components/AdventureMap";
 import { BookOpen, Clock, Play, CheckCircle2, Ear } from "lucide-react";
+import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 
 export const CourseOverviewPage = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -35,7 +36,11 @@ export const CourseOverviewPage = () => {
   }
 
   if (isLoading) {
-    return <div className="flex min-h-[50vh] items-center justify-center text-slate-500 dark:text-slate-400 font-bold">正在加载课程内容...</div>;
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <LoadingSpinner text="正在加载课程内容..." />
+      </div>
+    );
   }
 
   if (error) {

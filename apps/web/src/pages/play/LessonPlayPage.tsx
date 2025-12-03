@@ -159,8 +159,8 @@ export const LessonPlayPage = () => {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#FFFBF5] text-slate-500 font-bold">
-        正在载入关卡...
+      <div className="flex min-h-screen items-center justify-center bg-[#FFFBF5]">
+        <LoadingSpinner text="正在加载课程内容..." />
       </div>
     );
   }
@@ -436,3 +436,4 @@ function Trophy(props: TrophyProps) {
     </svg>
   )
 }
+
