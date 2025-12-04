@@ -241,13 +241,13 @@ router.post(
           : undefined;
 
       const userId = (req as any).user?.id ?? null;
-      const result = await coursePackageService.importTextbookFromPdf(
-        req.params.id,
-        req.file,
-        userId,
-        normalizedPageNumberStart
-      );
-      res.json({ success: true, ...result });
+      const job = await coursePackageService.startTextbookImportJob({
+        packageId: req.params.id,
+        file: req.file,
+        triggeredById: userId,
+        pageNumberStart: normalizedPageNumberStart
+      });
+      res.status(202).json({ success: true, job });
     } catch (error) {
       next(error);
     }

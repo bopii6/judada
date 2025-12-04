@@ -17,4 +17,17 @@ router.get("/", async (_req, res, next) => {
   }
 });
 
+router.get("/:jobId", async (req, res, next) => {
+  try {
+    const job = await coursePackageService.getGenerationJob(req.params.jobId);
+    if (!job) {
+      res.status(404).json({ error: "任务不存在" });
+      return;
+    }
+    res.json({ job });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

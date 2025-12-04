@@ -353,6 +353,7 @@ export const coursePackageService = {
    * 获取最近的生成任务列表。
    */
   listRecentJobs: (limit = 20) => generationJobRepository.listRecent(limit),
+  getGenerationJob: (jobId: string) => generationJobRepository.findDetailById(jobId),
 
   /**
    * 创建关卡草稿（用于手动新增关卡）。
@@ -1038,6 +1039,67 @@ export const coursePackageService = {
     );
 
     return { units: createdUnits };
+  },
+  startTextbookImportJob: async ({
+    packageId,
+    file,
+    triggeredById,
+    pageNumberStart
+  }: {
+    packageId: string;
+    file: Express.Multer.File;
+    triggeredById?: string | null;
+    pageNumberStart?: number;
+  }) => {
+    const job = await generationJobRepository.create({
+      jobType: "asset_processing",
+      packageId,
+      triggeredById: triggeredById ?? null,
+      sourceType: "pdf_upload",
+      inputInfo: {
+        type: "textbook_import",
+        originalName: file.originalname,
+        fileSize: file.size,
+        pageNumberStart: pageNumberStart ?? null
+      }
+    });
+
+    const runJob = async () => {
+      try {
+        await generationJobRepository.updateStatus(job.id, {
+          status: "processing",
+          startedAt: new Date(),
+          progress: 5
+        });
+
+        const result = await coursePackageService.importTextbookFromPdf(
+          packageId,
+          file,
+          triggeredById ?? null,
+          pageNumberStart
+        );
+
+        await generationJobRepository.updateStatus(job.id, {
+          status: "succeeded",
+          progress: 100,
+          result
+        });
+      } catch (error) {
+        console.error(`[textbook-import] job ${job.id} failed`, error);
+        await generationJobRepository.updateStatus(job.id, {
+          status: "failed",
+          errorMessage: (error as Error).message
+        });
+      }
+    };
+
+    setImmediate(() => {
+      runJob().catch(err => {
+        console.error(`[textbook-import] job ${job.id} crashed`, err);
+      });
+    });
+
+    return job;
   },
   getMaterialLessonTree: async (packageId: string) => {
     const [assets, lessons] = await Promise.all([

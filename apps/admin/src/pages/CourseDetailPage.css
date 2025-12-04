@@ -244,6 +244,11 @@
   color: #b91c1c;
 }
 
+.textbook-import-message.info {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
 /* 反馈消息 */
 .course-detail-upload-feedback-stack {
   display: flex;

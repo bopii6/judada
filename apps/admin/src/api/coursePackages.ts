@@ -511,7 +511,7 @@ export const importTextbookPdf = (packageId: string, file: File, pageNumberStart
   if (typeof pageNumberStart === "number") {
     formData.append("pageNumberStart", String(pageNumberStart));
   }
-  return apiFetch<{ success: boolean; units: TextbookImportUnitSummary[] }>(
+  return apiFetch<{ success: boolean; job: GenerationJob }>(
     `/admin/course-packages/${packageId}/textbook-import`,
     {
       method: "POST",
@@ -519,3 +519,6 @@ export const importTextbookPdf = (packageId: string, file: File, pageNumberStart
     }
   );
 };
+
+export const fetchGenerationJob = (jobId: string) =>
+  apiFetch<{ job: GenerationJob }>(`/jobs/${jobId}`);

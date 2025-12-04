@@ -71,13 +71,40 @@ export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
       .map(unitNumber => {
         const unitStages = grouped.get(unitNumber)!;
         unitStages.sort((a, b) => a.stageSequence - b.stageSequence);
-        const rounds: RoundData[] = [];
-        for (let i = 0; i < unitStages.length; i += 16) {
-          rounds.push({
-            roundNumber: rounds.length + 1,
-            stages: unitStages.slice(i, i + 16)
+        const hasRoundMetadata = unitStages.some(stage => typeof stage.roundIndex === "number");
+
+        let rounds: RoundData[] = [];
+        if (hasRoundMetadata) {
+          const roundMap = new Map<number, CourseStage[]>();
+          unitStages.forEach(stage => {
+            const roundIdx = stage.roundIndex ?? 1;
+            if (!roundMap.has(roundIdx)) {
+              roundMap.set(roundIdx, []);
+            }
+            roundMap.get(roundIdx)!.push(stage);
           });
+          rounds = Array.from(roundMap.entries())
+            .sort((a, b) => a[0] - b[0])
+            .map(([roundNumber, roundStages]) => ({
+              roundNumber,
+              stages: roundStages.sort((a, b) => {
+                const orderA = (a.roundOrder ?? a.stageSequence) ?? 0;
+                const orderB = (b.roundOrder ?? b.stageSequence) ?? 0;
+                if (orderA === orderB) {
+                  return a.stageSequence - b.stageSequence;
+                }
+                return orderA - orderB;
+              })
+            }));
+        } else {
+          for (let i = 0; i < unitStages.length; i += 16) {
+            rounds.push({
+              roundNumber: rounds.length + 1,
+              stages: unitStages.slice(i, i + 16)
+            });
+          }
         }
+
         return {
           unitNumber,
           unitName: unitStages[0]?.unitName || `第 ${unitNumber} 单元`,

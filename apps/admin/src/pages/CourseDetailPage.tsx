@@ -35,6 +35,7 @@ import {
   deleteLessonById,
   createManualLesson,
   importTextbookPdf,
+  fetchGenerationJob,
   regenerateUnit,
   type UpdateCoursePackagePayload,
   type CreateUnitPayload,
@@ -48,6 +49,45 @@ const statusTextMap: Record<string, string> = {
   published: "已发布",
   archived: "已归档"
 };
+
+const GRADE_OPTIONS = [
+  { value: "", label: "请选择年级" },
+  { value: "一年级", label: "一年级" },
+  { value: "二年级", label: "二年级" },
+  { value: "三年级", label: "三年级" },
+  { value: "四年级", label: "四年级" },
+  { value: "五年级", label: "五年级" },
+  { value: "六年级", label: "六年级" },
+  { value: "初一", label: "初一" },
+  { value: "初二", label: "初二" },
+  { value: "初三", label: "初三" },
+  { value: "高一", label: "高一" },
+  { value: "高二", label: "高二" },
+  { value: "高三", label: "高三" }
+];
+
+const PUBLISHER_OPTIONS = [
+  { value: "", label: "请选择出版社" },
+  { value: "人教版（PEP）", label: "人教版（PEP）" },
+  { value: "人教版（一年级起点）", label: "人教版（一年级起点）" },
+  { value: "人教版（精通）", label: "人教版（精通）" },
+  { value: "北师大版", label: "北师大版" },
+  { value: "外研社版（一年级起点）", label: "外研社版（一年级起点）" },
+  { value: "外研社版（三年级起点）", label: "外研社版（三年级起点）" },
+  { value: "冀教版（一年级起点）", label: "冀教版（一年级起点）" },
+  { value: "冀教版（三年级起点）", label: "冀教版（三年级起点）" },
+  { value: "北京版", label: "北京版" },
+  { value: "川教版", label: "川教版" },
+  { value: "接力版", label: "接力版" },
+  { value: "教科版（EEC学院）", label: "教科版（EEC学院）" },
+  { value: "其他", label: "其他" }
+];
+
+const SEMESTER_OPTIONS = [
+  { value: "", label: "请选择学期" },
+  { value: "上册", label: "上册" },
+  { value: "下册", label: "下册" }
+];
 
 const MAX_COVER_SIZE = 5 * 1024 * 1024;
 const MAX_UPLOAD_SIZE = 15 * 1024 * 1024;
@@ -244,6 +284,7 @@ export const CourseDetailPage = () => {
   const queryClient = useQueryClient();
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const fullBookInputRef = useRef<HTMLInputElement | null>(null);
+  const importJobPollerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [coverError, setCoverError] = useState<string | null>(null);
   const [coverSuccess, setCoverSuccess] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
@@ -251,7 +292,10 @@ export const CourseDetailPage = () => {
   const [editState, setEditState] = useState({
     title: "",
     topic: "",
-    description: ""
+    description: "",
+    grade: "",
+    publisher: "",
+    semester: ""
   });
 
   // 新增单元弹窗
@@ -259,8 +303,23 @@ export const CourseDetailPage = () => {
   const [newUnitTitle, setNewUnitTitle] = useState("");
   const [newUnitDescription, setNewUnitDescription] = useState("");
   const [newUnitSequence, setNewUnitSequence] = useState("");
-  const [bookImportMessage, setBookImportMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [bookImportMessage, setBookImportMessage] = useState<
+    { type: "success" | "error" | "info"; text: string } | null
+  >(null);
   const [bookPageNumberStart, setBookPageNumberStart] = useState("");
+
+  const stopImportJobPolling = () => {
+    if (importJobPollerRef.current) {
+      window.clearTimeout(importJobPollerRef.current);
+      importJobPollerRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      stopImportJobPolling();
+    };
+  }, []);
 
   const {
     data,
@@ -351,7 +410,10 @@ export const CourseDetailPage = () => {
       setEditState({
         title: updated.title,
         topic: updated.topic,
-        description: updated.description ?? ""
+        description: updated.description ?? "",
+        grade: updated.grade ?? "",
+        publisher: updated.publisher ?? "",
+        semester: updated.semester ?? ""
       });
       void refetchDetail();
       if (id) {
@@ -380,6 +442,64 @@ export const CourseDetailPage = () => {
 
   type ImportBookPayload = { file: File; pageNumberStart?: number };
 
+  const monitorTextbookImportJob = (jobId: string) => {
+    stopImportJobPolling();
+    setBookImportMessage({ type: "info", text: "已提交教材 PDF，后台正在解析目录..." });
+
+    const poll = async () => {
+      try {
+        const { job } = await fetchGenerationJob(jobId);
+        if (!job) {
+          setBookImportMessage({ type: "error", text: "未找到教材导入任务，请稍后重试" });
+          return;
+        }
+
+        if (job.status === "succeeded") {
+          stopImportJobPolling();
+          const resultPayload = (job.result ?? {}) as { units?: unknown };
+          const units = Array.isArray(resultPayload.units) ? resultPayload.units : [];
+          const unitCount = units.length;
+          const successMessage =
+            unitCount > 0
+              ? `教材解析完成，已新增 ${unitCount} 个目录任务`
+              : "教材解析完成，但未识别到目录，请检查 PDF";
+          setBookImportMessage({
+            type: unitCount > 0 ? "success" : "error",
+            text: successMessage
+          });
+          void refetchUnits();
+          void refetchMaterials();
+          void queryClient.invalidateQueries({ queryKey: ["generation-jobs"] });
+          return;
+        }
+
+        if (job.status === "failed") {
+          stopImportJobPolling();
+          setBookImportMessage({
+            type: "error",
+            text: job.errorMessage || "教材导入任务失败，请查看任务监控"
+          });
+          void queryClient.invalidateQueries({ queryKey: ["generation-jobs"] });
+          return;
+        }
+
+        const waitingMessage =
+          job.status === "processing" ? "正在解析教材，请稍候..." : "任务排队中，即将开始处理...";
+        setBookImportMessage({ type: "info", text: waitingMessage });
+        importJobPollerRef.current = window.setTimeout(poll, 5000);
+      } catch (error) {
+        console.warn("[CourseDetail] 获取教材导入任务状态失败", error);
+        setBookImportMessage({
+          type: "info",
+          text: "正在重试获取任务状态..."
+        });
+        importJobPollerRef.current = window.setTimeout(poll, 7000);
+      }
+    };
+
+    poll();
+  };
+
   const importBookMutation = useMutation({
     mutationFn: async ({ file, pageNumberStart }: ImportBookPayload) => {
       if (!id) throw new Error("课程包ID缺失");
@@ -387,20 +507,11 @@ export const CourseDetailPage = () => {
     },
     onMutate: () => {
       setBookImportMessage(null);
+      stopImportJobPolling();
     },
     onSuccess: result => {
-      const unitCount = result.units.length;
-      const message =
-        unitCount > 0
-          ? `已解析 ${unitCount} 个单元，系统正在为每个单元生成关卡`
-          : "上传成功，但未解析到单元信息";
-      setBookImportMessage({
-        type: unitCount > 0 ? "success" : "error",
-        text: message
-      });
-      void refetchUnits();
-      void refetchMaterials();
-      void queryClient.invalidateQueries({ queryKey: ["generation-jobs"] });
+      setBookImportMessage({ type: "info", text: "教材上传完成，任务已创建..." });
+      monitorTextbookImportJob(result.job.id);
     },
     onError: failure => {
       setBookImportMessage({ type: "error", text: (failure as Error).message });
@@ -412,7 +523,7 @@ export const CourseDetailPage = () => {
     }
   });
 
-  const runMaterialsAction = async (materialId: string, action: () => Promise<void>, successTip: string) => {
+  const runMaterialsAction = async (materialId: string, action: () => Promise<unknown>, successTip: string) => {
     if (!id) return;
     setMaterialActionId(materialId);
     setMaterialsFeedback(null);
@@ -493,18 +604,30 @@ export const CourseDetailPage = () => {
       setEditState({
         title: detail.title,
         topic: detail.topic,
-        description: detail.description ?? ""
+        description: detail.description ?? "",
+        grade: detail.grade ?? "",
+        publisher: detail.publisher ?? "",
+        semester: detail.semester ?? ""
       });
     }
   }, [detail]);
 
   const normalizedDetailDescription = (detail?.description ?? "").trim();
-  const normalizedEditDescription = editState.description.trim();
+  const normalizedEditDescription = (editState.description ?? "").trim();
+  const normalizedDetailGrade = (detail?.grade ?? "").trim();
+  const normalizedEditGrade = (editState.grade ?? "").trim();
+  const normalizedDetailPublisher = (detail?.publisher ?? "").trim();
+  const normalizedEditPublisher = (editState.publisher ?? "").trim();
+  const normalizedDetailSemester = (detail?.semester ?? "").trim();
+  const normalizedEditSemester = (editState.semester ?? "").trim();
   const isBasicInfoDirty = Boolean(
     detail &&
       (detail.title !== editState.title.trim() ||
         detail.topic !== editState.topic.trim() ||
-        normalizedDetailDescription !== normalizedEditDescription)
+        normalizedDetailDescription !== normalizedEditDescription ||
+        normalizedDetailGrade !== normalizedEditGrade ||
+        normalizedDetailPublisher !== normalizedEditPublisher ||
+        normalizedDetailSemester !== normalizedEditSemester)
   );
 
   if (!id) {
@@ -576,8 +699,8 @@ export const CourseDetailPage = () => {
   };
 
   const handleBasicInfoChange =
-    (key: "title" | "topic" | "description") =>
-    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    (key: "title" | "topic" | "description" | "grade" | "publisher" | "semester") =>
+    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
       const value = event.target.value;
       setEditState(prev => ({
         ...prev,
@@ -590,7 +713,10 @@ export const CourseDetailPage = () => {
       setEditState({
         title: detail.title,
         topic: detail.topic,
-        description: detail.description ?? ""
+        description: detail.description ?? "",
+        grade: detail.grade ?? "",
+        publisher: detail.publisher ?? "",
+        semester: detail.semester ?? ""
       });
     }
     setUpdateError(null);
@@ -607,7 +733,10 @@ export const CourseDetailPage = () => {
 
     const title = editState.title.trim();
     const topic = editState.topic.trim();
-    const description = editState.description.trim();
+    const description = (editState.description ?? "").trim();
+    const grade = (editState.grade ?? "").trim();
+    const publisher = (editState.publisher ?? "").trim();
+    const semester = (editState.semester ?? "").trim();
 
     if (!title || !topic) {
       setUpdateError("请填写课程包名称和主题");
@@ -618,7 +747,10 @@ export const CourseDetailPage = () => {
     const payload: UpdateCoursePackagePayload = {
       title,
       topic,
-      description: description.length > 0 ? description : null
+      description: description.length > 0 ? description : null,
+      grade: grade.length > 0 ? grade : null,
+      publisher: publisher.length > 0 ? publisher : null,
+      semester: semester.length > 0 ? semester : null
     };
     updateMutation.mutate(payload);
   };
@@ -796,6 +928,36 @@ export const CourseDetailPage = () => {
               onChange={handleBasicInfoChange("topic")}
               placeholder="例如：跟着教材练英语"
             />
+          </label>
+          <label>
+            <span>年级</span>
+            <select value={editState.grade} onChange={handleBasicInfoChange("grade")}>
+              {GRADE_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>出版社</span>
+            <select value={editState.publisher} onChange={handleBasicInfoChange("publisher")}>
+              {PUBLISHER_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>学期</span>
+            <select value={editState.semester} onChange={handleBasicInfoChange("semester")}>
+              {SEMESTER_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="course-basic-editor-full">
             <span>课程简介</span>
@@ -1075,6 +1237,10 @@ const UnitCard = ({
     },
     onSuccess: () => {
       setLessonMessage({ type: "success", text: "关卡已删除" });
+      // 手动 invalidate 相关查询缓存，确保数据立即更新
+      void queryClient.invalidateQueries({ queryKey: ["course-packages", unit.packageId, "units"] });
+      void queryClient.invalidateQueries({ queryKey: ["course-packages", unit.packageId, "materials-tree"] });
+      void queryClient.invalidateQueries({ queryKey: ["course-packages", unit.packageId] });
       onUpdate();
     },
     onError: failure => {

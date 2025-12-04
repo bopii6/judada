@@ -301,6 +301,8 @@ router.get("/:id/questions", async (req, res, next) => {
         lessonTitle: lesson.currentVersion?.title ?? lesson.title,
         lessonSequence: lesson.sequence,
         stageSequence: stageSequence++,
+        roundIndex: lesson.roundIndex,
+        roundOrder: lesson.roundOrder,
         unitNumber: lesson.unitNumber,    // 单元序号
         unitName: lesson.unitName,        // 单元名称
         sourceAssetId: lesson.sourceAssetId,

@@ -36,6 +36,25 @@ export const generationJobRepository = {
     prisma.generationJob.findUnique({
       where: { id }
     }),
+  findDetailById: (id: string) =>
+    prisma.generationJob.findUnique({
+      where: { id },
+      include: {
+        package: {
+          select: {
+            id: true,
+            title: true
+          }
+        },
+        packageVersion: {
+          select: {
+            id: true,
+            versionNumber: true,
+            status: true
+          }
+        }
+      }
+    }),
 
   /**
    * 更新任务状态与进度。
