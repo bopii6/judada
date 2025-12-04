@@ -770,26 +770,8 @@ export const coursePackageService = {
           (error as any).status = 404;
           throw error;
         }
-
-        // 使用批量删除，避免嵌套循环导致事务长时间占用连接
-        await transaction.lessonVersion.deleteMany({
-          where: {
-            lesson: {
-              is: {
-                packageId
-              }
-            }
-          }
-        });
-
-        await transaction.lesson.deleteMany({
-          where: { packageId }
-        });
-
-        await transaction.coursePackageVersion.deleteMany({
-          where: { packageId }
-        });
-
+        // Keep the deletion atomic and free FK-constrained tables first
+        // Remove job/material records that keep FK references to the package
         await transaction.generationJob.deleteMany({
           where: { packageId }
         });
@@ -798,9 +780,7 @@ export const coursePackageService = {
           where: { packageId }
         });
 
-        await transaction.unit.deleteMany({
-          where: { packageId }
-        });
+        // Remaining relations (units, lessons, versions...) rely on ON DELETE CASCADE
 
         await transaction.coursePackage.delete({
           where: { id: packageId }
