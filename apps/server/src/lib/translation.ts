@@ -1,4 +1,3 @@
-import type { Message } from "tencentcloud-sdk-nodejs/tencentcloud/services/hunyuan/v20230901/hunyuan_models";
 import { callHunyuanChat } from "./hunyuan";
 
 /**

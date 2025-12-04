@@ -1,21 +1,21 @@
 ﻿import path from "node:path";
 
-import type { Express } from "express";
 import { Prisma, SourceType } from "@prisma/client";
+import type { Express } from "express";
 
 import { getEnv } from "../config/env";
 import { enqueuePackageGenerationJob } from "../jobs/packageGeneration.queue";
 import { getPrisma } from "../lib/prisma";
 import { getSupabase } from "../lib/supabase";
-import { splitPdfIntoChunks, extractPdfRange } from "../utils/pdfSplit";
-import { extractTextbookToc } from "../utils/textbookToc";
 import {
+  coursePackageRepository,
   CreateCoursePackageInput,
   CreateCoursePackageVersionInput,
-  coursePackageRepository,
   generationJobRepository,
   lessonRepository
 } from "../repositories";
+import { extractPdfRange,splitPdfIntoChunks } from "../utils/pdfSplit";
+import { extractTextbookToc } from "../utils/textbookToc";
 
 const prisma = getPrisma();
 type UploadableFile = Pick<Express.Multer.File, "originalname" | "mimetype" | "size" | "buffer">;
@@ -68,6 +68,14 @@ const toJsonObject = (value: Record<string, unknown>): Prisma.JsonObject => {
   return jsonObject;
 };
 
+const ensureLessonTargetMetadata = (metadata: Prisma.JsonObject) => {
+  const record = metadata as Record<string, unknown>;
+  if (record.lessonTargetCount === undefined) {
+    record.lessonTargetCount = DEFAULT_UNIT_LESSON_TARGET;
+  }
+  return metadata;
+};
+
 const COURSE_COVER_FOLDER = "course-covers";
 const COURSE_COVER_ROUTE_PREFIX = "/api/course-covers";
 const ALLOWED_COVER_MIME = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
@@ -80,6 +88,7 @@ const MIN_SPLIT_PAGE_COUNT = 1;
 const MAX_SPLIT_PAGE_COUNT = 16;
 const MAX_DIRECT_FILE_SIZE = 15 * 1024 * 1024; // 15MB 图片/小文件限制
 const MAX_SPLITTABLE_PDF_SIZE = 80 * 1024 * 1024; // 80MB 单个PDF上限，用于自动切分
+const DEFAULT_UNIT_LESSON_TARGET = 5;
 
 const sanitizeCoverFileName = (name: string) => {
   if (!name) return "cover";
@@ -160,6 +169,7 @@ export interface GenerateFromUploadInput {
   splitPageCount?: number;
   fileMetadata?: Array<Record<string, unknown>>;
   maxFileCountOverride?: number;
+  pageNumberStart?: number;
 }
 
 const isPdfFile = (file: UploadableFile | null | undefined) => {
@@ -384,7 +394,8 @@ export const coursePackageService = {
     splitPdf = false,
     splitPageCount,
     fileMetadata = [],
-    maxFileCountOverride
+    maxFileCountOverride,
+    pageNumberStart
   }: GenerateFromUploadInput) => {
     let filesToUpload: UploadableFile[] =
       files && files.length > 0 ? normalizeUploadableFiles(files) : file ? [toUploadableFile(file)] : [];
@@ -394,11 +405,16 @@ export const coursePackageService = {
     }
 
     const normalizedSplitPages = clampSplitPageCount(splitPageCount);
+    const normalizedPageNumberStart =
+      typeof pageNumberStart === "number" && Number.isFinite(pageNumberStart) && pageNumberStart > 0
+        ? Math.round(pageNumberStart)
+        : null;
     const shouldSplitPdf = splitPdf && filesToUpload.length === 1 && isPdfFile(filesToUpload[0]);
-    const baseMetadata = fileMetadata.map(entry => toJsonObject(entry ?? {}));
+    const baseMetadata = fileMetadata.map(entry => ensureLessonTargetMetadata(toJsonObject(entry ?? {})));
     const cloneMetadataList = (length: number, source: Prisma.JsonObject[]) =>
       Array.from({ length }, (_, index) => ({ ...(source[index] ?? {}) }));
     let perFileMetadata = cloneMetadataList(filesToUpload.length, baseMetadata);
+    const pageNumberOffset = normalizedPageNumberStart !== null ? normalizedPageNumberStart - 1 : 0;
 
     if (shouldSplitPdf) {
       const targetFile = filesToUpload[0];
@@ -418,12 +434,18 @@ export const coursePackageService = {
       }
 
       const metadataForChunks: Prisma.JsonObject[] = chunks.map(chunk =>
-        toJsonObject({
-          ...(baseMetadata[0] ?? {}),
-          pageRange: { start: chunk.pageStart, end: chunk.pageEnd, total: chunk.totalPages },
-          splitIndex: chunk.chunkIndex,
-          splitCount: chunks.length
-        })
+        ensureLessonTargetMetadata(
+          toJsonObject({
+            ...(baseMetadata[0] ?? {}),
+            pageRange: {
+              start: chunk.pageStart + pageNumberOffset,
+              end: chunk.pageEnd + pageNumberOffset,
+              total: chunk.totalPages
+            },
+            splitIndex: chunk.chunkIndex,
+            splitCount: chunks.length
+          })
+        )
       );
 
       filesToUpload = chunks.map(chunk => {
@@ -563,7 +585,8 @@ export const coursePackageService = {
         storagePath: assets[0].storagePath,
         originalName: assets[0].originalName,
         mimeType: assets[0].mimeType,
-        size: assets[0].fileSize
+        size: assets[0].fileSize,
+        pageNumberStart: normalizedPageNumberStart
       }
     });
 
@@ -921,7 +944,8 @@ export const coursePackageService = {
   importTextbookFromPdf: async (
     packageId: string,
     file: Express.Multer.File,
-    triggeredById?: string | null
+    triggeredById?: string | null,
+    pageNumberStart?: number
   ) => {
     if (!file || !file.buffer?.length) {
       const error = new Error("请上传完整的教材 PDF");
@@ -939,6 +963,16 @@ export const coursePackageService = {
     if (!tocResult.units.length) {
       throw new Error("未能从教材目录中解析出单元信息，请检查目录排版");
     }
+    const autoOffset = tocResult.pageOffset ?? 0;
+    const pdfPageOffset =
+      typeof pageNumberStart === "number" && Number.isFinite(pageNumberStart) && pageNumberStart > 0
+        ? pageNumberStart - 1
+        : autoOffset;
+
+    const clampPdfPage = (printedPage: number) => {
+      const page = printedPage - pdfPageOffset;
+      return Math.max(1, Math.min(tocResult.totalPages, page));
+    };
 
     const allUnits = await prisma.unit.findMany({
       where: { packageId },
@@ -984,9 +1018,12 @@ export const coursePackageService = {
       const perPageFiles: UploadableFile[] = [];
       const fileMetadata: Record<string, unknown>[] = [];
       for (let page = entry.startPage; page <= entry.endPage; page++) {
-        const slice = await extractPdfRange(file.buffer, page, page);
+        const pdfPageIndex = clampPdfPage(page);
+        const slice = await extractPdfRange(file.buffer, pdfPageIndex, pdfPageIndex);
+        const detectedPrintedPage =
+          tocResult.printedPageNumbers[pdfPageIndex - 1] ?? pdfPageIndex + pdfPageOffset;
         perPageFiles.push({
-          originalname: `${safeName}-page-${page}.pdf`,
+          originalname: `${safeName}-page-${detectedPrintedPage}.pdf`,
           mimetype: file.mimetype || "application/pdf",
           size: slice.buffer.byteLength,
           buffer: slice.buffer
@@ -994,11 +1031,11 @@ export const coursePackageService = {
         fileMetadata.push({
           source: "textbook_import",
           pageRange: {
-            start: page,
-            end: page,
+            start: detectedPrintedPage,
+            end: detectedPrintedPage,
             total: slice.totalPages
           },
-          lessonPages: [page],
+          lessonPages: [detectedPrintedPage],
           lessonTargetCount: 5
         });
       }
@@ -1107,6 +1144,14 @@ export const coursePackageService = {
           status: entry.status,
           sourceAssetOrder: entry.sourceAssetOrder,
           itemType: firstItem?.type ?? "sentence",
+          roundIndex: entry.roundIndex,
+          roundOrder: entry.roundOrder,
+          pageNumber:
+            typeof (payload.pageNumber as number | undefined) === "number"
+              ? Number(payload.pageNumber)
+              : typeof entry.sourceAssetOrder === "number"
+                ? entry.sourceAssetOrder + 1
+                : null,
           contentEn:
             (payload.en as string) ??
             (payload.target as string) ??
@@ -1195,4 +1240,3 @@ export const coursePackageService = {
     return { url: result.data.signedUrl };
   }
 };
-

@@ -3,9 +3,9 @@ import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
 
-import routes from "./routes";
 import { errorHandler } from "./middleware/errorHandler";
 import { notFoundHandler } from "./middleware/notFound";
+import routes from "./routes";
 
 export const createApp = (): express.Application => {
   const app = express();

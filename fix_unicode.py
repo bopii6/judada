@@ -1,0 +1,15 @@
+# -*- coding: utf-8 -*-
+from pathlib import Path
+path = Path('apps/web/src/components/AdventureMap.tsx')
+text = path.read_text(encoding='utf-8')
+text = text.replace('绗?', '第 ')
+text = text.replace('鍗曞厓', '单元')
+text = text.replace('鍏冲崱', '关')
+text = text.replace('缁冧範', '练习')
+text = text.replace('鐐瑰嚮鏌ョ湅鍏冲崱', '点击查看关卡')
+text = text.replace('瀹屾垚涓婁竴寮犲崱鐗屽嵆鍙户缁紝杩炵画闂叧瑙ｉ攣鑰佸笀鐐硅瘎', '完成上一张卡牌即可继续，连续闯关即可解锁老师点评')
+text = text.replace('瀹屾垚涓婁竴鍏宠В閿?', '完成上一关解锁')
+text = text.replace('鎸戞垬澶у笀鍒?', '挑战大师分')
+text = text.replace('宸茶幏寰楃偣璇?', '已获得点评')
+text = text.replace('寮�濮嬮棷鍏?', '开始闯关')
+path.write_text(text, encoding='utf-8')

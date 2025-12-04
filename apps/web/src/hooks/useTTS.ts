@@ -113,7 +113,7 @@ export const speak = (text: string, options: SpeakOptions = {}) => {
     utterance.pitch = options.pitch ?? 0.95;
 
     // 音量适中，保护听力
-    utterance.volume = options.volume ?? 0.8;
+    utterance.volume = options.volume ?? 0.2;
 
     if (options.onEnd) {
       utterance.onend = options.onEnd;

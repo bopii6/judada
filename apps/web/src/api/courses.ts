@@ -37,6 +37,7 @@ export interface CourseStage {
   sourceAssetId?: string | null;
   sourceAssetName?: string | null;
   sourceAssetOrder?: number | null;
+  pageNumber?: number | null;
   promptCn: string;
   promptEn?: string; // 英文句子（主要显示内容）
   answerEn: string;

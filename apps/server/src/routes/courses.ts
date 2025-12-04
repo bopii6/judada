@@ -279,6 +279,9 @@ router.get("/:id/questions", async (req, res, next) => {
     // 构建 stages 数组
     const stages = stageData.map(({ lesson, firstItem, payload, en }, index) => {
       const translationCn = translations[index];
+      const payloadPageNumber = typeof payload.pageNumber === "number" ? Number(payload.pageNumber) : null;
+      const derivedPageNumber =
+        payloadPageNumber ?? (typeof lesson.sourceAssetOrder === "number" ? lesson.sourceAssetOrder + 1 : null);
       
       // promptEn必须只包含英文，不能包含中文
       // 如果en为空，promptEn也应该是空的，让前端fallback到answerEn
@@ -303,6 +306,7 @@ router.get("/:id/questions", async (req, res, next) => {
         sourceAssetId: lesson.sourceAssetId,
         sourceAssetName: lesson.sourceAssetName,
         sourceAssetOrder: lesson.sourceAssetOrder,
+        pageNumber: derivedPageNumber,
         promptCn: promptCn, // 中文翻译（确保始终有值）
         promptEn: promptEn, // 英文作为主要内容（必须，不能是中文）
         answerEn: answerEn, // 答案（英文）

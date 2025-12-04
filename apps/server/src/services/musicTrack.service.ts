@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { Prisma, MusicTrackStatus } from "@prisma/client";
+import { MusicTrackStatus,Prisma } from "@prisma/client";
 import type { Express } from "express";
 import type { IAudioMetadata } from "music-metadata";
 

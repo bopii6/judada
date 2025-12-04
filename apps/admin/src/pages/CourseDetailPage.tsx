@@ -1,4 +1,4 @@
-import {
+﻿import {
   useEffect,
   useMemo,
   useRef,
@@ -12,7 +12,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CoursePackageDetail,
   UnitSummary,
-  LessonSummary,
   PackageMaterialSummary,
   MaterialLessonSummary,
   fetchCoursePackageDetail,
@@ -36,6 +35,7 @@ import {
   deleteLessonById,
   createManualLesson,
   importTextbookPdf,
+  regenerateUnit,
   type UpdateCoursePackagePayload,
   type CreateUnitPayload,
   type UpdateUnitPayload
@@ -52,9 +52,7 @@ const statusTextMap: Record<string, string> = {
 const MAX_COVER_SIZE = 5 * 1024 * 1024;
 const MAX_UPLOAD_SIZE = 15 * 1024 * 1024;
 const MAX_PDF_UPLOAD_SIZE = 80 * 1024 * 1024;
-const DEFAULT_PDF_SPLIT_PAGES = 8;
 const MIN_PDF_SPLIT_PAGES = 1;
-const MAX_PDF_SPLIT_PAGES = 16;
 
 const formatBytes = (bytes?: number | null) => {
   if (!bytes) return "未知大小";
@@ -76,7 +74,23 @@ const parseNumericValue = (value: unknown): number | null => {
   return null;
 };
 
+const extractLessonPageRange = (material: PackageMaterialSummary): { start: number; end: number } | null => {
+  const lessonPages = material.lessons
+    .map(lesson => (typeof lesson.pageNumber === "number" ? Math.max(1, Math.round(lesson.pageNumber)) : null))
+    .filter((value): value is number => value !== null);
+  if (!lessonPages.length) {
+    return null;
+  }
+  const start = Math.min(...lessonPages);
+  const end = Math.max(...lessonPages);
+  return { start, end };
+};
+
 const getMaterialPageRange = (material: PackageMaterialSummary): { start: number; end: number } | null => {
+  const lessonRange = extractLessonPageRange(material);
+  if (lessonRange) {
+    return lessonRange;
+  }
   const metadata = (material.metadata ?? {}) as Record<string, unknown>;
   const rangeCandidate = metadata.pageRange;
   if (!rangeCandidate || typeof rangeCandidate !== "object") {
@@ -94,6 +108,10 @@ const getMaterialPageRange = (material: PackageMaterialSummary): { start: number
 };
 
 const getMaterialPageNumber = (material: PackageMaterialSummary): number | null => {
+  const lessonRange = extractLessonPageRange(material);
+  if (lessonRange && lessonRange.start === lessonRange.end) {
+    return lessonRange.start;
+  }
   const metadata = (material.metadata ?? {}) as Record<string, unknown>;
   const candidateKeys = ["pageNumber", "page", "page_index", "pageIndex", "pageNo", "page_no", "pageNum", "page_num"];
   for (const key of candidateKeys) {
@@ -137,6 +155,34 @@ const formatMaterialLabel = (material: PackageMaterialSummary) => {
 const MATERIAL_LESSON_TARGET_OPTIONS = [3, 5, 8] as const;
 type LessonTargetOption = (typeof MATERIAL_LESSON_TARGET_OPTIONS)[number];
 const DEFAULT_MATERIAL_LESSON_TARGET: LessonTargetOption = 5;
+const ROUND_COUNT = 4;
+const LESSONS_PER_ROUND = 16;
+
+const computeRoundIndex = (sequence?: number | null) => {
+  if (!sequence || sequence <= 0) {
+    return 0;
+  }
+  const index = Math.floor((sequence - 1) / LESSONS_PER_ROUND);
+  return Math.max(0, Math.min(ROUND_COUNT - 1, index));
+};
+
+const formatRoundTitle = (index: number) => `第 ${index + 1} 轮`;
+const deriveRoundIndexFromLesson = (lesson: MaterialLessonSummary) => {
+  if (typeof lesson.roundIndex === "number" && lesson.roundIndex > 0) {
+    return Math.max(0, Math.min(ROUND_COUNT - 1, lesson.roundIndex - 1));
+  }
+  return computeRoundIndex(lesson.sequence);
+};
+
+const deriveRoundOrderFromLesson = (lesson: MaterialLessonSummary) => {
+  if (typeof lesson.roundOrder === "number" && lesson.roundOrder > 0) {
+    return lesson.roundOrder;
+  }
+  if (typeof lesson.sequence === "number" && lesson.sequence > 0) {
+    return ((lesson.sequence - 1) % LESSONS_PER_ROUND) + 1;
+  }
+  return 0;
+};
 
 const clampLessonTarget = (value: number): LessonTargetOption => {
   const min = MATERIAL_LESSON_TARGET_OPTIONS[0];
@@ -214,6 +260,7 @@ export const CourseDetailPage = () => {
   const [newUnitDescription, setNewUnitDescription] = useState("");
   const [newUnitSequence, setNewUnitSequence] = useState("");
   const [bookImportMessage, setBookImportMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [bookPageNumberStart, setBookPageNumberStart] = useState("");
 
   const {
     data,
@@ -331,10 +378,12 @@ export const CourseDetailPage = () => {
     }
   });
 
+  type ImportBookPayload = { file: File; pageNumberStart?: number };
+
   const importBookMutation = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async ({ file, pageNumberStart }: ImportBookPayload) => {
       if (!id) throw new Error("课程包ID缺失");
-      return importTextbookPdf(id, file);
+      return importTextbookPdf(id, file, pageNumberStart);
     },
     onMutate: () => {
       setBookImportMessage(null);
@@ -391,12 +440,12 @@ export const CourseDetailPage = () => {
     );
   };
 
-  const handleRegenerateMaterial = async (material: PackageMaterialSummary) => {
+  const handleRegenerateMaterial = async (material: PackageMaterialSummary, unitId?: string) => {
     if (!id) return;
     if (!window.confirm(`确定要重新生成素材「${formatMaterialLabel(material)}」下的关卡吗？`)) return;
     await runMaterialsAction(
       material.id,
-      () => regeneratePackageMaterial(id, material.id),
+      () => regeneratePackageMaterial(id, material.id, unitId ? { unitId } : undefined),
       "已触发重新生成任务"
     );
   };
@@ -498,7 +547,7 @@ export const CourseDetailPage = () => {
     fullBookInputRef.current?.click();
   };
 
-  const handleFullBookFileChange: ChangeEventHandler<HTMLInputElement> = event => {
+    const handleFullBookFileChange: ChangeEventHandler<HTMLInputElement> = event => {
     const file = event.target.files?.[0];
     if (!file) return;
     if (file.size > MAX_PDF_UPLOAD_SIZE) {
@@ -512,7 +561,18 @@ export const CourseDetailPage = () => {
       event.target.value = "";
       return;
     }
-    importBookMutation.mutate(file);
+    let normalizedPageStart: number | undefined;
+    if (bookPageNumberStart.trim()) {
+      const parsed = Number(bookPageNumberStart.trim());
+      if (Number.isNaN(parsed) || parsed < 1) {
+        setBookImportMessage({ type: "error", text: "请填写正确的起始页码（正整数）" });
+        event.target.value = "";
+        return;
+      }
+      normalizedPageStart = Math.round(parsed);
+    }
+    importBookMutation.mutate({ file, pageNumberStart: normalizedPageStart });
+    event.target.value = "";
   };
 
   const handleBasicInfoChange =
@@ -664,6 +724,16 @@ export const CourseDetailPage = () => {
             {importBookMutation.isPending ? "解析中..." : "📚 上传整本教材"}
           </button>
           <p className="textbook-import-hint">PDF ≤ 80MB，目录需带有单元名称与页码</p>
+          <label className="upload-hint">
+            <span>PDF 第一页的教材页码</span>
+            <input
+              type="number"
+              min={1}
+              placeholder="默认 1"
+              value={bookPageNumberStart}
+              onChange={event => setBookPageNumberStart(event.target.value)}
+            />
+          </label>
         </div>
       </section>
 
@@ -880,6 +950,14 @@ interface LessonEditorState {
   title: string;
   en: string;
   cn: string;
+  pageNumber: string;
+}
+
+interface RoundLessonEntry {
+  material: PackageMaterialSummary;
+  lesson: MaterialLessonSummary;
+  roundIndex: number;
+  roundOrder: number;
 }
 
 const UnitCard = ({
@@ -903,8 +981,7 @@ const UnitCard = ({
   const [uploadMessage, setUploadMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [lessonMessage, setLessonMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [lessonEditor, setLessonEditor] = useState<LessonEditorState | null>(null);
-  const [autoSplitPdf, setAutoSplitPdf] = useState(false);
-  const [splitPageCount, setSplitPageCount] = useState(DEFAULT_PDF_SPLIT_PAGES);
+  const [pdfPageNumberStart, setPdfPageNumberStart] = useState("");
 
   const updateMutation = useMutation({
     mutationFn: (payload: UpdateUnitPayload) => updateUnit(unit.id, payload),
@@ -937,6 +1014,18 @@ const UnitCard = ({
     }
   });
 
+  const unitRegenerateMutation = useMutation({
+    mutationFn: () => regenerateUnit(unit.id),
+    onSuccess: () => {
+      setUploadMessage({ type: "success", text: "已触发单元重新生成任务，关卡将重新生成..." });
+      onUpdate();
+      void queryClient.invalidateQueries({ queryKey: ["generation-jobs"] });
+    },
+    onError: error => {
+      setUploadMessage({ type: "error", text: (error as Error).message });
+    }
+  });
+
   const lessonSaveMutation = useMutation({
     mutationFn: async (editor: LessonEditorState) => {
       const title = editor.title.trim();
@@ -948,10 +1037,20 @@ const UnitCard = ({
       if (!en) {
         throw new Error("请填写英文句子");
       }
+      const pageNumberInput = editor.pageNumber.trim();
+      let normalizedPageNumber: number | null = null;
+      if (pageNumberInput) {
+        const parsed = Number(pageNumberInput);
+        if (Number.isNaN(parsed) || parsed < 1) {
+          throw new Error("页码必须为正整数");
+        }
+        normalizedPageNumber = Math.round(parsed);
+      }
       const payload = {
         title,
         en,
-        cn: cn ? cn : null
+        cn: cn ? cn : null,
+        pageNumber: normalizedPageNumber
       };
       if (editor.mode === "edit" && editor.lesson) {
         await updateLessonContent(editor.lesson.id, payload);
@@ -1013,39 +1112,29 @@ const UnitCard = ({
     fileInputRef.current?.click();
   };
 
-  const handleSplitPageInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const raw = Number(event.target.value);
-    if (Number.isNaN(raw)) {
-      setSplitPageCount(DEFAULT_PDF_SPLIT_PAGES);
-      return;
-    }
-    const clamped = Math.max(MIN_PDF_SPLIT_PAGES, Math.min(MAX_PDF_SPLIT_PAGES, Math.round(raw)));
-    setSplitPageCount(clamped);
-  };
-
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    if (autoSplitPdf) {
-      if (files.length > 1) {
-        setUploadMessage({ type: "error", text: "自动切分模式一次仅支持一个 PDF" });
-        return;
-      }
+    const singlePdf = files.length === 1 && (files[0].type.includes("pdf") || files[0].name.toLowerCase().endsWith(".pdf"));
+    if (singlePdf) {
       const target = files[0];
-      const name = target.name.toLowerCase();
-      const isPdf = target.type.includes('pdf') || name.endsWith('.pdf');
-      if (!isPdf) {
-        setUploadMessage({ type: "error", text: "请上传 PDF 文档以便自动切分" });
-        return;
-      }
       if (target.size > MAX_PDF_UPLOAD_SIZE) {
         setUploadMessage({ type: "error", text: "PDF 体积超过 80MB，暂无法切分" });
         return;
       }
+      let normalizedPageStart: number | undefined;
+      if (pdfPageNumberStart.trim()) {
+        const parsed = Number(pdfPageNumberStart.trim());
+        if (Number.isNaN(parsed) || parsed < 1) {
+          setUploadMessage({ type: "error", text: "请填写正确的起始页码（正整数）" });
+          return;
+        }
+        normalizedPageStart = Math.round(parsed);
+      }
       uploadMaterialMutation.mutate({
         files,
-        options: { splitPdf: true, splitPageCount }
+        options: { splitPdf: true, splitPageCount: MIN_PDF_SPLIT_PAGES, pageNumberStart: normalizedPageStart }
       });
       e.target.value = "";
       return;
@@ -1079,6 +1168,13 @@ const UnitCard = ({
     e.target.value = "";
   };
 
+  const handleRegenerateUnit = () => {
+    if (!window.confirm(`确定重新生成「${unit.title}」中的所有关卡吗？将根据现有素材重新创建，可能覆盖已编辑的内容。`)) {
+      return;
+    }
+    unitRegenerateMutation.mutate();
+  };
+
   const handleSaveEdit = () => {
     updateMutation.mutate({
       title: editTitle.trim(),
@@ -1105,6 +1201,40 @@ const UnitCard = ({
       .filter(Boolean) as Array<{ material: PackageMaterialSummary; lessons: MaterialLessonSummary[] }>;
   }, [materials, unit.id]);
 
+  const roundEntries = useMemo<RoundLessonEntry[]>(() => {
+    if (!unitMaterials.length) {
+      return [];
+    }
+    return unitMaterials.flatMap(({ material, lessons }) =>
+      lessons.map(lesson => ({
+        material,
+        lesson,
+        roundIndex: deriveRoundIndexFromLesson(lesson),
+        roundOrder: deriveRoundOrderFromLesson(lesson)
+      }))
+    );
+  }, [unitMaterials]);
+
+  const roundGroups = useMemo(
+    () =>
+      Array.from({ length: ROUND_COUNT }, (_item, index) => {
+        const lessons = roundEntries
+          .filter(entry => entry.roundIndex === index)
+          .sort((a, b) => {
+            const orderA = a.roundOrder || 0;
+            const orderB = b.roundOrder || 0;
+            if (orderA && orderB && orderA !== orderB) {
+              return orderA - orderB;
+            }
+            const seqA = a.lesson.sequence ?? 0;
+            const seqB = b.lesson.sequence ?? 0;
+            return seqA - seqB;
+          });
+        return { roundIndex: index, lessons };
+      }),
+    [roundEntries]
+  );
+
   const openLessonEditor = (
     mode: "create" | "edit",
     material: PackageMaterialSummary,
@@ -1117,16 +1247,25 @@ const UnitCard = ({
       lesson: lesson ?? null,
       title: lesson ? sanitizeLessonTitle(lesson.title, material) : orderHint ? `关卡 ${orderHint}` : "",
       en: lesson?.contentEn ?? "",
-      cn: lesson?.contentCn ?? ""
+      cn: lesson?.contentCn ?? "",
+      pageNumber: lesson?.pageNumber ? String(lesson.pageNumber) : ""
     });
   };
 
   const handleLessonFieldChange =
-    (field: "title" | "en" | "cn") =>
+    (field: "title" | "en" | "cn" | "pageNumber") =>
     (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       const value = event.target.value;
       setLessonEditor(prev => (prev ? { ...prev, [field]: value } : prev));
     };
+
+  const handleLessonMaterialChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    if (!lessonEditor) return;
+    const nextMaterial = unitMaterials.find(entry => entry.material.id === event.target.value);
+    if (nextMaterial) {
+      setLessonEditor({ ...lessonEditor, material: nextMaterial.material });
+    }
+  };
 
   const handleLessonModalSubmit: FormEventHandler<HTMLFormElement> = event => {
     event.preventDefault();
@@ -1173,9 +1312,16 @@ const UnitCard = ({
             <button type="button" onClick={handleCoverClick} disabled={uploadCoverMutation.isPending}>
               {uploadCoverMutation.isPending ? "上传中..." : "🖼️ 上传封面"}
             </button>
-            <button type="button" onClick={() => setIsEditing(true)}>
-              ✏️ 编辑单元
-            </button>
+              <button
+                type="button"
+                onClick={handleRegenerateUnit}
+                disabled={unitRegenerateMutation.isPending}
+              >
+                {unitRegenerateMutation.isPending ? "重新生成中..." : "♻️ 重新生成单元"}
+              </button>
+              <button type="button" onClick={() => setIsEditing(true)}>
+                ✏️ 编辑单元
+              </button>
             {isPublished ? (
               <button
                 type="button"
@@ -1198,6 +1344,18 @@ const UnitCard = ({
             <button type="button" className="danger" onClick={handleDelete} disabled={deleteMutation.isPending}>
               🗑️ 删除
             </button>
+            <div className="upload-hint">
+              <label>
+                <span>PDF第一页对应教材页码</span>
+                <input
+                  type="number"
+                  min={1}
+                  placeholder="默认 1"
+                  value={pdfPageNumberStart}
+                  onChange={event => setPdfPageNumberStart(event.target.value)}
+                />
+              </label>
+            </div>
           </div>
 
           {uploadMessage && (
@@ -1240,14 +1398,91 @@ const UnitCard = ({
             </div>
           )}
 
-          <div className="unit-materials-tree">
-            <h4>素材与关卡树</h4>
-            {unitMaterials.length === 0 ? (
-              <p className="materials-empty">该单元尚未关联素材，可上传素材后查看生成结果。</p>
+          <div className="unit-rounds-board">
+            <h4>回合与关卡</h4>
+            {roundEntries.length === 0 ? (
+              <p className="materials-empty">暂无关卡，请先上传教材或手动新增句子。</p>
             ) : (
-              <div className="materials-grid nested">
+              <div className="round-grid">
+                {roundGroups.map(group => {
+                  const defaultMaterial = group.lessons[0]?.material ?? unitMaterials[0]?.material;
+                  return (
+                    <div key={group.roundIndex} className="round-card">
+                      <div className="round-card-header">
+                        <div>
+                          <p className="round-title">{formatRoundTitle(group.roundIndex)}</p>
+                          <p className="round-meta">{group.lessons.length} 个关卡</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!defaultMaterial) {
+                              alert("请先上传教材素材后再新增句子");
+                              return;
+                            }
+                            openLessonEditor("create", defaultMaterial, null, group.lessons.length + 1);
+                          }}
+                          disabled={lessonSaveMutation.isPending || !defaultMaterial}
+                        >
+                          + 新增句子
+                        </button>
+                      </div>
+                      {group.lessons.length === 0 ? (
+                        <p className="round-empty">该回合暂未分配关卡</p>
+                      ) : (
+                        <ul className="round-lesson-list">
+                          {group.lessons.map(entry => {
+                            const pageLabel = formatLessonPageTag(entry.lesson);
+                            return (
+                              <li key={entry.lesson.id}>
+                                <div className="round-lesson-info">
+                                  <div className="round-lesson-title">
+                                    #{entry.lesson.sequence ?? "—"} {entry.lesson.contentEn || "未提供句子"}
+                                  </div>
+                                  <div className="round-lesson-meta">
+                                    <span>{pageLabel}</span>
+                                    <span className="round-lesson-source">{formatMaterialLabel(entry.material)}</span>
+                                  </div>
+                                  {entry.lesson.contentCn && (
+                                    <p className="round-lesson-cn">{entry.lesson.contentCn}</p>
+                                  )}
+                                </div>
+                                <div className="round-lesson-actions">
+                                  <button
+                                    type="button"
+                                    onClick={() => openLessonEditor("edit", entry.material, entry.lesson)}
+                                  >
+                                    编辑
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="danger"
+                                    onClick={() => handleLessonDelete(entry.lesson)}
+                                    disabled={lessonDeleteMutation.isPending}
+                                  >
+                                    删除
+                                  </button>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="unit-materials-panel">
+            <h4>素材管理</h4>
+            {unitMaterials.length === 0 ? (
+              <p className="materials-empty">暂无素材，请通过上方按钮上传教材。</p>
+            ) : (
+              <div className="materials-grid compact">
                 {unitMaterials.map(({ material, lessons }) => (
-                  <div key={material.id} className="material-card">
+                  <div key={material.id} className="material-card mini">
                     <div className="material-card-header clean">
                       <div>
                         <p className="material-label">{formatMaterialLabel(material)}</p>
@@ -1272,7 +1507,7 @@ const UnitCard = ({
                         </button>
                         <button
                           type="button"
-                          onClick={() => onRegenerateMaterial(material)}
+                          onClick={() => onRegenerateMaterial(material, unit.id)}
                           disabled={materialActionId === material.id}
                         >
                           重新生成
@@ -1287,44 +1522,20 @@ const UnitCard = ({
                         </button>
                       </div>
                     </div>
-                    <div className="material-lessons compact">
-                      <div className="material-lessons-header">
-                        <span>已关联 {lessons.length} 个关卡</span>
-                        <button
-                          type="button"
-                          onClick={() => openLessonEditor("create", material, null, lessons.length + 1)}
-                          disabled={lessonSaveMutation.isPending}
-                        >
-                          + 新增句子
-                        </button>
+                    <div className="material-target-control">
+                      <span>AI 目标关卡数：</span>
+                      <div className="material-target-options">
+                        {MATERIAL_LESSON_TARGET_OPTIONS.map(option => (
+                          <button
+                            type="button"
+                            key={option}
+                            className={getMaterialLessonTarget(material) === option ? "active" : ""}
+                            onClick={() => onUpdateMaterialTarget(material, option)}
+                          >
+                            {option} 个
+                          </button>
+                        ))}
                       </div>
-                      <ul className="material-lessons-list detailed">
-                        {lessons.map(lesson => (
-                            <li key={lesson.id}>
-                              <div className="material-lesson-info">
-                                <div className="material-lesson-title">
-                                  #{lesson.sequence ?? "—"} {lesson.contentEn || "未提供句子"}
-                                </div>
-                                {lesson.contentCn && (
-                                  <p className="material-lesson-cn">{lesson.contentCn}</p>
-                                )}
-                              </div>
-                              <div className="material-lesson-actions">
-                                <button type="button" onClick={() => openLessonEditor("edit", material, lesson)}>
-                                  编辑
-                                </button>
-                                <button
-                                  type="button"
-                                  className="danger"
-                                  onClick={() => handleLessonDelete(lesson)}
-                                  disabled={lessonDeleteMutation.isPending}
-                                >
-                                  删除
-                                </button>
-                              </div>
-                            </li>
-                          ))}
-                      </ul>
                     </div>
                   </div>
                 ))}
@@ -1372,6 +1583,26 @@ const UnitCard = ({
                     />
                   </label>
                   <label>
+                    <span>所属素材 *</span>
+                    <select value={lessonEditor.material.id} onChange={handleLessonMaterialChange}>
+                      {unitMaterials.map(({ material }) => (
+                        <option key={material.id} value={material.id}>
+                          {formatMaterialLabel(material)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>页码</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={lessonEditor.pageNumber}
+                      onChange={handleLessonFieldChange("pageNumber")}
+                      placeholder="例如：2"
+                    />
+                  </label>
+                  <label>
                     <span>中文翻译</span>
                     <textarea
                       rows={2}
@@ -1398,28 +1629,12 @@ const UnitCard = ({
   );
 };
 
-// 关卡卡片组件
-interface LessonCardProps {
-  lesson: LessonSummary;
-}
-
-const LessonCard = ({ lesson }: LessonCardProps) => {
-  const statusLabel = statusTextMap[lesson.status] ?? lesson.status;
-
-  return (
-    <div className="lesson-card-mini">
-      <div className="lesson-mini-header">
-        <span className="lesson-sequence">#{lesson.sequence}</span>
-        <span className={`lesson-status-mini status-${lesson.status}`}>{statusLabel}</span>
-      </div>
-      <h5>{lesson.title}</h5>
-      {lesson.currentVersion?.summary && (
-        <p className="lesson-summary-mini">{lesson.currentVersion.summary}</p>
-      )}
-      <div className="lesson-mini-actions">
-        <button type="button" disabled>编辑关卡</button>
-        <button type="button" className="text" disabled>预览</button>
-      </div>
-    </div>
-  );
+const formatLessonPageTag = (lesson: MaterialLessonSummary) => {
+  if (typeof lesson.pageNumber === "number") {
+    return `第 ${lesson.pageNumber} 页`;
+  }
+  if (typeof lesson.sourceAssetOrder === "number") {
+    return `第 ${lesson.sourceAssetOrder + 1} 页`;
+  }
+  return "未标注页码";
 };

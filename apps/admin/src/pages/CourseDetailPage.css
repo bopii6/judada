@@ -465,6 +465,167 @@
   cursor: not-allowed;
 }
 
+.unit-actions-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.upload-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.upload-hint input {
+  width: 120px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+}
+
+.unit-rounds-board,
+.unit-materials-panel {
+  margin-top: 24px;
+}
+
+.unit-rounds-board h4,
+.unit-materials-panel h4 {
+  margin: 0 0 12px;
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.round-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.round-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #fff;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.round-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.round-card-header button {
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 4px 12px;
+  background: #f1f5f9;
+  cursor: pointer;
+}
+
+.round-title {
+  margin: 0;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.round-meta {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.round-lesson-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.round-lesson-list li {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #f8fafc;
+}
+
+.round-lesson-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.round-lesson-title {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.round-lesson-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.round-lesson-source {
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.round-lesson-cn {
+  margin: 0;
+  font-size: 13px;
+  color: #475569;
+}
+
+.round-lesson-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.round-lesson-actions button {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  cursor: pointer;
+}
+
+.round-empty {
+  margin: 8px 0 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #94a3b8;
+  text-align: center;
+  font-size: 14px;
+}
+
+.materials-grid.compact {
+  flex-direction: row;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.material-card.mini {
+  background: #fff;
+}
+
 .material-lessons {
   background: #fff;
   border-radius: 10px;

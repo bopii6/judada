@@ -1,5 +1,5 @@
 import { LessonItemType, MusicTrackStatus } from "@prisma/client";
-import { Router, type Router as ExpressRouter } from "express";
+import { type Router as ExpressRouter,Router } from "express";
 import multer from "multer";
 import { z } from "zod";
 
@@ -44,7 +44,8 @@ const lessonContentSchema = z.object({
   title: z.string().min(1, "请输入标题"),
   en: z.string().min(1, "请填写英文内容"),
   cn: z.string().optional(),
-  type: z.nativeEnum(LessonItemType).optional()
+  type: z.nativeEnum(LessonItemType).optional(),
+  pageNumber: z.union([z.number().int().positive(), z.null()]).optional()
 });
 
 const createManualLessonSchema = lessonContentSchema.extend({
@@ -197,13 +198,20 @@ router.post(
         typeof req.body?.splitPageCount === "string" ? Number(req.body.splitPageCount) : undefined;
       const normalizedSplitPageCount =
         typeof splitPageCountRaw === "number" && Number.isFinite(splitPageCountRaw) ? splitPageCountRaw : undefined;
+      const pageNumberStartRaw =
+        typeof req.body?.pageNumberStart === "string" ? Number(req.body.pageNumberStart) : undefined;
+      const normalizedPageNumberStart =
+        typeof pageNumberStartRaw === "number" && Number.isFinite(pageNumberStartRaw) && pageNumberStartRaw > 0
+          ? Math.round(pageNumberStartRaw)
+          : undefined;
 
       const { job, assets } = await coursePackageService.enqueueGenerationFromUpload({
         packageId: req.params.id,
         files: files && files.length > 0 ? files : (file ? [file] : []),
         triggeredById: parsed.data.triggeredById ?? null,
         splitPdf: splitPdfFlag,
-        splitPageCount: normalizedSplitPageCount
+        splitPageCount: normalizedSplitPageCount,
+        pageNumberStart: normalizedPageNumberStart
       });
 
       res.status(202).json({
@@ -225,8 +233,20 @@ router.post(
         res.status(400).json({ error: "请上传整本教材 PDF" });
         return;
       }
+      const pageNumberStartRaw =
+        typeof req.body?.pageNumberStart === "string" ? Number(req.body.pageNumberStart) : undefined;
+      const normalizedPageNumberStart =
+        typeof pageNumberStartRaw === "number" && Number.isFinite(pageNumberStartRaw) && pageNumberStartRaw > 0
+          ? Math.round(pageNumberStartRaw)
+          : undefined;
+
       const userId = (req as any).user?.id ?? null;
-      const result = await coursePackageService.importTextbookFromPdf(req.params.id, req.file, userId);
+      const result = await coursePackageService.importTextbookFromPdf(
+        req.params.id,
+        req.file,
+        userId,
+        normalizedPageNumberStart
+      );
       res.json({ success: true, ...result });
     } catch (error) {
       next(error);
@@ -466,11 +486,86 @@ router.post("/course-packages/:packageId/materials/:assetId/regenerate", async (
   try {
     const { packageId, assetId } = req.params;
     const payload = regenerateMaterialSchema.parse(req.body ?? {});
+    const asset = await prisma.asset.findFirst({
+      where: { id: assetId, packageId, deletedAt: null },
+      select: { id: true }
+    });
+
+    if (!asset) {
+      res.status(404).json({ error: "素材不存在或已删除" });
+      return;
+    }
+
+    let resolvedUnitId = payload.unitId ?? null;
+    if (!resolvedUnitId) {
+      const linkedUnits = await prisma.lesson.findMany({
+        where: {
+          packageId,
+          sourceAssetId: assetId,
+          deletedAt: null,
+          unitId: { not: null }
+        },
+        distinct: ["unitId"],
+        select: { unitId: true }
+      });
+
+      if (linkedUnits.length === 1 && linkedUnits[0].unitId) {
+        resolvedUnitId = linkedUnits[0].unitId;
+      } else if (linkedUnits.length > 1) {
+        res.status(400).json({ error: "该素材关联多个单元，请指定要重新生成的单元" });
+        return;
+      }
+    }
+
     const result = await coursePackageService.enqueueGenerationFromAssets({
       packageId,
       assetIds: [assetId],
-      unitId: payload.unitId
+      unitId: resolvedUnitId
     });
+    res.status(201).json({ job: result.job, assets: result.assets });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/units/:unitId/regenerate", async (req, res, next) => {
+  try {
+    const { unitId } = req.params;
+    const unit = await prisma.unit.findUnique({
+      where: { id: unitId, deletedAt: null },
+      select: { id: true, packageId: true, title: true }
+    });
+
+    if (!unit) {
+      res.status(404).json({ error: "单元不存在或已删除" });
+      return;
+    }
+
+    const lessonAssets = await prisma.lesson.findMany({
+      where: {
+        unitId,
+        deletedAt: null,
+        sourceAssetId: { not: null }
+      },
+      distinct: ["sourceAssetId"],
+      select: { sourceAssetId: true }
+    });
+
+    const assetIds = lessonAssets
+      .map(entry => entry.sourceAssetId)
+      .filter((value): value is string => Boolean(value));
+
+    if (assetIds.length === 0) {
+      res.status(400).json({ error: "该单元尚未关联任何素材，请先上传教材后再试" });
+      return;
+    }
+
+    const result = await coursePackageService.enqueueGenerationFromAssets({
+      packageId: unit.packageId,
+      assetIds,
+      unitId: unit.id
+    });
+
     res.status(201).json({ job: result.job, assets: result.assets });
   } catch (error) {
     next(error);
@@ -481,6 +576,8 @@ router.post("/course-packages/:packageId/materials/:assetId/lessons", async (req
   try {
     const { packageId, assetId } = req.params;
     const payload = createManualLessonSchema.parse(req.body ?? {});
+    const normalizedPageNumber =
+      typeof payload.pageNumber === "number" ? Math.max(1, Math.round(payload.pageNumber)) : null;
 
     const asset = await prisma.asset.findFirst({
       where: { id: assetId, packageId, deletedAt: null }
@@ -552,6 +649,7 @@ router.post("/course-packages/:packageId/materials/:assetId/lessons", async (req
             answer: payload.en,
             target: payload.en,
             cn: payload.cn ?? null,
+            pageNumber: normalizedPageNumber,
             note: "来自手动创建"
           }
         }
@@ -636,6 +734,12 @@ router.put("/lessons/:lessonId/content", async (req, res, next) => {
 
       const firstItem = version?.items?.[0];
       const basePayload = firstItem?.payload && typeof firstItem.payload === "object" ? firstItem.payload : {};
+      const normalizedPageNumber =
+        typeof payload.pageNumber === "number"
+          ? Math.max(1, Math.round(payload.pageNumber))
+          : payload.pageNumber === null
+            ? null
+            : undefined;
       const nextPayload = {
         ...basePayload,
         en: payload.en,
@@ -644,6 +748,9 @@ router.put("/lessons/:lessonId/content", async (req, res, next) => {
         cn: payload.cn ?? null,
         updatedAt: new Date().toISOString()
       };
+      if (normalizedPageNumber !== undefined) {
+        nextPayload.pageNumber = normalizedPageNumber;
+      }
 
       if (firstItem) {
         await tx.lessonItem.update({
@@ -848,6 +955,12 @@ router.post(
         typeof req.body?.splitPageCount === "string" ? Number(req.body.splitPageCount) : undefined;
       const normalizedSplitPageCount =
         typeof splitPageCountRaw === "number" && Number.isFinite(splitPageCountRaw) ? splitPageCountRaw : undefined;
+      const pageNumberStartRaw =
+        typeof req.body?.pageNumberStart === "string" ? Number(req.body.pageNumberStart) : undefined;
+      const normalizedPageNumberStart =
+        typeof pageNumberStartRaw === "number" && Number.isFinite(pageNumberStartRaw) && pageNumberStartRaw > 0
+          ? Math.round(pageNumberStartRaw)
+          : undefined;
 
       // 调用课程包服务上传素材，关联到单元
       const result = await coursePackageService.enqueueGenerationFromUpload({
@@ -856,7 +969,8 @@ router.post(
         triggeredById: undefined,
         unitId,
         splitPdf: splitPdfFlag,
-        splitPageCount: normalizedSplitPageCount
+        splitPageCount: normalizedSplitPageCount,
+        pageNumberStart: normalizedPageNumberStart
       });
 
       res.status(201).json({

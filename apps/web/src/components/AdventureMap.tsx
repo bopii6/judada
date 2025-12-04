@@ -1,334 +1,442 @@
-﻿import type { CourseStage } from "../api/courses";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { CourseStage } from "../api/courses";
 import { useProgressStore } from "../store/progressStore";
-import { Map as MapIcon, Star, Lock, ArrowRight, ChevronDown, ChevronRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, ChevronDown, Lock, Play, Sparkles, Star } from "lucide-react";
 
 interface AdventureMapProps {
   stages: CourseStage[];
   onStart(stageId: string): void;
 }
 
-interface UnitGroup {
-  unitNumber: number | null;
-  unitName: string | null;
+interface RoundData {
+  roundNumber: number;
   stages: CourseStage[];
 }
 
-const getUnitKey = (stage: CourseStage) => {
-  if (typeof stage.unitNumber === "number") {
-    return `num-${stage.unitNumber}`;
+interface UnitData {
+  unitNumber: number;
+  unitName: string;
+  rounds: RoundData[];
+}
+
+type StageStatus = "locked" | "current" | "done" | "mastered";
+
+const CARDS_PER_VIEW = 6;
+
+const chunk = <T,>(items: T[], size: number): T[][] => {
+  if (!items.length) return [];
+  const result: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    result.push(items.slice(i, i + size));
   }
-  if (stage.unitName?.trim()) {
-    return `name-${stage.unitName.trim()}`;
-  }
-  return "unit-none";
+  return result;
 };
+
+const getRoundSummary = (
+  round: RoundData,
+  progressMap: Record<string, { bestStars?: number } | undefined>
+) => {
+  const total = round.stages.length;
+  let completed = 0;
+  let stars = 0;
+  round.stages.forEach(stage => {
+    const record = progressMap[stage.id];
+    if (record) {
+      completed += 1;
+      stars += record.bestStars ?? 0;
+    }
+  });
+  return { total, completed, stars };
+};
+
+const isRoundCompleted = (round: RoundData, progressMap: Record<string, unknown>) =>
+  round.stages.every(stage => Boolean(progressMap[stage.id]));
+
+const isUnitCompleted = (unit: UnitData, progressMap: Record<string, unknown>) =>
+  unit.rounds.every(round => isRoundCompleted(round, progressMap));
 
 export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
   const progress = useProgressStore();
 
-  // 按单元分组
-  const unitGroups = useMemo<UnitGroup[]>(() => {
-    const groups: Map<number | null, UnitGroup> = new Map();
-
+  const units = useMemo<UnitData[]>(() => {
+    if (!stages.length) return [];
+    const grouped = new Map<number, CourseStage[]>();
     stages.forEach(stage => {
-      const unitNum = stage.unitNumber ?? null;
-      if (!groups.has(unitNum)) {
-        groups.set(unitNum, {
-          unitNumber: unitNum,
-          unitName: stage.unitName ?? null,
-          stages: []
-        });
-      }
-      groups.get(unitNum)!.stages.push(stage);
+      const unitNumber = stage.unitNumber ?? 1;
+      if (!grouped.has(unitNumber)) grouped.set(unitNumber, []);
+      grouped.get(unitNumber)!.push(stage);
     });
-
-    // 按单元序号排序
-    return Array.from(groups.values()).sort((a, b) => {
-      if (a.unitNumber === null) return 1;
-      if (b.unitNumber === null) return -1;
-      return a.unitNumber - b.unitNumber;
-    });
+    return Array.from(grouped.keys())
+      .sort((a, b) => a - b)
+      .map(unitNumber => {
+        const unitStages = grouped.get(unitNumber)!;
+        unitStages.sort((a, b) => a.stageSequence - b.stageSequence);
+        const rounds: RoundData[] = [];
+        for (let i = 0; i < unitStages.length; i += 16) {
+          rounds.push({
+            roundNumber: rounds.length + 1,
+            stages: unitStages.slice(i, i + 16)
+          });
+        }
+        return {
+          unitNumber,
+          unitName: unitStages[0]?.unitName || `第 ${unitNumber} 单元`,
+          rounds
+        };
+      });
   }, [stages]);
 
-  // 是否有多个单元
-  const hasMultipleUnits = unitGroups.length > 1 || (unitGroups.length === 1 && unitGroups[0].unitNumber !== null);
+  const [expandedUnitIdx, setExpandedUnitIdx] = useState(0);
+  const [roundIndexByUnit, setRoundIndexByUnit] = useState<Record<number, number>>({});
+  const [slideIndexByRound, setSlideIndexByRound] = useState<Record<string, number>>({});
+  const [userInteracted, setUserInteracted] = useState(false);
 
-  // 展开/折叠状态
-  const [expandedUnits, setExpandedUnits] = useState<Set<number | null>>(() => {
-    // 默认展开第一个单元
-    if (unitGroups.length > 0) {
-      return new Set([unitGroups[0].unitNumber]);
-    }
-    return new Set();
-  });
-
-  const toggleUnit = (unitNumber: number | null) => {
-    setExpandedUnits(prev => {
-      const next = new Set(prev);
-      if (next.has(unitNumber)) {
-        next.delete(unitNumber);
-      } else {
-        next.add(unitNumber);
-      }
-      return next;
+  useEffect(() => {
+    if (!units.length) return;
+    setRoundIndexByUnit(prev => {
+      const next = { ...prev };
+      let changed = false;
+      units.forEach(unit => {
+        if (typeof next[unit.unitNumber] !== "number") {
+          const firstAvailable = unit.rounds.findIndex(round => !isRoundCompleted(round, progress.stages));
+          next[unit.unitNumber] = firstAvailable === -1 ? Math.max(unit.rounds.length - 1, 0) : firstAvailable;
+          changed = true;
+        } else if (next[unit.unitNumber] >= unit.rounds.length) {
+          next[unit.unitNumber] = Math.max(unit.rounds.length - 1, 0);
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
     });
+  }, [units, progress.stages]);
+
+  useEffect(() => {
+    if (!units.length || userInteracted) return;
+    const firstUnfinished = units.findIndex(unit => !isUnitCompleted(unit, progress.stages));
+    setExpandedUnitIdx(firstUnfinished >= 0 ? firstUnfinished : units.length - 1);
+  }, [units, progress.stages, userInteracted]);
+
+  if (!units.length) return null;
+
+  const handleToggleUnit = (idx: number) => {
+    setUserInteracted(true);
+    setExpandedUnitIdx(prev => (prev === idx ? -1 : idx));
   };
 
-  const nodeStates = useMemo(() => {
-    const unitProgressState = new Map<string, boolean>();
-    return stages.map(stage => {
-      const record = progress.stages[stage.id];
-      const completed = Boolean(record);
-      const unitKey = getUnitKey(stage);
-      const canEnter = unitProgressState.get(unitKey) ?? true;
-      const unlocked = completed || canEnter;
-      unitProgressState.set(unitKey, completed);
-      return {
-        stage,
-        completed,
-        unlocked,
-        stars: record?.bestStars ?? 0
-      };
-    });
-  }, [progress, stages]);
-
-  // 获取单元内关卡的状态
-  const getUnitProgress = (unitStages: CourseStage[]) => {
-    let completed = 0;
-    const total = unitStages.length;
-    unitStages.forEach(stage => {
-      if (progress.stages[stage.id]) {
-        completed++;
-      }
-    });
-    return { completed, total, percentage: total > 0 ? Math.round((completed / total) * 100) : 0 };
+  const handleRoundChange = (unitNumber: number, roundNumber: number, idx: number) => {
+    setUserInteracted(true);
+    setRoundIndexByUnit(prev => ({ ...prev, [unitNumber]: idx }));
+    setSlideIndexByRound(prev => ({ ...prev, [`${unitNumber}-${roundNumber}`]: 0 }));
   };
 
-  if (!stages.length) return null;
+  const renderRoundSlider = (unit: UnitData, activeRoundIndex: number) => {
+    const activeRound = unit.rounds[activeRoundIndex];
+    if (!activeRound) return null;
+    const summary = getRoundSummary(activeRound, progress.stages);
+    const slides = chunk(activeRound.stages, CARDS_PER_VIEW);
+    const sliderKey = `${unit.unitNumber}-${activeRound.roundNumber}`;
+    const slideIndex = slideIndexByRound[sliderKey] ?? 0;
+    const canPrev = slideIndex > 0;
+    const canNext = slideIndex < slides.length - 1;
+    const stageOrderMap = new Map(activeRound.stages.map((stage, index) => [stage.id, index]));
 
-  // 如果只有一个单元或没有单元信息，使用原来的平铺展示
-  if (!hasMultipleUnits) {
+    const goSlide = (direction: "prev" | "next") => {
+      if (direction === "prev" && canPrev) {
+        setSlideIndexByRound(prev => ({ ...prev, [sliderKey]: slideIndex - 1 }));
+      }
+      if (direction === "next" && canNext) {
+        setSlideIndexByRound(prev => ({ ...prev, [sliderKey]: slideIndex + 1 }));
+      }
+    };
+
     return (
-      <div className="rounded-[2.5rem] bg-white dark:bg-slate-800 p-8 sm:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] border border-slate-100 dark:border-slate-700 relative overflow-hidden">
-        {/* Background Decoration */}
-        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-orange-400 via-orange-400 to-amber-400"></div>
-
-        <div className="flex items-center gap-3 mb-8">
-          <div className="p-2.5 rounded-xl bg-orange-100 dark:bg-orange-900/30 text-orange-500 dark:text-orange-400">
-            <MapIcon className="w-6 h-6" />
-          </div>
-          <div>
-            <h2 className="text-xl font-black text-slate-800 dark:text-slate-100">冒险地图</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">跟着路线，一步步征服英语世界！</p>
-          </div>
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between text-xs text-slate-500">
+          <span>第 {activeRound.roundNumber} 组 · {summary.total} 关卡</span>
+          <span>已完成 {summary.completed}/{summary.total} ｜ 累积 {summary.stars} 星</span>
         </div>
 
         <div className="relative">
-          {/* Connecting Line (Desktop) */}
-          <div className="absolute top-1/2 left-0 w-full h-3 bg-slate-100 dark:bg-slate-700 -translate-y-1/2 rounded-full hidden md:block z-0"></div>
+          {slides.length > 1 && (
+            <>
+              <button
+                type="button"
+                aria-label="上一组"
+                onClick={() => goSlide("prev")}
+                disabled={!canPrev}
+                className={`absolute left-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full border bg-white dark:bg-slate-800 shadow-lg flex items-center justify-center transition-all ${
+                  canPrev ? "text-slate-600 hover:scale-105" : "text-slate-300 cursor-not-allowed"
+                }`}
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                aria-label="下一组"
+                onClick={() => goSlide("next")}
+                disabled={!canNext}
+                className={`absolute right-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full border bg-white dark:bg-slate-800 shadow-lg flex items-center justify-center transition-all ${
+                  canNext ? "text-slate-600 hover:scale-105" : "text-slate-300 cursor-not-allowed"
+                }`}
+              >
+                <ArrowRight className="w-5 h-5" />
+              </button>
+            </>
+          )}
 
-          <div className="flex flex-col gap-6 md:flex-row md:overflow-x-auto md:pb-8 md:pt-4 md:px-2 no-scrollbar relative z-10">
-            {nodeStates.map(({ stage, completed, unlocked, stars }, index) => (
-              <StageCard
-                key={stage.id}
-                stage={stage}
-                completed={completed}
-                unlocked={unlocked}
-                stars={stars}
-                showArrow={index < nodeStates.length - 1}
-                onStart={onStart}
-              />
-            ))}
+          <div className="overflow-hidden rounded-[1.5rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+            <div
+              className="flex transition-transform duration-500"
+              style={{ transform: `translateX(-${slideIndex * 100}%)` }}
+            >
+              {slides.map((slideStages, slideIdx) => (
+                <div
+                  key={`slide-${slideIdx}`}
+                  className="w-full shrink-0 p-4 sm:p-6"
+                >
+                  <div className="flex gap-4">
+                    {slideStages.map(stage => {
+                      const record = progress.stages[stage.id];
+                      const completed = Boolean(record);
+                      const stars = record?.bestStars ?? 0;
+                      const isMastered = completed && stars >= 3;
+                      const stageIndex = stageOrderMap.get(stage.id) ?? 0;
+                      const isFirstStage = stageIndex === 0;
+
+                      let unlocked = completed;
+                      if (!unlocked) {
+                        if (isFirstStage) {
+                          unlocked = true;
+                        } else {
+                          const prevStage = activeRound.stages[stageIndex - 1];
+                          unlocked = Boolean(prevStage && progress.stages[prevStage.id]);
+                        }
+                      }
+
+                      const status: StageStatus = isMastered
+                        ? "mastered"
+                        : completed
+                          ? "done"
+                          : unlocked
+                            ? "current"
+                            : "locked";
+
+                      return (
+                        <div key={stage.id} className="w-[180px] shrink-0">
+                          <CheckpointCard
+                            stage={stage}
+                            displayNumber={stage.stageSequence}
+                            stars={stars}
+                            status={status}
+                            onStart={() => unlocked && onStart(stage.id)}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
+
+          {slides.length > 1 && (
+            <div className="mt-3 flex items-center justify-center gap-2">
+              {slides.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setSlideIndexByRound(prev => ({ ...prev, [sliderKey]: idx }))}
+                  className={`h-1 rounded-full transition-all ${idx === slideIndex ? "w-10 bg-slate-900 dark:bg-white" : "w-4 bg-slate-200 dark:bg-slate-700"}`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="text-xs text-slate-400 flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-orange-500" />
+          完成上一张卡牌即可继续，连续闯关即可解锁老师点评
         </div>
       </div>
     );
-  }
+  };
 
-  // 多单元分组展示
   return (
-    <div className="rounded-[2.5rem] bg-white dark:bg-slate-800 p-8 sm:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] border border-slate-100 dark:border-slate-700 relative overflow-hidden">
-      {/* Background Decoration */}
-      <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-orange-400 via-orange-400 to-amber-400"></div>
+    <div className="flex flex-col gap-6">
+      {units.map((unit, idx) => {
+        const expanded = idx === expandedUnitIdx;
+        const activeRoundIndex = roundIndexByUnit[unit.unitNumber] ?? 0;
+        const unitSummary = unit.rounds.reduce(
+          (acc, round) => {
+            const summary = getRoundSummary(round, progress.stages);
+            return {
+              total: acc.total + summary.total,
+              completed: acc.completed + summary.completed,
+              stars: acc.stars + summary.stars
+            };
+          },
+          { total: 0, completed: 0, stars: 0 }
+        );
 
-      <div className="flex items-center gap-3 mb-8">
-        <div className="p-2.5 rounded-xl bg-orange-100 dark:bg-orange-900/30 text-orange-500 dark:text-orange-400">
-          <MapIcon className="w-6 h-6" />
-        </div>
-        <div>
-          <h2 className="text-xl font-black text-slate-800 dark:text-slate-100">冒险地图</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">按单元学习，循序渐进征服英语世界！</p>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        {unitGroups.map((group, groupIndex) => {
-          const isExpanded = expandedUnits.has(group.unitNumber);
-          const unitProgress = getUnitProgress(group.stages);
-          const unitNodeStates = nodeStates.filter(ns =>
-            group.stages.some(s => s.id === ns.stage.id)
-          );
-
-          return (
-            <div key={group.unitNumber ?? 'default'} className="border border-slate-100 dark:border-slate-700 rounded-2xl overflow-hidden">
-              {/* Unit Header */}
-              <button
-                onClick={() => toggleUnit(group.unitNumber)}
-                className="w-full flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors text-left"
-              >
-                <div className={`p-2 rounded-xl ${unitProgress.percentage === 100 ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'}`}>
-                  {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+        return (
+          <section
+            key={unit.unitNumber}
+            className="rounded-[2rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-[0_20px_50px_rgba(15,23,42,0.08)] overflow-hidden"
+          >
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => handleToggleUnit(idx)}
+              onKeyDown={e => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleToggleUnit(idx);
+                }
+              }}
+              className="w-full flex items-center justify-between gap-4 px-6 py-5 cursor-pointer focus:outline-none"
+            >
+              <div className="flex items-center gap-4 text-left">
+                <span className="text-xs font-black tracking-[0.35em] text-orange-500">
+                  第 {unit.unitNumber} 单元
+                </span>
+                <div>
+                  <p className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white">{unit.unitName}</p>
                 </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-slate-800 dark:text-slate-100 truncate">
-                      {group.unitName || `单元 ${group.unitNumber ?? groupIndex + 1}`}
-                    </h3>
-                    {unitProgress.percentage === 100 && (
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
-                        已完成
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                    {group.stages.length} 个关卡 · 已完成 {unitProgress.completed}/{unitProgress.total}
+              </div>
+              <div className="flex items-center gap-4 text-right">
+                <div className="text-xs text-slate-500">
+                  <p className="font-semibold text-slate-600 dark:text-slate-100">
+                    {unitSummary.completed}/{unitSummary.total} 关卡 · {unit.rounds.length} 组练习
                   </p>
+                  <p className="text-xs text-slate-400">任意单元第一关随时可练</p>
                 </div>
-
-                {/* Progress Bar */}
-                <div className="hidden sm:flex items-center gap-3 w-32">
-                  <div className="flex-1 h-2 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${unitProgress.percentage === 100 ? 'bg-emerald-500' : 'bg-orange-500'}`}
-                      style={{ width: `${unitProgress.percentage}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 w-8">{unitProgress.percentage}%</span>
+                <div
+                  className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all ${
+                    expanded ? "border-slate-900 text-slate-900 dark:border-white dark:text-white rotate-180" : "border-slate-200 text-slate-400"
+                  }`}
+                >
+                  <ChevronDown className="w-5 h-5" />
                 </div>
-              </button>
-
-              {/* Unit Content */}
-              {isExpanded && (
-                <div className="p-4 bg-white dark:bg-slate-800">
-                  <div className="flex flex-col gap-4 md:flex-row md:overflow-x-auto md:pb-4 md:px-2 no-scrollbar">
-                    {unitNodeStates.map(({ stage, completed, unlocked, stars }, index) => (
-                      <StageCard
-                        key={stage.id}
-                        stage={stage}
-                        completed={completed}
-                        unlocked={unlocked}
-                        stars={stars}
-                        showArrow={index < unitNodeStates.length - 1}
-                        onStart={onStart}
-                        compact
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
-          );
-        })}
-      </div>
+
+            {expanded && (
+              <div className="px-6 pb-8 space-y-6">
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  {unit.rounds.map((round, roundIdx) => {
+                    const summary = getRoundSummary(round, progress.stages);
+                    const isActive = roundIdx === activeRoundIndex;
+                    return (
+                      <button
+                        key={round.roundNumber}
+                        type="button"
+                        onClick={() => handleRoundChange(unit.unitNumber, round.roundNumber, roundIdx)}
+                        className={`rounded-2xl border p-3 text-left transition-all ${
+                          isActive ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-600 border-slate-200"
+                        } hover:border-slate-400`}
+                      >
+                        <div className="flex items-center justify-between text-xs">
+                          <span>第 {round.roundNumber} 组</span>
+                          <span>{summary.completed}/{summary.total}</span>
+                        </div>
+                        <div className="mt-2 h-1.5 w-full rounded-full bg-white/30">
+                          <div
+                            className={`h-full rounded-full ${isActive ? "bg-orange-300" : "bg-slate-300"}`}
+                            style={{ width: `${summary.total ? (summary.completed / summary.total) * 100 : 0}%` }}
+                          />
+                        </div>
+                        <p className="mt-2 text-[11px] opacity-70">点击查看关卡</p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {renderRoundSlider(unit, activeRoundIndex)}
+              </div>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 };
 
-// 关卡卡片组件
-interface StageCardProps {
+interface CheckpointCardProps {
   stage: CourseStage;
-  completed: boolean;
-  unlocked: boolean;
+  displayNumber: number;
   stars: number;
-  showArrow: boolean;
-  onStart: (stageId: string) => void;
-  compact?: boolean;
+  status: StageStatus;
+  onStart: () => void;
 }
 
-const StageCard = ({ stage, completed, unlocked, stars, showArrow, onStart, compact }: StageCardProps) => {
-  const englishSentence = (stage.promptEn || stage.answerEn || "").trim();
-  const translation = (stage.promptCn || "").trim();
-  const pageNumber = typeof stage.sourceAssetOrder === "number" ? stage.sourceAssetOrder + 1 : null;
+const ellipsis = (text: string | undefined, max = 24) => {
+  if (!text) return "";
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+};
+
+const CheckpointCard = ({ stage, displayNumber, stars, status, onStart }: CheckpointCardProps) => {
+  const isLocked = status === "locked";
+  const isDone = status === "done";
+  const isMaster = status === "mastered";
+
+  const actionLabel = isLocked
+    ? "完成上一关解锁"
+    : isMaster
+      ? "挑战大师分"
+      : isDone
+        ? "已获得点评"
+        : "开始闯关";
+
+  const actionIcon = isLocked ? (
+    <Lock className="w-4 h-4" />
+  ) : isDone ? (
+    <CheckCircle2 className="w-4 h-4" />
+  ) : (
+    <Play className="w-4 h-4 fill-current" />
+  );
+
+  const englishSnippet = stage.promptEn || stage.answerEn || stage.lessonTitle || stage.sourceAssetName || stage.promptCn || "";
+  const subtitle = ellipsis(englishSnippet, 30);
+
+  const styleMap: Record<StageStatus, string> = {
+    locked: "border-slate-200 text-slate-400 bg-slate-50/70 cursor-not-allowed",
+    current: "border-orange-300 bg-orange-50 text-orange-700 shadow-[0_12px_30px_rgba(251,146,60,0.25)]",
+    done: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    mastered: "border-purple-300 bg-purple-50 text-purple-700 shadow-[0_12px_30px_rgba(168,85,247,0.25)]"
+  };
 
   return (
-    <div
-      className={`relative flex-shrink-0 flex flex-col items-center text-center group transition-all duration-300 ${unlocked ? "opacity-100" : "opacity-60 grayscale"}`}
-      style={{ width: compact ? '200px' : '240px' }}
+    <button
+      type="button"
+      disabled={isLocked}
+      onClick={() => !isLocked && onStart()}
+      className={`h-full rounded-2xl border p-4 flex flex-col gap-3 text-left transition-all ${styleMap[status]}`}
     >
-      {/* Node Circle */}
-      <button
-        onClick={() => unlocked && onStart(stage.id)}
-        disabled={!unlocked}
-        className={`${compact ? 'w-14 h-14 rounded-xl text-lg' : 'w-20 h-20 rounded-[2rem] text-2xl'} flex items-center justify-center font-black shadow-lg transition-transform duration-300 mb-3 relative z-10 ${completed
-          ? "bg-gradient-to-br from-emerald-400 to-teal-500 text-white scale-110 shadow-emerald-200"
-          : unlocked
-            ? "bg-white dark:bg-slate-700 border-4 border-orange-100 dark:border-orange-800 text-orange-500 dark:text-orange-400 hover:scale-110 hover:border-orange-200 dark:hover:border-orange-700 hover:shadow-xl hover:shadow-orange-100 dark:hover:shadow-orange-900/30"
-            : "bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed"
-          }`}
-      >
-        {unlocked ? (
-          completed ? (
-            <Star className={`${compact ? 'w-6 h-6' : 'w-8 h-8'} fill-white`} />
-          ) : (
-            stage.stageSequence
-          )
-        ) : (
-          <Lock className={`${compact ? 'w-5 h-5' : 'w-8 h-8'}`} />
-        )}
-
-        {/* Stars Badge */}
-        {stars > 0 && (
-          <div className="absolute -bottom-1 bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded-full shadow-sm border border-slate-100 dark:border-slate-700 flex gap-0.5">
-            {[...Array(stars)].map((_, i) => (
-              <Star key={i} className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
-            ))}
-          </div>
-        )}
-      </button>
-
-      {/* Content */}
-      <div
-        className={`bg-white dark:bg-slate-800 ${compact ? 'p-3' : 'p-4'} rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm w-full group-hover:shadow-md transition-shadow cursor-pointer flex flex-col`}
-        style={{ height: compact ? '160px' : '180px' }}
-        onClick={() => unlocked && onStart(stage.id)}
-      >
-        <div className="flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500 mb-2 flex-shrink-0">
-          <div className="text-left">
-            <p className="font-semibold text-slate-500 dark:text-slate-400">单元</p>
-            <p className="text-slate-800 dark:text-slate-100 font-bold">{stage.unitName || `Unit ${stage.unitNumber ?? "?"}`}</p>
-          </div>
-          <div className="text-right">
-            <p className="font-semibold text-slate-500 dark:text-slate-400">页码</p>
-            <p className="text-slate-800 dark:text-slate-100 font-bold">{pageNumber ? `第 ${pageNumber} 页` : "未标注"}</p>
-          </div>
-        </div>
-
-        <div className="flex-1 flex flex-col justify-center mb-2 min-h-0">
-          <h3 className={`font-bold text-slate-800 dark:text-slate-100 mb-1 ${compact ? 'text-sm' : 'text-base'} line-clamp-2`}>
-            {englishSentence || "暂无句子"}
-          </h3>
-          {translation && (
-            <p className={`text-slate-500 dark:text-slate-400 font-medium line-clamp-2 ${compact ? 'text-xs' : 'text-xs'}`}>
-              {translation}
-            </p>
-          )}
-        </div>
-
-        <div className="flex justify-center mt-auto pt-2 border-t border-slate-50 dark:border-slate-700/50 flex-shrink-0">
-          <span className={`text-xs font-bold ${unlocked ? "text-orange-500 dark:text-orange-400" : "text-slate-400 dark:text-slate-500"}`}>
-            {unlocked ? "点击开始" : "完成上一关解锁"}
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-black tracking-[0.35em]">#{displayNumber.toString().padStart(2, "0")}</span>
+        {isMaster && (
+          <span className="px-2 py-0.5 text-[10px] rounded-full bg-purple-100 text-purple-600 font-black uppercase">
+            MASTER
           </span>
-        </div>
+        )}
       </div>
 
-      {/* Arrow for mobile */}
-      {showArrow && (
-        <div className="md:hidden my-2 text-slate-300 dark:text-slate-600">
-          <ArrowRight className="w-5 h-5 rotate-90" />
-        </div>
-      )}
-    </div>
+      <p className="text-base font-semibold text-slate-800">{subtitle || `第 ${displayNumber} 关`}</p>
+      <p className="text-xs text-slate-400">第 {displayNumber} 关</p>
+
+      <div className="mt-auto flex items-center justify-between text-xs font-bold">
+        <span className="inline-flex items-center gap-1">
+          {actionIcon}
+          {actionLabel}
+        </span>
+        {stars > 0 && (
+          <span className="flex items-center gap-0.5 text-amber-500">
+            {[...Array(Math.min(stars, 3))].map((_, idx) => (
+              <Star key={idx} className="w-3 h-3 fill-current" />
+            ))}
+          </span>
+        )}
+      </div>
+    </button>
   );
 };

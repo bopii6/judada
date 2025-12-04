@@ -17,7 +17,9 @@ export const formatStageOriginLabel = (stage: CourseStage): string | null => {
     labelParts.push(`Unit ${stage.unitNumber}`);
   }
 
-  if (stage.sourceAssetName) {
+  if (typeof stage.pageNumber === "number") {
+    labelParts.push(`Page ${stage.pageNumber}`);
+  } else if (stage.sourceAssetName) {
     labelParts.push(humanize(stripExtension(stage.sourceAssetName)));
   } else if (typeof stage.sourceAssetOrder === "number") {
     labelParts.push(`Page ${stage.sourceAssetOrder + 1}`);

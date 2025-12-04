@@ -1,7 +1,7 @@
 import pdf from "pdf-parse";
 
 import { getEnv } from "../config/env";
-import { getOpenAI, callOpenAIWithRetry } from "../lib/openai";
+import { callOpenAIWithRetry,getOpenAI } from "../lib/openai";
 
 export interface TextbookUnitEntry {
   unitLabel: string;
@@ -14,6 +14,8 @@ export interface TextbookUnitEntry {
 export interface TextbookTocResult {
   units: TextbookUnitEntry[];
   totalPages: number;
+  pageOffset: number | null;
+  printedPageNumbers: (number | null)[];
 }
 
 type PdfPageData = {
@@ -158,7 +160,7 @@ const parseUnitsFromLines = (lines: string[], totalPages: number): TextbookUnitE
     }
 
     const startPage = Math.min(...filteredPages);
-    let endPage = Math.max(...filteredPages);
+    const endPage = Math.max(...filteredPages);
 
     if (startPage > endPage) {
       continue;
@@ -289,17 +291,105 @@ ${tocText}`;
   }
 };
 
+const detectPageOffset = (units: TextbookUnitEntry[], pages: string[]): number | null => {
+  if (!units.length || !pages.length) {
+    return null;
+  }
+  const normalizedPages = pages.map(text =>
+    (text || "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase()
+  );
+  const sortedUnits = [...units].sort((a, b) => a.startPage - b.startPage);
+  for (const unit of sortedUnits) {
+    const searchPhrases: string[] = [];
+    if (unit.unitLabel) {
+      searchPhrases.push(unit.unitLabel.toLowerCase());
+      const unitOnly = unit.unitLabel.match(/unit\s+\d+/i);
+      if (unitOnly?.[0]) {
+        searchPhrases.push(unitOnly[0].toLowerCase());
+      }
+    }
+    if (unit.topic) {
+      searchPhrases.push(unit.topic.toLowerCase());
+    }
+    searchPhrases.push("lesson 1");
+    for (let i = 0; i < normalizedPages.length; i += 1) {
+      const pageText = normalizedPages[i];
+      if (!pageText) continue;
+      if (searchPhrases.some(phrase => phrase && pageText.includes(phrase))) {
+        const offset = unit.startPage - (i + 1);
+        console.info(`[Textbook TOC] detected page offset ${offset} using unit "${unit.unitLabel}" on pdf page ${i + 1}`);
+        return offset;
+      }
+    }
+  }
+  return null;
+};
+
+interface DigitCandidate {
+  value: string;
+  x: number;
+  y: number;
+}
+
+const buildPrintedPageNumbers = (pages: DigitCandidate[][]): (number | null)[] =>
+  pages.map(digits => {
+    if (!digits?.length) {
+      return null;
+    }
+    const minY = Math.min(...digits.map(candidate => candidate.y ?? 0));
+    const threshold = minY + 2;
+    const bottomDigits = digits
+      .filter(candidate => (candidate.y ?? 0) <= threshold)
+      .sort((a, b) => (a.x ?? 0) - (b.x ?? 0));
+
+    if (!bottomDigits.length) {
+      return null;
+    }
+    const text = bottomDigits.map(candidate => candidate.value).join("");
+    if (!/^\d{1,4}$/.test(text)) {
+      return null;
+    }
+    const parsed = Number(text);
+    return Number.isFinite(parsed) ? parsed : null;
+  });
+
+const detectPageOffsetFromFooters = (numbers: (number | null)[]): number | null => {
+  for (let index = 0; index < numbers.length; index += 1) {
+    const printed = numbers[index];
+    if (printed && Number.isFinite(printed)) {
+      const offset = printed - (index + 1);
+      console.info(`[Textbook TOC] detected footer page offset ${offset} on pdf page ${index + 1}`);
+      return offset;
+    }
+  }
+  return null;
+};
+
 export const extractTextbookToc = async (buffer: Buffer): Promise<TextbookTocResult> => {
   const pageTexts: string[] = [];
+  const pageLines: string[][] = [];
+  const pageDigits: DigitCandidate[][] = [];
   const data = await pdf(buffer, {
     pagerender: async (pageData: PdfPageData) => {
       const textContent = await pageData.getTextContent();
       const lines: string[] = [];
+      const digitCandidates: DigitCandidate[] = [];
       let currentLine = "";
       for (const rawItem of textContent.items) {
-        const item = rawItem as { str?: string; hasEOL?: boolean };
+        const item = rawItem as { str?: string; hasEOL?: boolean; transform?: number[] };
         const chunk = item.str ?? "";
         currentLine += chunk;
+        if (chunk && /^\d+$/.test(chunk)) {
+          const transform = item.transform ?? [];
+          digitCandidates.push({
+            value: chunk,
+            x: typeof transform[4] === "number" ? transform[4] : 0,
+            y: typeof transform[5] === "number" ? transform[5] : 0
+          });
+        }
         if (item.hasEOL) {
           if (currentLine.trim()) {
             lines.push(currentLine.trim());
@@ -314,11 +404,14 @@ export const extractTextbookToc = async (buffer: Buffer): Promise<TextbookTocRes
       }
       const text = lines.join("\n");
       pageTexts[pageData.pageNumber - 1] = text;
+      pageLines[pageData.pageNumber - 1] = lines;
+      pageDigits[pageData.pageNumber - 1] = digitCandidates;
       return `${text}\n`;
     }
   });
 
   const totalPages = data.numpages ?? pageTexts.length;
+  const printedPageNumbers = buildPrintedPageNumbers(pageDigits);
   const tocLines = expandTocLines(buildTocLines(pageTexts));
   console.info("[Textbook TOC] collected lines:", tocLines.slice(0, 12));
 
@@ -334,8 +427,12 @@ export const extractTextbookToc = async (buffer: Buffer): Promise<TextbookTocRes
     }
   }
   units = dedupeUnits(units);
+  const footerOffset = detectPageOffsetFromFooters(printedPageNumbers);
+  const pageOffset = (footerOffset ?? detectPageOffset(units, pageTexts)) ?? null;
   return {
     units,
-    totalPages
+    totalPages,
+    pageOffset,
+    printedPageNumbers
   };
 };

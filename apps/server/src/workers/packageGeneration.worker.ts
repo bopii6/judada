@@ -1,24 +1,20 @@
-import { Prisma, LessonItemType } from "@prisma/client";
+import { LessonItemType, Prisma } from "@prisma/client";
 import type { Job } from "bullmq";
 import pdf from "pdf-parse";
 
 import { getEnv } from "../config/env";
 import { PACKAGE_GENERATION_QUEUE, PackageGenerationJobData } from "../jobs/packageGeneration.queue";
-import { callHunyuanChat } from "../lib/hunyuan";
-import { callOpenAIWithRetry, getOpenAI } from "../lib/openai";
-import { getPrisma } from "../lib/prisma";
 import { recognizeImagesBatch } from "../lib/ocr";
+import { getPrisma } from "../lib/prisma";
 import { createWorker } from "../lib/queue";
 import { getSupabase } from "../lib/supabase";
 import { batchTranslate } from "../lib/translation";
 import { generationJobRepository } from "../repositories/generationJob.repository";
-import { ParsedQuestion, parsePdfToQuestions } from "../utils/pdf";
 
 const prisma = getPrisma();
 const supabase = getSupabase();
-const openai = getOpenAI();
 
-const { SUPABASE_STORAGE_BUCKET, OPENAI_MODEL_NAME } = getEnv();
+const { SUPABASE_STORAGE_BUCKET } = getEnv();
 
 const LESSON_ITEM_TYPES: LessonItemType[] = [
   "vocabulary",
@@ -53,6 +49,10 @@ const DEFAULT_ENGLISH_SENTENCES = [
   "See you tomorrow."
 ];
 
+const SENTENCE_ROUND_COUNT = 4;
+const SENTENCE_PER_ROUND = 16;
+const MAX_SENTENCE_CANDIDATES = 400;
+
 type AllowedLessonItemType = `${LessonItemType}`;
 
 interface GeneratedLessonItemPlan {
@@ -70,6 +70,9 @@ interface MaterialExtraction {
   ocrText: string;
   sentences: string[];
   targetLessonCount?: number | null;
+  metadata?: Record<string, unknown>;
+  pageNumbers: number[];
+  fallbackOrder: number;
 }
 
 const cloneMetadata = (value: Prisma.JsonValue | null | undefined): Record<string, unknown> => {
@@ -119,6 +122,94 @@ const persistMaterialExtractionStats = async (materials: MaterialExtraction[]) =
   );
 };
 
+const PAGE_NUMBER_METADATA_KEYS = [
+  "pageNumber",
+  "page",
+  "page_index",
+  "pageIndex",
+  "pageNo",
+  "page_no",
+  "pageNum",
+  "page_num"
+];
+
+const clampPageNumber = (value: number): number => {
+  if (!Number.isFinite(value)) {
+    return 1;
+  }
+  return Math.max(1, Math.round(value));
+};
+
+const extractPageNumbersFromMetadata = (
+  metadata: Record<string, unknown> | undefined,
+  fallbackName: string | undefined,
+  fallbackOrder: number
+): number[] => {
+  const pages = new Set<number>();
+  const pushNumericValue = (value: unknown) => {
+    const numeric = parseNumericSetting(value);
+    if (numeric !== null) {
+      pages.add(clampPageNumber(numeric));
+    }
+  };
+
+  if (metadata) {
+    const lessonPages = metadata.lessonPages;
+    if (Array.isArray(lessonPages)) {
+      for (const item of lessonPages) {
+        pushNumericValue(item);
+      }
+    }
+
+    const rangeCandidate = metadata.pageRange;
+    if (rangeCandidate && typeof rangeCandidate === "object") {
+      const range = rangeCandidate as Record<string, unknown>;
+      const start = parseNumericSetting(range.start);
+      const end = parseNumericSetting(range.end);
+      if (start !== null) {
+        const safeEnd = end !== null ? end : start;
+        const boundedEnd = Math.min(start + 31, safeEnd); // 避免一次性展开过多页码
+        for (let page = start; page <= boundedEnd; page++) {
+          pushNumericValue(page);
+        }
+      }
+    }
+
+    for (const key of PAGE_NUMBER_METADATA_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(metadata, key)) {
+        pushNumericValue(metadata[key]);
+      }
+    }
+
+    const originalFileName = metadata.originalFileName;
+    if (typeof originalFileName === "string") {
+      const matches = originalFileName.match(/page[-_\s]*(\d{1,3})/i);
+      if (matches?.[1]) {
+        pushNumericValue(Number(matches[1]));
+      }
+    }
+  }
+
+  const targetName = fallbackName || (typeof metadata?.originalFileName === "string" ? (metadata.originalFileName as string) : undefined);
+  if (targetName && pages.size === 0) {
+    const pageMatch = targetName.match(/page[-_\s]*(\d{1,4})/i);
+    if (pageMatch?.[1]) {
+      pushNumericValue(Number(pageMatch[1]));
+    } else {
+      const digits = targetName.replace(/\.[^.]+$/, "").match(/(\d{1,4})$/);
+      if (digits?.[1]) {
+        pushNumericValue(Number(digits[1]));
+      }
+    }
+  }
+
+  if (pages.size === 0 && Number.isFinite(fallbackOrder)) {
+    pushNumericValue(fallbackOrder + 1);
+  }
+
+  return Array.from(pages).sort((a, b) => a - b);
+};
+
 interface GeneratedLessonPlan {
   title: string;
   summary: string;
@@ -128,6 +219,8 @@ interface GeneratedLessonPlan {
   sourceMaterialId?: string;
   sourceMaterialName?: string;
   sourceMaterialIndex?: number;
+  roundIndex: number;
+  roundOrder: number;
 }
 
 interface GeneratedCoursePlan {
@@ -135,75 +228,27 @@ interface GeneratedCoursePlan {
   lessons: GeneratedLessonPlan[];
 }
 
+interface SentenceCandidate {
+  id: string;
+  text: string;
+  score: number;
+  tokens: Set<string>;
+  pageNumber: number;
+  materialId: string;
+  materialName: string;
+  materialOrder: number;
+}
+
+interface SelectedSentence extends SentenceCandidate {
+  roundIndex: number;
+  roundOrder: number;
+}
+
 const clampDifficulty = (value: number | undefined | null): number | null => {
   if (value == null || Number.isNaN(value)) return null;
   if (value < 1) return 1;
   if (value > 6) return 6;
   return Math.round(value);
-};
-
-const truncate = (value: string, maxLength: number) => {
-  if (value.length <= maxLength) return value;
-  return `${value.slice(0, maxLength)}…`;
-};
-
-const normalizePayload = (payload: unknown): Prisma.InputJsonValue => {
-  if (payload == null) {
-    return {};
-  }
-  if (typeof payload === "object") {
-    const payloadObj = payload as Record<string, unknown>;
-
-    // 自动为缺少中文翻译的item生成翻译
-    if (payloadObj.en && !payloadObj.cn) {
-      console.log(`[normalizePayload] 为item自动生成中文翻译，en: ${(payloadObj.en as string).substring(0, 50)}...`);
-
-      // 使用异步翻译避免阻塞
-      generateTranslationForItem(payloadObj.en as string)
-        .then(translation => {
-          if (translation && translation !== '[翻译生成中...]') {
-            payloadObj.cn = translation;
-            console.log(`[normalizePayload] 翻译生成成功: ${translation.substring(0, 50)}...`);
-          } else {
-            payloadObj.cn = payloadObj.en; // fallback到英文
-            console.log(`[normalizePayload] 翻译失败，fallback到英文`);
-          }
-        })
-        .catch(error => {
-          console.error(`[normalizePayload] 翻译生成失败:`, error);
-          payloadObj.cn = payloadObj.en; // fallback到英文
-        });
-    }
-
-    return payloadObj as Prisma.JsonObject | Prisma.JsonArray;
-  }
-  return { value: payload } as Prisma.JsonObject;
-};
-
-// 异步翻译函数，避免阻塞主要流程
-const generateTranslationForItem = async (enText: string): Promise<string | null> => {
-  try {
-    if (!enText || !enText.trim()) {
-      return null;
-    }
-
-    const translation = await callHunyuanChat([
-      {
-        Role: "system",
-        Content: "你是专业的英语翻译助手。请将英文句子准确翻译成中文。要求：1. 只返回翻译结果，不要添加任何解释、说明或额外内容；2. 翻译要准确、自然；3. 如果是单词，返回对应的中文意思；4. 如果是句子，返回完整的句子翻译。"
-      },
-      {
-        Role: "user",
-        Content: `请将以下英文翻译成中文：\n\n${enText}`
-      }
-    ], { temperature: 0.2 });
-
-    const cleanTranslation = translation.replace(/\n+/g, '').trim();
-    return cleanTranslation && cleanTranslation.length > 0 ? cleanTranslation : null;
-  } catch (error) {
-    console.error(`[generateTranslationForItem] 翻译失败:`, error);
-    return null;
-  }
 };
 
 const parseNumericSetting = (value: unknown): number | null => {
@@ -253,20 +298,7 @@ const extractLessonTargetFromMetadata = (metadata?: Record<string, unknown> | nu
   return null;
 };
 
-const resolveMaterialLessonTarget = (material: MaterialExtraction): number => {
-  const explicit = normalizeLessonTarget(material.targetLessonCount);
-  if (explicit !== null) {
-    return explicit;
-  }
-  const sentenceBased =
-    material.sentences && material.sentences.length >= 5
-      ? DEFAULT_LESSONS_PER_MATERIAL
-      : MIN_LESSONS_PER_MATERIAL;
-  return normalizeLessonTarget(sentenceBased) ?? DEFAULT_LESSONS_PER_MATERIAL;
-};
-
 const MIN_LESSONS_PER_MATERIAL = 3;
-const DEFAULT_LESSONS_PER_MATERIAL = 5;
 const MAX_LESSONS_PER_MATERIAL = 8;
 const MAX_TOTAL_LESSONS = 80;
 
@@ -945,369 +977,219 @@ const selectCoreSentences = (sentences: string[], limit = 50): string[] => {
     .slice(0, limit);
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const extractOcrText = (raw: unknown): string => {
-  const visited = new Set<unknown>();
+const sanitizeSentenceText = (text: string): string => text.replace(/\s+/g, " ").replace(/\s([,.!?])/g, "$1").trim();
 
-  const unwrap = (value: unknown): unknown => {
-    if (!value || typeof value !== "object") {
-      return value;
-    }
-    return (value as any).body ?? value;
-  };
-
-  const parseValue = (value: unknown): unknown => {
-    if (typeof value === "string") {
-      const trimmed = value.trim();
-      if (!trimmed) return "";
-      if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
-        try {
-          return JSON.parse(trimmed);
-        } catch {
-          return trimmed;
-        }
-      }
-      return trimmed;
-    }
-    return value;
-  };
-
-  const collectFromArray = (items: unknown): string => {
-    if (!Array.isArray(items)) return "";
-    const collected = items
-      .map(entry => {
-        if (typeof entry === "string") return entry;
-        if (!entry || typeof entry !== "object") return "";
-        return (
-          entry?.word ??
-          entry?.Word ??
-          entry?.text ??
-          entry?.Text ??
-          entry?.content ??
-          entry?.Content ??
-          entry?.line ??
-          entry?.Line ??
-          ""
-        );
-      })
-      .filter((value): value is string => typeof value === "string" && value.trim().length > 0);
-    return collected.join("\n");
-  };
-
-  const extractRecursive = (value: unknown): string => {
-    if (value == null) return "";
-    const parsed = parseValue(value);
-    if (typeof parsed === "string") {
-      return parsed;
-    }
-
-    if (Array.isArray(parsed)) {
-      const joined = collectFromArray(parsed);
-      if (joined) return joined;
-      for (const item of parsed) {
-        const nested = extractRecursive(item);
-        if (nested) return nested;
-      }
-      return "";
-    }
-
-    if (typeof parsed !== "object" || visited.has(parsed)) {
-      return "";
-    }
-    visited.add(parsed);
-
-    const record = parsed as Record<string, unknown>;
-
-    const directKeys = [
-      "content",
-      "Content",
-      "fullText",
-      "FullText",
-      "text",
-      "Text",
-      "ocr_text",
-      "ocrText",
-      "OCRText",
-      "outputText",
-      "OutputText"
-    ];
-    for (const key of directKeys) {
-      const candidate = record[key];
-      if (typeof candidate === "string" && candidate.trim().length > 0) {
-        return candidate;
-      }
-    }
-
-    const nestedKeys = ["data", "Data", "result", "Result", "payload", "Payload", "value", "Value"];
-    for (const key of nestedKeys) {
-      const nested = extractRecursive(record[key]);
-      if (nested) return nested;
-    }
-
-    const outputs = record.outputs ?? record.Outputs;
-    if (outputs) {
-      const text = extractRecursive(outputs);
-      if (text) return text;
-    }
-
-    const outputValue = (record as any)?.outputValue ?? (record as any)?.OutputValue;
-    if (outputValue) {
-      const text = extractRecursive(outputValue);
-      if (text) return text;
-    }
-
-    const dataValue = (record as any)?.dataValue ?? (record as any)?.DataValue;
-    if (dataValue) {
-      const text = extractRecursive(dataValue);
-      if (text) return text;
-    }
-
-    const arrayKeys = [
-      "prism_wordsInfo",
-      "PrismWordsInfo",
-      "wordsInfo",
-      "WordsInfo",
-      "words",
-      "Words",
-      "lineContents",
-      "LineContents",
-      "lines",
-      "Lines",
-      "contents",
-      "Contents"
-    ];
-    for (const key of arrayKeys) {
-      const arrayResult = collectFromArray(record[key]);
-      if (arrayResult) return arrayResult;
-    }
-
-    return "";
-  };
-
-  const body = unwrap(raw);
-  const data = (body as any)?.data ?? (body as any)?.Data ?? body;
-  return extractRecursive(data);
+const ensurePageNumber = (material: MaterialExtraction): number => {
+  if (material.pageNumbers && material.pageNumbers.length > 0) {
+    return material.pageNumbers[0];
+  }
+  if (Number.isFinite(material.order)) {
+    return material.order + 1;
+  }
+  return 1;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const buildAiInstructions = () =>
-  [
-    "You are an experienced ESL curriculum designer for Chinese learners aged 16-30.",
-    "Design a coherent mini-course from provided raw materials. Create 15-20 sequential lessons, each with a concise summary, a difficulty rating (1-6), and 3-6 activity items that gradually increase in challenge.",
-    "Activity types must match the provided enum. Populate payloads with bilingual content whenever possible (both English and Chinese) and ensure every activity includes both CN and EN text when it makes sense.",
-    "Keep vocabulary and prompts concise (<= 120 characters). Avoid markdown. The JSON must pass the provided schema precisely."
-  ].join("\n");
+const MIN_SENTENCE_WORDS = 4;
 
-/**
- * AI指令 - 极度强制生成15个不同的关卡
- * 针对中国小学生英语教科书学习场景
- */
-const buildOptimizedAiInstructions = () =>
-  [
-    "CRITICAL REQUIREMENT: You MUST generate EXACTLY 15 DIFFERENT lessons. No exceptions!",
-    "",
-    "You are designing English learning challenges for Chinese elementary school students (ages 8-12) based on their English textbook content.",
-    "",
-    "MANDATORY CONTENT REQUIREMENTS:",
-    "1. Extract REAL English sentences, phrases, and words from the OCR text provided",
-    "2. The 'en' field MUST contain actual English text from the textbook (sentences, phrases, or words)",
-    "3. ALWAYS provide Chinese translation for English content in the 'cn' field",
-    "4. DO NOT use placeholder English - use actual English content from the OCR text",
-    "5. The 'cn' field is REQUIRED - provide accurate Chinese translation for each English sentence",
-    "",
-    "DISPLAY LOGIC:",
-    "- Students see ENGLISH sentences/phrases at the top of the screen",
-    "- Students practice by:",
-    "  * Clicking word blocks below to form the English sentence (reorder type)",
-    "  * Typing out the English sentence they hear/see (sentence/listening type)",
-    "- Chinese hints (if provided) appear as small text below the English, NOT as the main content",
-    "",
-    "PAYLOAD STRUCTURE (CRITICAL):",
-    "Each item's payload MUST follow this structure:",
-    "  {",
-    "    \"en\": \"Actual English sentence from textbook\",  // REQUIRED - This is what students see",
-    "    \"cn\": \"准确的中文翻译\",  // REQUIRED - Chinese translation for each English sentence",
-    "    \"variants\": [\"word1\", \"word2\", \"word3\"],  // For reorder type",
-    "    \"answer\": \"English sentence\"  // For typing exercises",
-    "  }",
-    "",
-    "ACTIVITY TYPES TO USE:",
-    "- 'reorder': Students click word blocks to form English sentences",
-    "  * payload.en = English sentence to form",
-    "  * payload.cn = Chinese translation of the sentence",
-    "  * payload.variants = array of English words from the sentence",
-    "- 'sentence': Students type English sentences",
-    "  * payload.en = English sentence to type",
-    "  * payload.cn = Chinese translation of the sentence",
-    "  * payload.answer = same English sentence",
-    "- 'vocabulary': Students learn English words",
-    "  * payload.en = English word",
-    "  * payload.cn = Chinese meaning of the word",
-    "- 'listening': Students listen and type",
-    "  * payload.en = English sentence/phrase",
-    "  * payload.cn = Chinese translation of the sentence",
-    "  * payload.answer = same English sentence",
-    "- 'fill_blank': Students complete English sentences",
-    "  * payload.en = English sentence with blank",
-    "  * payload.cn = Chinese translation of the complete sentence",
-    "",
-    "CONTENT EXTRACTION FROM OCR:",
-    "- Look for English sentences in the OCR text (lines starting with capital letters, ending with periods)",
-    "- Extract English phrases and vocabulary",
-    "- Use the actual English content from the textbook pages",
-    "- If OCR text contains both English and Chinese, prioritize the English parts",
-    "",
-    "If source materials are limited, create variations based on the extracted English content:",
-    "- Use the same English sentences with different activity types",
-    "- Break long sentences into shorter phrases",
-    "- Create vocabulary exercises from words in the sentences",
-    "- Add listening practice with the same sentences",
-    "",
-    "EACH lesson must be unique and based on actual English content from the OCR text.",
-    "Generate EXACTLY 15 lessons. Each lesson: title (in Chinese for organization), summary (max 100 chars), difficulty (1-6), 3-6 items.",
-    "CRITICAL: Every item MUST include both 'en' (English) and 'cn' (Chinese translation) fields.",
-    "Use exact activity types from schema. Keep content concise. No markdown. Valid JSON required.",
-    "FAILURE to generate exactly 15 lessons, proper English content, or Chinese translations will result in rejection."
-  ].join("\n");
-
-/**
- * 优化输入提示词，减少长度以提高速度
- */
-const optimizePromptForSpeed = (promptSegments: string[]): string => {
-  console.log('[Worker Fast] 开始优化提示词，原始段落数:', promptSegments.length);
-
-  // 合并相关段落并限制总长度
-  let optimizedText = promptSegments
-    .filter(segment => segment && segment.trim().length > 10) // 过滤太短的段落
-    .map(segment => {
-      // 限制每个段落的长度
-      if (segment.length > 2000) {
-        return segment.substring(0, 2000) + "...[truncated]";
+const buildSentenceCandidatesFromMaterials = (
+  materials: MaterialExtraction[],
+  limit = MAX_SENTENCE_CANDIDATES
+): SentenceCandidate[] => {
+  const rawSentences: Array<{ sentence: string; material: MaterialExtraction }> = [];
+  materials.forEach(material => {
+    for (const sentence of material.sentences ?? []) {
+      if (sentence && sentence.trim()) {
+        rawSentences.push({ sentence, material });
       }
-      return segment;
-    })
-    .join("\n\n");
+    }
+  });
 
-  // 限制总输入长度
-  const maxLength = 8000; // 输入长度限制
-  if (optimizedText.length > maxLength) {
-    optimizedText = optimizedText.substring(0, maxLength) + "...[truncated for speed]";
-    console.log('[Worker Fast] 输入文本被截断以提高处理速度');
+  if (!rawSentences.length) {
+    return [];
   }
 
-  console.log('[Worker Fast] 优化完成，最终文本长度:', optimizedText.length);
-  return optimizedText;
+  const termFrequency = buildTermFrequencyMap(rawSentences.map(entry => entry.sentence));
+
+  const scoredCandidates: Array<SentenceCandidate & { index: number }> = [];
+  rawSentences.forEach(({ sentence, material }, index) => {
+    const cleaned = sanitizeSentenceText(sentence);
+    if (!cleaned) {
+      return;
+    }
+    const tokens = new Set(tokenizeSentence(cleaned));
+    if (tokens.size < MIN_SENTENCE_WORDS) {
+      return;
+    }
+    if (isLikelyTitleOrLabel(cleaned, Array.from(tokens))) {
+      return;
+    }
+    const score = scoreSentenceForImportance(cleaned, termFrequency);
+    if (score <= 0) {
+      return;
+    }
+    const candidate: SentenceCandidate & { index: number } = {
+      id: `${material.materialId}-${index}`,
+      text: cleaned,
+      score,
+      tokens,
+      pageNumber: ensurePageNumber(material),
+      materialId: material.materialId,
+      materialName: material.originalName,
+      materialOrder: material.pageNumbers?.length ? material.pageNumbers[0] - 1 : material.order,
+      index
+    };
+    scoredCandidates.push(candidate);
+  });
+
+  scoredCandidates.sort((a, b) => {
+    if (b.score === a.score) {
+      if (a.pageNumber === b.pageNumber) {
+        return a.index - b.index;
+      }
+      return a.pageNumber - b.pageNumber;
+    }
+    return b.score - a.score;
+  });
+
+  const selected: SentenceCandidate[] = [];
+  for (const candidate of scoredCandidates) {
+    if (selected.length >= limit) break;
+    const isDuplicate = selected.some(existing =>
+      sentencesAreNearDuplicates(existing.tokens, candidate.tokens)
+    );
+    if (isDuplicate) continue;
+    selected.push({
+      id: candidate.id,
+      text: candidate.text,
+      score: candidate.score,
+      tokens: candidate.tokens,
+      pageNumber: candidate.pageNumber,
+      materialId: candidate.materialId,
+      materialName: candidate.materialName,
+      materialOrder: candidate.materialOrder
+    });
+  }
+  return selected;
 };
 
-const generationJsonSchema = {
-  name: "course_generation_plan",
-  schema: {
-    type: "object",
-    additionalProperties: false,
-    required: ["packageSummary", "lessons"],
-    properties: {
-      packageSummary: {
-        type: "string",
-        description: "Overall summary of the generated course package.",
-        maxLength: 800
-      },
-      lessons: {
-        type: "array",
-        minItems: 15,
-        maxItems: 20,
-        items: {
-          type: "object",
-          additionalProperties: false,
-          required: ["title", "summary", "difficulty", "items"],
-          properties: {
-            title: {
-              type: "string",
-              maxLength: 120
-            },
-            summary: {
-              type: "string",
-              maxLength: 400
-            },
-            difficulty: {
-              type: "integer",
-              minimum: 1,
-              maximum: 6
-            },
-            focus: {
-              type: "array",
-              items: {
-                type: "string",
-                maxLength: 60
-              },
-              maxItems: 6
-            },
-            items: {
-              type: "array",
-              minItems: 3,
-              maxItems: 8,
-              items: {
-                type: "object",
-                additionalProperties: false,
-                required: ["type", "payload"],
-                properties: {
-                  type: {
-                    type: "string",
-                    enum: LESSON_ITEM_TYPES
-                  },
-                  title: {
-                    type: "string",
-                    maxLength: 120
-                  },
-                  prompt: {
-                    type: "string",
-                    maxLength: 280
-                  },
-                  payload: {
-                    type: "object",
-                    additionalProperties: true,
-                    required: ["en", "cn"],
-                    properties: {
-                      en: {
-                        type: "string",
-                        description: "English sentence or phrase for the exercise. MUST be real English content from the textbook.",
-                        minLength: 5,
-                        maxLength: 300
-                      },
-                      cn: {
-                        type: "string",
-                        description: "Chinese translation of the English sentence",
-                        maxLength: 300
-                      },
-                      answer: {
-                        type: "string",
-                        description: "The correct answer (usually same as en field)",
-                        maxLength: 300
-                      },
-                      variants: {
-                        type: "array",
-                        description: "Word tokens for reorder exercises",
-                        items: { type: "string" }
-                      }
-                    }
-                  }
-                }
-              }
+const distributeSentencesIntoRounds = (
+  candidates: SentenceCandidate[],
+  roundCount: number,
+  sentencesPerRound: number
+): SelectedSentence[] => {
+  if (!candidates.length) {
+    return [];
+  }
+  const totalNeeded = roundCount * sentencesPerRound;
+  const selected: SentenceCandidate[] = [];
+  for (const candidate of candidates) {
+    if (selected.length >= totalNeeded) break;
+    const isDuplicate = selected.some(existing =>
+      sentencesAreNearDuplicates(existing.tokens, candidate.tokens)
+    );
+    if (isDuplicate) continue;
+    selected.push(candidate);
+  }
+
+  const sortedByPage = [...selected].sort((a, b) => {
+    if (a.pageNumber === b.pageNumber) {
+      return b.score - a.score;
+    }
+    return a.pageNumber - b.pageNumber;
+  });
+
+  const rounds: SelectedSentence[][] = Array.from({ length: roundCount }, () => []);
+  let roundCursor = 0;
+  for (const candidate of sortedByPage) {
+    let attempts = 0;
+    while (rounds[roundCursor].length >= sentencesPerRound && attempts < roundCount) {
+      roundCursor = (roundCursor + 1) % roundCount;
+      attempts += 1;
+    }
+    if (attempts >= roundCount && rounds.every(round => round.length >= sentencesPerRound)) {
+      break;
+    }
+    rounds[roundCursor].push({
+      ...candidate,
+      roundIndex: roundCursor,
+      roundOrder: rounds[roundCursor].length
+    });
+    roundCursor = (roundCursor + 1) % roundCount;
+  }
+
+  const balanced: SelectedSentence[] = [];
+  rounds.forEach((round, roundIndex) => {
+    round
+      .sort((a, b) => {
+        if (a.pageNumber === b.pageNumber) {
+          return b.score - a.score;
+        }
+        return a.pageNumber - b.pageNumber;
+      })
+      .forEach((sentence, orderIndex) => {
+        balanced.push({
+          ...sentence,
+          roundIndex,
+          roundOrder: orderIndex
+        });
+      });
+  });
+  return balanced;
+};
+
+const buildLessonsFromSelectedSentences = (
+  selected: SelectedSentence[],
+  focusLabel = "Core Sentences"
+): GeneratedLessonPlan[] => {
+  const grouped = selected.reduce<Map<number, SelectedSentence[]>>((map, sentence) => {
+    const group = map.get(sentence.roundIndex) ?? [];
+    group.push(sentence);
+    map.set(sentence.roundIndex, group);
+    return map;
+  }, new Map());
+
+  const lessons: GeneratedLessonPlan[] = [];
+  const sortedRounds = Array.from(grouped.entries()).sort((a, b) => a[0] - b[0]);
+  sortedRounds.forEach(([roundIndex, sentences]) => {
+    sentences.sort((a, b) => {
+      if (a.roundOrder === b.roundOrder) {
+        return a.pageNumber - b.pageNumber;
+      }
+      return a.roundOrder - b.roundOrder;
+    });
+    sentences.forEach((sentence, idx) => {
+      const roundNumber = roundIndex + 1;
+      const roundOrder = idx + 1;
+      lessons.push({
+        title: `Round ${roundNumber} · Sentence ${roundOrder}`,
+        summary: sentence.text,
+        difficulty: 3,
+        focus: [focusLabel],
+        sourceMaterialId: sentence.materialId,
+        sourceMaterialName: sentence.materialName,
+        sourceMaterialIndex: sentence.pageNumber ? sentence.pageNumber - 1 : sentence.materialOrder,
+        roundIndex: roundNumber,
+        roundOrder,
+        items: [
+          {
+            type: "sentence",
+            title: "核心句子",
+            payload: {
+              en: sentence.text,
+              answer: sentence.text,
+              target: sentence.text,
+              pageNumber: sentence.pageNumber,
+              round: roundNumber,
+              roundOrder
             }
           }
-        }
-      }
-    }
-  }
+        ]
+      });
+    });
+  });
+  return lessons;
 };
 
-const summarizeParsedQuestions = (questions: ParsedQuestion[]): string => {
-  if (!questions.length) return "";
-  const sample = questions.slice(0, 50).map((question, index) => {
-    const base = `${index + 1}. ${question.en}`;
-    return question.cn && question.cn !== question.en ? `${base} | CN: ${question.cn}` : base;
-  });
-  return sample.join("\n");
-};
 
 const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
   const { generationJobId } = job.data;
@@ -1327,16 +1209,64 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
     throw new Error("当前任务缺少关联课程包，无法生成内容");
   }
 
+  const packageId = generationJob.packageId;
+  const existingDescription = generationJob.package?.description ?? null;
   const jobInput = (generationJob.inputInfo ?? {}) as Record<string, any>;
   
   // 获取关联的单元ID（如果有）
   const unitId = generationJob.unitId || jobInput.unitId as string | null;
   let targetUnit: { id: string; sequence: number | null; title: string | null } | null = null;
+  const isUnitGeneration = Boolean(unitId);
   
   // 调试日志，帮助定位未绑定到单元的问题
   console.log(`[Worker] generationJob.unitId: ${generationJob.unitId}`);
   console.log(`[Worker] jobInput.unitId: ${jobInput.unitId}`);
   console.log(`[Worker] 最终 unitId: ${unitId}`);
+
+  if (isUnitGeneration) {
+    const unitRecord = await (prisma as any).unit.findFirst({
+      where: {
+        id: unitId,
+        deletedAt: null
+      },
+      select: {
+        id: true,
+        title: true,
+        sequence: true,
+        packageId: true
+      }
+    });
+
+    if (!unitRecord) {
+      await generationJobRepository.appendLog(
+        generationJobId,
+        `未找到ID为 ${unitId} 的单元，生成的关卡将不会绑定到任何单元`,
+        "warning"
+      );
+    } else if (unitRecord.packageId !== packageId) {
+      await generationJobRepository.appendLog(
+        generationJobId,
+        `单元 ${unitId} 不属于课程包 ${packageId}，跳过单元绑定`,
+        "warning",
+        { unitPackageId: unitRecord.packageId }
+      );
+    } else {
+      targetUnit = {
+        id: unitRecord.id,
+        sequence: unitRecord.sequence,
+        title: unitRecord.title
+      };
+      await generationJobRepository.appendLog(
+        generationJobId,
+        `将生成的关卡绑定到单元「${unitRecord.title ?? unitRecord.id}」`,
+        "info",
+        {
+          unitId: unitRecord.id,
+          unitSequence: unitRecord.sequence
+        }
+      );
+    }
+  }
   
   // 支持多文件上传：优先使用assets数组，否则使用单个文件信息（向后兼容）
   const assets = jobInput.assets as Array<{
@@ -1384,6 +1314,10 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
     const lowerMime = file.mimeType?.toLowerCase() ?? "";
     const isPdf = lowerMime.includes("pdf") || lowerName.endsWith(".pdf");
     const metadata = file.assetId ? assetMetadataMap.get(file.assetId) : undefined;
+    const fallbackOrder =
+      metadata && typeof (metadata as Record<string, unknown>).fileIndex === "number"
+        ? Number((metadata as Record<string, unknown>).fileIndex)
+        : index;
     return {
       materialId: file.assetId || file.storagePath || `${file.originalName || "file"}-${index + 1}`,
       order: index,
@@ -1391,7 +1325,10 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
       sourceType: isPdf ? "pdf" : "image",
       ocrText: "",
       sentences: [],
-      targetLessonCount: extractLessonTargetFromMetadata(metadata)
+      targetLessonCount: extractLessonTargetFromMetadata(metadata),
+      metadata,
+      pageNumbers: extractPageNumbersFromMetadata(metadata, file.originalName, fallbackOrder),
+      fallbackOrder
     };
   });
 
@@ -1416,8 +1353,6 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
   });
 
   let extractedText = "";
-  let usedFallbackOcrText = false;
-  const parsedQuestions: ParsedQuestion[] = [];
   const allOcrTexts: string[] = [];
 
   // 处理PDF文件（通常只有一个PDF）
@@ -1435,11 +1370,10 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
         continue;
       }
       const fileBuffer = Buffer.from(await downloadResult.data.arrayBuffer());
-      const pdfQuestions = await parsePdfToQuestions(fileBuffer);
-      parsedQuestions.push(...pdfQuestions);
-      const pdfText = pdfQuestions.map(item => item.en).join("\n");
+      const pdfResult = await pdf(fileBuffer);
+      const pdfText = (pdfResult.text || "").trim();
       const material = getMaterialForFile(pdfFile);
-      if (material) {
+      if (material && pdfText) {
         material.ocrText = pdfText;
       }
       allOcrTexts.push(`[PDF ${pdfFile.originalName}] ${pdfText}`);
@@ -1597,7 +1531,6 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
   }
 
   if (!extractedText.trim()) {
-    usedFallbackOcrText = true;
     extractedText = DEFAULT_ENGLISH_SENTENCES.join("\n");
     console.warn(`[生成任务 ${generationJobId}] 未能从素材中提取有效文本，使用内置英文句子兜底继续流程`);
     await generationJobRepository.appendLog(
@@ -1616,11 +1549,18 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
         originalName: "Fallback Content",
         sourceType: "fallback",
         ocrText: extractedText,
-        sentences: []
+        sentences: [],
+        targetLessonCount: 0,
+        metadata: undefined,
+        pageNumbers: [1],
+        fallbackOrder: 0
       });
     } else {
       materialExtractions[0].ocrText = extractedText;
       materialExtractions[0].sourceType = "fallback";
+      if (!materialExtractions[0].pageNumbers?.length) {
+        materialExtractions[0].pageNumbers = [1];
+      }
     }
   }
 
@@ -1634,187 +1574,63 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
   });
   await job.updateProgress(30);
 
-  const promptSegments = [
-    `Source type: ${generationJob.sourceType ?? "unknown"}`,
-    `Total files processed: ${filesToProcess.length}`,
-    `Original file name(s): ${filesToProcess.map(f => f.originalName).join(", ")}`,
-    `Extracted text from ${filesToProcess.length} file(s) (<=4000 chars):\n${truncate(extractedText, 4000)}`
-  ];
-
-  if (usedFallbackOcrText) {
-    promptSegments.push("NOTE: OCR text was empty. Default English fallback sentences were injected to continue generation.");
-  }
-
-  const questionSummary = summarizeParsedQuestions(parsedQuestions);
-  if (questionSummary) {
-    promptSegments.push(`Parsed question-like sentences:\n${questionSummary}`);
-  }
-
-  await generationJobRepository.appendLog(generationJobId, "请求 AI 引擎生成课程草稿", "info", {
-    model: OPENAI_MODEL_NAME
-  });
   await generationJobRepository.updateStatus(generationJobId, {
     status: "processing",
     progress: 55
   });
   await job.updateProgress(55);
 
-  // 优化的AI生成调用 - 专注于速度
-  const aiResponse = await callOpenAIWithRetry(
-    async () => {
-      console.log('[Worker Fast] 开始优化的AI API调用');
-      const apiStartTime = Date.now();
+  const sentenceCandidates = buildSentenceCandidatesFromMaterials(materialExtractions);
+  if (!sentenceCandidates.length) {
+    throw new Error("未能提取到任何有效英文句子，请检查教材内容");
+  }
 
-      // 优化输入文本，减少长度以提高速度
-      const optimizedInput = optimizePromptForSpeed(promptSegments);
-
-      await generationJobRepository.appendLog(
-        generationJobId,
-        `准备调用AI生成课程，OCR文本长度: ${extractedText.length}，优化后输入长度: ${optimizedInput.length}`,
-        "info",
-        {
-          ocrTextSample: extractedText.substring(0, 500),
-          optimizedInputSample: optimizedInput.substring(0, 500)
-        }
-      );
-
-      const response = await openai.responses.parse({
-        model: OPENAI_MODEL_NAME,
-        instructions: buildOptimizedAiInstructions(), // 使用优化的指令
-        input: optimizedInput,
-        text: {
-          format: {
-            type: "json_schema",
-            name: generationJsonSchema.name,
-            schema: generationJsonSchema.schema,
-            strict: false
-          }
-        },
-        temperature: 0.3, // 降低温度以获得更一致的结果
-        top_p: 0.9 // 添加top_p参数以提高效率
-      });
-
-      const apiDuration = Date.now() - apiStartTime;
-      console.log(`[Worker Fast] AI API调用完成，耗时: ${apiDuration}ms`);
-
-      return response;
-    },
-    {
-      maxRetries: 2, // 减少重试次数
-      baseDelay: 500, // 减少基础延迟
-      timeout: 120000, // 适当增加超时，便于大模型生成复杂课程
-      retryCondition: (error: any) => {
-        // 更严格的重试条件，只对真正可重试的错误重试
-        return (
-          error.status === 429 || // Rate limit
-          (error.status >= 500 && error.status < 600) || // Server errors
-          error.code === 'ETIMEDOUT'
-        );
-      }
-    }
+  const selectedSentences = distributeSentencesIntoRounds(
+    sentenceCandidates,
+    SENTENCE_ROUND_COUNT,
+    SENTENCE_PER_ROUND
   );
 
-  // 确保aiResponse已定义
-  if (!aiResponse) {
-    throw new Error("AI 调用失败：未收到响应");
+  if (!selectedSentences.length) {
+    throw new Error("候选句子不足，无法生成四轮冒险关卡");
   }
 
-  const plan = (aiResponse.output_parsed ?? null) as GeneratedCoursePlan | null;
-  
-  // 添加详细的AI返回日志（终端输出）
-  console.log(`\n[生成任务 ${generationJobId}] ========== AI返回结果 ==========`);
-  console.log(`[生成任务 ${generationJobId}] output_parsed: ${plan ? 'yes' : 'no'}`);
-  console.log(`[生成任务 ${generationJobId}] lessons数量: ${plan?.lessons?.length ?? 0}`);
-  
-  if (plan && plan.lessons && plan.lessons.length > 0) {
-    console.log(`[生成任务 ${generationJobId}] ✅ AI成功生成了 ${plan.lessons.length} 个关卡`);
-    const firstLesson = plan.lessons[0];
-    const firstItem = firstLesson.items?.[0];
-    console.log(`[生成任务 ${generationJobId}] 第一个关卡: "${firstLesson.title}"`);
-    console.log(`[生成任务 ${generationJobId}] 第一个Item类型: ${firstItem?.type}`);
-    if (firstItem?.payload) {
-      const payload = firstItem.payload as Record<string, any>;
-      console.log(`[生成任务 ${generationJobId}] payload.en: "${payload.en || '(空)'}"`);
-      console.log(`[生成任务 ${generationJobId}] payload完整内容: ${JSON.stringify(payload).substring(0, 500)}`);
-    }
-  } else {
-    console.log(`[生成任务 ${generationJobId}] ❌ AI没有生成任何关卡！`);
-    console.log(`[生成任务 ${generationJobId}] AI原始返回(output_text): ${aiResponse.output_text?.substring(0, 500) || 'N/A'}`);
+  if (!targetUnit) {
+    throw new Error("当前任务缺少单元信息，无法生成关卡");
   }
-  console.log(`[生成任务 ${generationJobId}] ==================================\n`);
-  
-  await generationJobRepository.appendLog(
-    generationJobId,
-    `AI 返回结果: output_parsed=${plan ? 'yes' : 'no'}, lessons=${plan?.lessons?.length ?? 0}`,
-    "info",
-    { 
-      hasOutputParsed: !!plan,
-      lessonsCount: plan?.lessons?.length ?? 0,
-      firstLessonTitle: plan?.lessons?.[0]?.title ?? 'N/A',
-      firstLessonItemsCount: plan?.lessons?.[0]?.items?.length ?? 0,
-      firstItemType: plan?.lessons?.[0]?.items?.[0]?.type ?? 'N/A',
-      firstItemPayload: plan?.lessons?.[0]?.items?.[0]?.payload 
-        ? JSON.stringify(plan.lessons[0].items[0].payload) 
-        : 'N/A',
-      // 检查前3个lesson的payload
-      samplePayloads: JSON.stringify(plan?.lessons?.slice(0, 3).map((lesson, idx) => ({
-        lessonIndex: idx + 1,
-        lessonTitle: lesson.title,
-        items: lesson.items?.slice(0, 2).map((item, itemIdx) => ({
-          itemIndex: itemIdx + 1,
-          type: item.type,
-          payload: item.payload
-        }))
-      })) ?? [])
-    }
+
+  const ensuredUnit = targetUnit as NonNullable<typeof targetUnit>;
+  const lessonsFromSentences = buildLessonsFromSelectedSentences(
+    selectedSentences,
+    ensuredUnit.title ?? "Core Sentences"
   );
-  
-  if (!plan) {
-    const fallbackText = aiResponse.output_text;
-    throw new Error(
-      `AI 没有提供可解析的 JSON 结果${fallbackText ? `：${truncate(fallbackText, 200)}` : ""}`
-    );
-  }
 
-  if (!plan.lessons?.length) {
-    const extractedSentences = selectCoreSentences(extractEnglishSentences(extractedText), 50);
-    await generationJobRepository.appendLog(
-      generationJobId,
-      `AI 未返回任何课程，切换到基础补课方案。从OCR提取到 ${extractedSentences.length} 个英文句子`,
-      "warning",
-      { fallback: true, extractedCount: extractedSentences.length }
-    );
-    plan.lessons = generateFallbackLessons(materialExtractions, extractedSentences);
-  }
+  const plan: GeneratedCoursePlan = {
+    packageSummary: `${ensuredUnit.title ?? "Unit"} 核心句子`,
+    lessons: lessonsFromSentences
+  };
 
-  const distributionResult = applyMaterialLessonDistribution(plan.lessons ?? [], materialExtractions);
-  plan.lessons = distributionResult.lessons;
-  const materialAssignmentCount = new Map<string, number>();
-  for (const lesson of plan.lessons) {
-    if (!lesson.sourceMaterialId) continue;
-    materialAssignmentCount.set(
-      lesson.sourceMaterialId,
-      (materialAssignmentCount.get(lesson.sourceMaterialId) ?? 0) + 1
-    );
-  }
   await generationJobRepository.appendLog(
     generationJobId,
-    "素材关卡分布调整完成",
+    "核心句子关卡生成完成",
     "info",
     {
-      totalLessons: plan.lessons.length,
-      maxAllowed: distributionResult.cap,
-      requestedTotal: Array.from(distributionResult.targetMap.values()).reduce((sum, value) => sum + value, 0),
-      perMaterial: materialExtractions.map(material => ({
-        materialId: material.materialId,
-        originalName: material.originalName,
-        assigned: materialAssignmentCount.get(material.materialId) ?? 0,
-        target: distributionResult.targetMap.get(material.materialId) ?? resolveMaterialLessonTarget(material)
+      candidateCount: sentenceCandidates.length,
+      selectedCount: selectedSentences.length,
+      rounds: SENTENCE_ROUND_COUNT,
+      perRound: SENTENCE_PER_ROUND,
+      pageRange: {
+        min: Math.min(...selectedSentences.map(item => item.pageNumber)),
+        max: Math.max(...selectedSentences.map(item => item.pageNumber))
+      },
+      sampleSentences: selectedSentences.slice(0, 5).map(item => ({
+        page: item.pageNumber,
+        sentence: item.text
       }))
     }
   );
 
-  // 验证并补充AI生成的内容中的英文
+// 验证并补充AI生成的内容中的英文
   // 统计所有item和缺少英文内容的item数量
   let totalItems = 0;
   let itemsWithoutEn = 0;
@@ -1999,55 +1815,6 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
   await job.updateProgress(70);
 
   const triggerUserId = generationJob.triggeredById ?? null;
-  const packageId = generationJob.packageId;
-  const existingDescription = generationJob.package?.description ?? null;
-
-  const isUnitGeneration = Boolean(unitId);
-
-  if (isUnitGeneration) {
-    const unitRecord = await (prisma as any).unit.findFirst({
-      where: {
-        id: unitId,
-        deletedAt: null
-      },
-      select: {
-        id: true,
-        title: true,
-        sequence: true,
-        packageId: true
-      }
-    });
-
-    if (!unitRecord) {
-      await generationJobRepository.appendLog(
-        generationJobId,
-        `未找到ID为 ${unitId} 的单元，生成的关卡将不会绑定到任何单元`,
-        "warning"
-      );
-    } else if (unitRecord.packageId !== packageId) {
-      await generationJobRepository.appendLog(
-        generationJobId,
-        `单元 ${unitId} 不属于课程包 ${packageId}，跳过单元绑定`,
-        "warning",
-        { unitPackageId: unitRecord.packageId }
-      );
-    } else {
-      targetUnit = {
-        id: unitRecord.id,
-        sequence: unitRecord.sequence,
-        title: unitRecord.title
-      };
-      await generationJobRepository.appendLog(
-        generationJobId,
-        `将生成的关卡绑定到单元「${unitRecord.title ?? unitRecord.id}」`,
-        "info",
-        {
-          unitId: unitRecord.id,
-          unitSequence: unitRecord.sequence
-        }
-      );
-    }
-  }
 
   // 分步骤创建，避免大事务超时
   // 1. 如果已有草稿版本，先删除它（包括关联的关卡），确保只有一个草稿
@@ -2261,7 +2028,9 @@ const createCoursePlan = async (job: Job<PackageGenerationJobData>) => {
               sourceAssetId: lessonPlan.sourceMaterialId ?? null,
               sourceAssetName: lessonPlan.sourceMaterialName ?? null,
               sourceAssetOrder:
-                typeof lessonPlan.sourceMaterialIndex === "number" ? lessonPlan.sourceMaterialIndex : null
+                typeof lessonPlan.sourceMaterialIndex === "number" ? lessonPlan.sourceMaterialIndex : null,
+              roundIndex: lessonPlan.roundIndex ?? null,
+              roundOrder: lessonPlan.roundOrder ?? null
             } as any
           });
           console.log(`[Worker] 关卡创建成功, lesson.id: ${lesson.id}`);
@@ -2433,12 +2202,36 @@ export const packageGenerationWorker = createWorker<PackageGenerationJobData, vo
       const { generationJobId } = job.data;
       const message = error instanceof Error ? error.message : "未知错误";
       const progressValue = typeof job.progress === "number" ? job.progress : 0;
-      await generationJobRepository.appendLog(generationJobId, message, "error");
-      await generationJobRepository.updateStatus(generationJobId, {
-        status: "failed",
-        progress: progressValue,
-        errorMessage: message
-      });
+      const existingJob = await generationJobRepository.findById(generationJobId);
+
+      if (!existingJob) {
+        console.warn(
+          `[worker] generation job ${generationJobId} is missing while handling failure: ${message}`
+        );
+      } else {
+        try {
+          await generationJobRepository.appendLog(generationJobId, message, "error");
+        } catch (logError) {
+          console.error(
+            `[worker] failed to append error log for generation job ${generationJobId}`,
+            logError
+          );
+        }
+
+        try {
+          await generationJobRepository.updateStatus(generationJobId, {
+            status: "failed",
+            progress: progressValue,
+            errorMessage: message
+          });
+        } catch (statusError) {
+          console.error(
+            `[worker] failed to update status for generation job ${generationJobId}`,
+            statusError
+          );
+        }
+      }
+
       throw error;
     }
   }
@@ -2458,339 +2251,3 @@ packageGenerationWorker.on("completed", job => {
   // eslint-disable-next-line no-console
   console.log(`[worker] package-generation job ${job.id} completed`);
 });
-const fallbackLessonTemplates: GeneratedLessonPlan[] = [
-  {
-    title: "核心词汇训练",
-    summary: "针对主题核心词汇进行理解与记忆",
-    difficulty: 2,
-    focus: ["Vocabulary"],
-    items: [
-      {
-        type: "vocabulary",
-        title: "重点词汇表",
-        payload: { words: [] }
-      },
-      {
-        type: "sentence",
-        title: "词汇造句",
-        payload: { sentences: [] }
-      },
-      {
-        type: "quiz_multiple_choice",
-        title: "快速测验",
-        payload: { questions: [] }
-      }
-    ]
-  },
-  {
-    title: "句型与语法练习",
-    summary: "掌握常见语法结构和表达方式",
-    difficulty: 3,
-    focus: ["Grammar"],
-    items: [
-      {
-        type: "phrase",
-        title: "句型拆解",
-        payload: { patterns: [] }
-      },
-      {
-        type: "fill_blank",
-        title: "语法填空",
-        payload: { exercises: [] }
-      },
-      {
-        type: "writing",
-        title: "短文练习",
-        payload: { prompt: "" }
-      }
-    ]
-  },
-  {
-    title: "阅读理解与讨论",
-    summary: "通过阅读文章提升理解力和表达",
-    difficulty: 4,
-    focus: ["Reading", "Speaking"],
-    items: [
-      {
-        type: "sentence",
-        title: "段落阅读",
-        payload: { paragraphs: [] }
-      },
-      {
-        type: "dialogue",
-        title: "讨论问题",
-        payload: { questions: [] }
-      },
-      {
-        type: "speaking",
-        title: "口语表达",
-        payload: { tasks: [] }
-      }
-    ]
-  },
-  {
-    title: "听力与跟读训练",
-    summary: "加强听力辨识与跟读模仿能力",
-    difficulty: 4,
-    focus: ["Listening"],
-    items: [
-      {
-        type: "listening",
-        title: "音频理解",
-        payload: { audioUrl: "", transcript: "" }
-      },
-      {
-        type: "speaking",
-        title: "跟读模仿",
-        payload: { instructions: "" }
-      },
-      {
-        type: "quiz_single_choice",
-        title: "听力选择题",
-        payload: { questions: [] }
-      }
-    ]
-  },
-  {
-    title: "综合复习与输出",
-    summary: "整理所学内容并进行综合输出",
-    difficulty: 3,
-    focus: ["Review"],
-    items: [
-      {
-        type: "reorder",
-        title: "语篇排序",
-        payload: { sentences: [] }
-      },
-      {
-        type: "writing",
-        title: "情境写作",
-        payload: { prompt: "" }
-      },
-      {
-        type: "speaking",
-        title: "口语输出",
-        payload: { scenarios: [] }
-      }
-    ]
-  }
-];
-
-const instantiateLessonFromTemplate = (
-  template: GeneratedLessonPlan,
-  sentence: string,
-  material?: MaterialExtraction,
-  sequenceIndex = 0
-): GeneratedLessonPlan => {
-  const words = sentence.split(/\s+/).filter(w => w.length > 0);
-  const note = material
-    ? `来源素材 ${material.order + 1}: ${material.originalName}`
-    : "基于OCR提取的英文内容生成";
-  const titleSuffix = material ? ` · ${material.originalName}` : ` ${sequenceIndex + 1}`;
-
-  // 为每个英文句子生成中文翻译
-  const generateTranslation = async (enSentence: string): Promise<string> => {
-    try {
-      console.log(`[Fallback Translation] 翻译句子: ${enSentence.substring(0, 50)}...`);
-      const translation = await callHunyuanChat([
-        {
-          Role: "system",
-          Content: "你是专业的英语翻译助手。请将英文句子准确翻译成中文。要求：1. 只返回翻译结果，不要添加任何解释；2. 翻译要准确、自然；3. 不要添加课程标题、学习目标等额外内容；4. 只返回纯粹的中文翻译。"
-        },
-        {
-          Role: "user",
-          Content: `请将以下英文句子翻译成中文：\n\n${enSentence}`
-        }
-      ], { temperature: 0.2 });
-
-      const cleanTranslation = translation.replace(/\n+/g, '').trim();
-      console.log(`[Fallback Translation] 翻译结果: ${cleanTranslation.substring(0, 50)}...`);
-      return cleanTranslation;
-    } catch (error) {
-      console.error(`[Fallback Translation] 翻译失败:`, error);
-      return `[翻译生成中...]`;
-    }
-  };
-
-  return {
-    title: `${template.title}${titleSuffix}`,
-    summary: template.summary,
-    difficulty: template.difficulty,
-    focus: template.focus,
-    sourceMaterialId: material?.materialId,
-    sourceMaterialName: material?.originalName,
-    sourceMaterialIndex: material?.order,
-    items: template.items.map(item => {
-      const basePayload =
-        item.payload && typeof item.payload === "object" ? { ...(item.payload as Record<string, unknown>) } : {};
-      return {
-        ...item,
-        payload: {
-          ...basePayload,
-          en: sentence,
-          answer: sentence,
-          target: sentence,
-          cn: null, // 翻译将在后续步骤中生成，不在这里设置
-          variants: words,
-          note
-        }
-      };
-    })
-  };
-};
-
-const buildLessonsForMaterial = (
-  material: MaterialExtraction,
-  count: number,
-  templateOffset = 0,
-  fallbackSentences?: string[]
-): GeneratedLessonPlan[] => {
-  const lessons: GeneratedLessonPlan[] = [];
-  const baseSentences =
-    (material.sentences && material.sentences.length > 0
-      ? material.sentences
-      : fallbackSentences && fallbackSentences.length > 0
-      ? fallbackSentences
-      : DEFAULT_ENGLISH_SENTENCES) ?? DEFAULT_ENGLISH_SENTENCES;
-
-  for (let i = 0; i < count; i++) {
-    const template = fallbackLessonTemplates[(templateOffset + i) % fallbackLessonTemplates.length];
-    const sentence =
-      baseSentences[(templateOffset + i) % baseSentences.length] ??
-      DEFAULT_ENGLISH_SENTENCES[(templateOffset + i) % DEFAULT_ENGLISH_SENTENCES.length];
-    lessons.push(instantiateLessonFromTemplate(template, sentence, material, templateOffset + i));
-  }
-  return lessons;
-};
-
-const applyMaterialLessonDistribution = (
-  lessons: GeneratedLessonPlan[],
-  materials: MaterialExtraction[]
-): { lessons: GeneratedLessonPlan[]; cap: number; targetMap: Map<string, number> } => {
-  if (!materials.length) {
-    const limited = lessons.slice(0, MAX_TOTAL_LESSONS);
-    return {
-      lessons: limited,
-      cap: limited.length,
-      targetMap: new Map()
-    };
-  }
-
-  let assignPointer = 0;
-  for (const lesson of lessons) {
-    if (lesson.sourceMaterialId) {
-      continue;
-    }
-    const material = materials[assignPointer % materials.length];
-    lesson.sourceMaterialId = material.materialId;
-    lesson.sourceMaterialName = material.originalName;
-    lesson.sourceMaterialIndex = material.order;
-    assignPointer += 1;
-  }
-
-  const perMaterialCounts = new Map<string, { material: MaterialExtraction; count: number }>();
-  for (const material of materials) {
-    perMaterialCounts.set(material.materialId, { material, count: 0 });
-  }
-
-  for (const lesson of lessons) {
-    if (!lesson.sourceMaterialId) continue;
-    const entry = perMaterialCounts.get(lesson.sourceMaterialId);
-    if (entry) {
-      entry.count += 1;
-    }
-  }
-
-  const targetMap = new Map<string, number>();
-  let requestedTotal = 0;
-  for (const material of materials) {
-    const target = resolveMaterialLessonTarget(material);
-    targetMap.set(material.materialId, target);
-    requestedTotal += target;
-  }
-  const lessonCap = Math.min(
-    MAX_TOTAL_LESSONS,
-    Math.max(requestedTotal, materials.length * MIN_LESSONS_PER_MATERIAL)
-  );
-
-  const supplementalLessons: GeneratedLessonPlan[] = [];
-  let templateOffset = 0;
-
-  for (const entry of perMaterialCounts.values()) {
-    const { material, count } = entry;
-    const target = targetMap.get(material.materialId) ?? MIN_LESSONS_PER_MATERIAL;
-    const needed = Math.max(0, target - count);
-    if (needed <= 0) {
-      continue;
-    }
-    const extraCount = Math.min(needed, Math.max(0, target - count));
-    if (extraCount > 0) {
-      const extras = buildLessonsForMaterial(material, extraCount, templateOffset);
-      supplementalLessons.push(...extras);
-      templateOffset += extraCount;
-      entry.count += extraCount;
-    }
-  }
-
-  const combined = lessons.concat(supplementalLessons);
-  const limited: GeneratedLessonPlan[] = [];
-  const limitCounter = new Map<string, number>();
-
-  for (const lesson of combined) {
-    const materialId = lesson.sourceMaterialId;
-    if (!materialId) {
-      if (limited.length < lessonCap) {
-        limited.push(lesson);
-      }
-      continue;
-    }
-    const current = limitCounter.get(materialId) ?? 0;
-    const allowed = targetMap.get(materialId) ?? MAX_LESSONS_PER_MATERIAL;
-    if (current >= allowed) {
-      continue;
-    }
-    limitCounter.set(materialId, current + 1);
-    limited.push(lesson);
-    if (limited.length >= lessonCap) {
-      break;
-    }
-  }
-
-  return {
-    lessons: limited.slice(0, lessonCap),
-    cap: lessonCap,
-    targetMap
-  };
-};
-
-const generateFallbackLessons = (
-  materials?: MaterialExtraction[],
-  extractedEnglishSentences?: string[]
-): GeneratedLessonPlan[] => {
-  const fallbackSentences =
-    extractedEnglishSentences && extractedEnglishSentences.length > 0
-      ? extractedEnglishSentences
-      : DEFAULT_ENGLISH_SENTENCES;
-
-  if (materials && materials.length > 0) {
-    const lessons: GeneratedLessonPlan[] = [];
-    let templateOffset = 0;
-    for (const material of materials) {
-      const targetCount = resolveMaterialLessonTarget(material);
-      const extras = buildLessonsForMaterial(material, targetCount, templateOffset, fallbackSentences);
-      templateOffset += targetCount;
-      lessons.push(...extras);
-    }
-    return applyMaterialLessonDistribution(lessons, materials).lessons;
-  }
-
-  const lessons: GeneratedLessonPlan[] = [];
-  const safeSentences = fallbackSentences.length > 0 ? fallbackSentences : DEFAULT_ENGLISH_SENTENCES;
-  const total = Math.min(MAX_TOTAL_LESSONS, safeSentences.length);
-  for (let i = 0; i < total; i++) {
-    const template = fallbackLessonTemplates[i % fallbackLessonTemplates.length];
-    const sentence = safeSentences[i % safeSentences.length];
-    lessons.push(instantiateLessonFromTemplate(template, sentence, undefined, i));
-  }
-  return lessons;
-};

@@ -109,6 +109,9 @@ export interface MaterialLessonSummary {
   unitId?: string | null;
   status: CourseStatus;
   sourceAssetOrder?: number | null;
+  roundIndex?: number | null;
+  roundOrder?: number | null;
+  pageNumber?: number | null;
   itemType?: string;
   contentEn?: string | null;
   contentCn?: string | null;
@@ -304,6 +307,11 @@ export const regeneratePackageMaterial = (packageId: string, assetId: string, pa
     }
   );
 
+export const regenerateUnit = (unitId: string) =>
+  apiFetch<{ job: GenerationJob }>(`/admin/units/${unitId}/regenerate`, {
+    method: "POST"
+  });
+
 export const deletePackageMaterial = (packageId: string, assetId: string) =>
   apiFetch<{ success: boolean }>(`/admin/course-packages/${packageId}/materials/${assetId}`, {
     method: "DELETE"
@@ -332,6 +340,7 @@ export interface LessonContentPayload {
   en: string;
   cn?: string | null;
   type?: string;
+  pageNumber?: number | null;
 }
 
 export const updateLessonContent = (lessonId: string, payload: LessonContentPayload) =>
@@ -449,6 +458,7 @@ export const deleteUnit = (unitId: string) =>
 export interface UploadUnitMaterialOptions {
   splitPdf?: boolean;
   splitPageCount?: number;
+  pageNumberStart?: number;
 }
 
 export const uploadUnitMaterial = (unitId: string, files: File[], options?: UploadUnitMaterialOptions) => {
@@ -461,6 +471,9 @@ export const uploadUnitMaterial = (unitId: string, files: File[], options?: Uplo
     if (options.splitPageCount) {
       formData.append("splitPageCount", String(options.splitPageCount));
     }
+  }
+  if (typeof options?.pageNumberStart === "number") {
+    formData.append("pageNumberStart", String(options.pageNumberStart));
   }
   return apiFetch<{ success: boolean; job: GenerationJob; assets: PackageAssetSummary[]; message: string }>(
     `/admin/units/${unitId}/generate`,
@@ -492,9 +505,12 @@ export interface TextbookImportUnitSummary {
   jobId: string;
 }
 
-export const importTextbookPdf = (packageId: string, file: File) => {
+export const importTextbookPdf = (packageId: string, file: File, pageNumberStart?: number) => {
   const formData = new FormData();
   formData.append("file", file);
+  if (typeof pageNumberStart === "number") {
+    formData.append("pageNumberStart", String(pageNumberStart));
+  }
   return apiFetch<{ success: boolean; units: TextbookImportUnitSummary[] }>(
     `/admin/course-packages/${packageId}/textbook-import`,
     {

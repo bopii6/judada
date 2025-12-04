@@ -27,6 +27,9 @@ const buildUnitLabel = (stage: CourseStage) => {
 };
 
 const buildPageLabel = (stage: CourseStage) => {
+    if (typeof stage.pageNumber === "number") {
+        return `第 ${stage.pageNumber} 页`;
+    }
     if (typeof stage.sourceAssetOrder === "number") {
         return `第 ${stage.sourceAssetOrder + 1} 页`;
     }
@@ -38,9 +41,11 @@ const buildPageLabel = (stage: CourseStage) => {
 
 const buildPageKey = (stage: CourseStage) => {
     const unitKey = stage.unitName ?? (typeof stage.unitNumber === "number" ? `unit-${stage.unitNumber}` : "unit-none");
-    const pageKey = typeof stage.sourceAssetOrder === "number"
-        ? `page-${stage.sourceAssetOrder}`
-        : stage.lessonId;
+    const pageKey = typeof stage.pageNumber === "number"
+        ? `page-${stage.pageNumber}`
+        : typeof stage.sourceAssetOrder === "number"
+            ? `page-${stage.sourceAssetOrder + 1}`
+            : stage.lessonId;
     return `${unitKey}__${pageKey}`;
 };
 

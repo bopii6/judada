@@ -150,6 +150,8 @@ model Lesson {
   sourceAssetId    String?
   sourceAssetName  String?
   sourceAssetOrder Int?
+  roundIndex       Int?
+  roundOrder       Int?
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
   deletedAt        DateTime?

@@ -125,3 +125,9 @@ const playMorseCodeClick = (ctx: AudioContext) => {
 // playTelegraphClassic(ctx); // 简洁版
 // playMorseCodeClick(ctx); // 摩尔斯电码版
 
+
+
+
+
+
+

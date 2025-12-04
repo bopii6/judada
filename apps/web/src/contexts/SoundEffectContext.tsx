@@ -163,7 +163,7 @@ const playTelegraphSound = (ctx: AudioContext) => {
   tickFilter.frequency.setValueAtTime(1200, t);
   tickFilter.Q.setValueAtTime(10, t); // 高Q值，更尖锐
 
-  tickGain.gain.setValueAtTime(0.25, t);
+  tickGain.gain.setValueAtTime(1.0, t);
   tickGain.gain.exponentialRampToValueAtTime(0.01, t + 0.03);
 
   tick.connect(tickFilter);
@@ -186,7 +186,7 @@ const playTelegraphSound = (ctx: AudioContext) => {
   tackFilter.frequency.setValueAtTime(800, t);
   tackFilter.Q.setValueAtTime(8, t);
 
-  tackGain.gain.setValueAtTime(0.12, t + 0.01);
+  tackGain.gain.setValueAtTime(0.48, t + 0.01);
   tackGain.gain.exponentialRampToValueAtTime(0.01, t + 0.04);
 
   tack.connect(tackFilter);
@@ -215,7 +215,7 @@ const playMechanicalKeyboard = (ctx: AudioContext) => {
   mainClick.frequency.setValueAtTime(baseFreq, t);
   mainClick.frequency.exponentialRampToValueAtTime(baseFreq * 0.6, t + 0.05);
 
-  mainGain.gain.setValueAtTime(0.15, t);
+  mainGain.gain.setValueAtTime(0.6, t);
   mainGain.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
 
   mainClick.connect(mainFilter);
@@ -238,7 +238,7 @@ const playMechanicalKeyboard = (ctx: AudioContext) => {
   reboundClick.frequency.setValueAtTime(2500 + Math.random() * 500, t);
   reboundClick.frequency.exponentialRampToValueAtTime(1500, t + 0.02);
 
-  reboundGain.gain.setValueAtTime(0.08, t);
+  reboundGain.gain.setValueAtTime(0.32, t);
   reboundGain.gain.exponentialRampToValueAtTime(0.01, t + 0.02);
 
   reboundClick.connect(reboundFilter);
@@ -284,7 +284,7 @@ const playClassicClick = (ctx: AudioContext) => {
   osc.frequency.setValueAtTime(520, ctx.currentTime);
 
   gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.01);
+  gain.gain.exponentialRampToValueAtTime(1.0, ctx.currentTime + 0.01);
   gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.12);
 
   osc.connect(gain);
@@ -302,7 +302,7 @@ const playMinimalClick = (ctx: AudioContext) => {
   osc.type = 'sine';
   osc.frequency.setValueAtTime(800, ctx.currentTime);
 
-  gain.gain.setValueAtTime(0.05, ctx.currentTime);
+  gain.gain.setValueAtTime(0.2, ctx.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
 
   osc.connect(gain);
@@ -364,7 +364,7 @@ export const SoundEffectProvider: React.FC<{ children: React.ReactNode }> = ({ c
         console.log('[SoundEffect] Telegraph mode, file path:', telegraphFile);
         if (telegraphFile) {
           // 播放完整的音频文件（文件本身就很短，约0.1秒）
-          playAudioFile(telegraphFile, 0.4).catch((error) => {
+          playAudioFile(telegraphFile, 1.0).catch((error) => {
             // 如果文件不存在，使用生成的音效
             console.warn('[SoundEffect] Failed to play audio file, using generated sound:', error);
             playTelegraphSound(ctx);
