@@ -1,4 +1,4 @@
-import { LessonItemType, MusicTrackStatus } from "@prisma/client";
+import { LessonItemType, MusicTrackStatus, type Prisma } from "@prisma/client";
 import { type Router as ExpressRouter,Router } from "express";
 import multer from "multer";
 import { z } from "zod";
@@ -733,24 +733,27 @@ router.put("/lessons/:lessonId/content", async (req, res, next) => {
       }
 
       const firstItem = version?.items?.[0];
-      const basePayload = firstItem?.payload && typeof firstItem.payload === "object" ? firstItem.payload : {};
+      const basePayload =
+        firstItem?.payload &&
+        typeof firstItem.payload === "object" &&
+        !Array.isArray(firstItem.payload)
+          ? (firstItem.payload as Prisma.JsonObject)
+          : {};
       const normalizedPageNumber =
         typeof payload.pageNumber === "number"
           ? Math.max(1, Math.round(payload.pageNumber))
           : payload.pageNumber === null
             ? null
             : undefined;
-      const nextPayload = {
+      const nextPayload: Prisma.JsonObject = {
         ...basePayload,
         en: payload.en,
         answer: payload.en,
         target: payload.en,
         cn: payload.cn ?? null,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        ...(normalizedPageNumber !== undefined ? { pageNumber: normalizedPageNumber } : {})
       };
-      if (normalizedPageNumber !== undefined) {
-        nextPayload.pageNumber = normalizedPageNumber;
-      }
 
       if (firstItem) {
         await tx.lessonItem.update({
