@@ -494,116 +494,114 @@ export const coursePackageService = {
     payload: unknown;
     triggeredById?: string | null;
   }) => {
-    // 验证 payload 格式
     const parseResult = jsonCourseImportSchema.safeParse(payload);
     if (!parseResult.success) {
       const firstError = parseResult.error.errors[0];
-      throw new Error(`JSON 格式错误: ${firstError?.path.join(".")} - ${firstError?.message}`);
+      throw new Error(`JSON parse failed: ${firstError?.path.join('.')} - ${firstError?.message}`);
     }
 
     const validatedPayload = parseResult.data;
 
-    return prisma.$transaction(
-      async (tx) => {
-        // CSV/JSON 导入需要执行大量插入操作，禁用当前事务内的语句超时
-        await tx.$executeRawUnsafe("SET LOCAL statement_timeout = 0");
-        // 验证课程包存在
-        const pkg = await tx.coursePackage.findUnique({
-          where: { id: packageId },
-          include: { currentVersion: true }
-        });
+    const pkg = await prisma.coursePackage.findUnique({
+      where: { id: packageId },
+      include: { currentVersion: true }
+    });
 
-        if (!pkg) {
-          throw new Error("课程包不存在");
-        }
+    if (!pkg) {
+      throw new Error('Course package not found');
+    }
 
-        const packageVersionId = pkg.currentVersionId;
-        if (!packageVersionId) {
-          throw new Error("课程包没有当前版本");
-        }
+    const packageVersionId = pkg.currentVersionId;
+    if (!packageVersionId) {
+      throw new Error('Course package has no current version');
+    }
 
-        // 获取当前最大单元序号
-        const maxUnitSeq = await tx.unit.aggregate({
-          where: { packageId },
-          _max: { sequence: true }
-        });
-        let unitSequenceBase = maxUnitSeq._max.sequence ?? 0;
+    const maxUnitSeq = await prisma.unit.aggregate({
+      where: { packageId },
+      _max: { sequence: true }
+    });
+    let unitSequenceBase = maxUnitSeq._max.sequence ?? 0;
 
-        // 获取当前最大关卡序号
-        const maxLessonSeq = await tx.lesson.aggregate({
-          where: { packageVersionId },
-          _max: { sequence: true }
-        });
-        let lessonSequence = (maxLessonSeq._max.sequence ?? 0) + 1;
+    const maxLessonSeq = await prisma.lesson.aggregate({
+      where: { packageVersionId },
+      _max: { sequence: true }
+    });
+    let lessonSequence = (maxLessonSeq._max.sequence ?? 0) + 1;
 
-        const createdUnits: Array<{
-          unitId: string;
-          unitTitle: string;
-          createdLessons: number;
-        }> = [];
+    const createdUnits: Array<{
+      unitId: string;
+      unitTitle: string;
+      createdLessons: number;
+    }> = [];
 
-        const totalSentences = validatedPayload.units.reduce(
-          (sum, u) => sum + u.rounds.reduce((s, r) => s + r.sentences.length, 0),
-          0
-        );
-        console.log(`[CSV Import] 开始导入 ${validatedPayload.units.length} 个单元，共 ${totalSentences} 个句子`);
+    const totalSentences = validatedPayload.units.reduce(
+      (sum, u) => sum + u.rounds.reduce((s, r) => s + r.sentences.length, 0),
+      0
+    );
+    console.log(`[CSV Import] Start ${validatedPayload.units.length} units, ${totalSentences} sentences`);
 
-        // 遍历每个单元
-        for (const unitData of validatedPayload.units) {
-          // 创建或获取单元
+    for (const unitData of validatedPayload.units) {
+      const result = await prisma.$transaction(
+        async (tx) => {
+          await tx.$executeRawUnsafe('SET LOCAL statement_timeout = 0');
+
+          let localUnitSequenceBase = unitSequenceBase;
+          let localLessonSequence = lessonSequence;
+
           let unit;
           if (unitData.unitId) {
-            // 如果提供了 unitId，尝试查找现有单元
             unit = await tx.unit.findUnique({
               where: { id: unitData.unitId }
             });
             if (!unit) {
-              throw new Error(`单元 ${unitData.unitId} 不存在`);
+              throw new Error(`Unit ${unitData.unitId} not found`);
             }
           } else {
-            // 创建新单元
-            const unitSequence = unitData.sequence ?? ++unitSequenceBase;
+            const resolvedSequence =
+              typeof unitData.sequence === 'number' && unitData.sequence > 0
+                ? unitData.sequence
+                : localUnitSequenceBase + 1;
+            if (!unitData.sequence) {
+              localUnitSequenceBase = resolvedSequence;
+            } else {
+              localUnitSequenceBase = Math.max(localUnitSequenceBase, resolvedSequence);
+            }
+
             unit = await tx.unit.create({
               data: {
                 packageId,
-                sequence: unitSequence,
+                sequence: resolvedSequence,
                 title: unitData.title,
                 description: unitData.description ?? null,
-                status: "draft"
+                status: 'draft'
               }
             });
           }
 
           let unitLessonCount = 0;
 
-          // 遍历每一轮
           for (const roundData of unitData.rounds) {
-            // roundNumber 从 1 开始，roundIndex 也应该从 1 开始
-            // 这样前端可以正确显示 "第 1 轮", "第 2 轮" 等
             const roundIndex = roundData.roundNumber ?? (unitData.rounds.indexOf(roundData) + 1);
 
-            // 遍历每个句子
             for (let sentenceIdx = 0; sentenceIdx < roundData.sentences.length; sentenceIdx++) {
               const sentence = roundData.sentences[sentenceIdx];
 
-              // 创建关卡（pageNumber 存储在 LessonItem 的 payload 中）
               const lesson = await tx.lesson.create({
                 data: {
-                  packageId, // 必需字段：关联到课程包
+                  packageId,
                   packageVersionId,
                   unitId: unit.id,
                   title: sentence.title || sentence.en,
-                  sequence: lessonSequence++,
-                  status: "draft",
+                  sequence: localLessonSequence++,
+                  status: 'draft',
                   unitNumber: unit.sequence,
                   unitName: unit.title,
-                  roundIndex, // 从 1 开始
-                  roundOrder: sentenceIdx + 1, // 轮内序号，从 1 开始
+                  roundIndex,
+                  roundOrder: sentenceIdx + 1,
                   createdById: triggeredById ?? null
                 }
               });
 
-              // 创建关卡版本
               const lessonVersion = await tx.lessonVersion.create({
                 data: {
                   lessonId: lesson.id,
@@ -616,11 +614,10 @@ export const coursePackageService = {
                 }
               });
 
-              // 创建关卡内容项
               await tx.lessonItem.create({
                 data: {
                   lessonVersionId: lessonVersion.id,
-                  type: (sentence.type as LessonItemType) || "sentence",
+                  type: (sentence.type as LessonItemType) || 'sentence',
                   title: sentence.title || sentence.en,
                   orderIndex: 0,
                   payload: {
@@ -632,7 +629,6 @@ export const coursePackageService = {
                 }
               });
 
-              // 更新关卡的当前版本
               await tx.lesson.update({
                 where: { id: lesson.id },
                 data: { currentVersionId: lessonVersion.id }
@@ -642,34 +638,41 @@ export const coursePackageService = {
             }
           }
 
-          createdUnits.push({
-            unitId: unit.id,
-            unitTitle: unit.title,
-            createdLessons: unitLessonCount
-          });
+          return {
+            unitInfo: {
+              unitId: unit.id,
+              unitTitle: unit.title,
+              createdLessons: unitLessonCount
+            },
+            nextLessonSequence: localLessonSequence,
+            nextUnitSequenceBase: localUnitSequenceBase
+          };
+        },
+        {
+          timeout: 300000,
+          maxWait: 60000
         }
+      );
 
-        // 更新课程包版本的 sourceType（使用 manual_input 表示 CSV/JSON 导入）
-        await tx.coursePackageVersion.update({
-          where: { id: packageVersionId },
-          data: { sourceType: "manual_input" }
-        });
+      lessonSequence = result.nextLessonSequence;
+      unitSequenceBase = result.nextUnitSequenceBase;
+      createdUnits.push(result.unitInfo);
+    }
 
-        const totalLessons = createdUnits.reduce((sum, u) => sum + u.createdLessons, 0);
-        console.log(`[CSV Import] 导入完成：${createdUnits.length} 个单元，${totalLessons} 个关卡`);
+    await prisma.coursePackageVersion.update({
+      where: { id: packageVersionId },
+      data: { sourceType: 'manual_input' }
+    });
 
-        return {
-          versionId: packageVersionId,
-          versionNumber: pkg.currentVersion?.versionNumber ?? 1,
-          totalLessons,
-          units: createdUnits
-        };
-      },
-      {
-        timeout: 300000, // 5分钟超时，处理大量数据
-        maxWait: 60000 // 最长等待获取连接时间
-      }
-    );
+    const totalLessons = createdUnits.reduce((sum, u) => sum + u.createdLessons, 0);
+    console.log(`[CSV Import] Done: ${createdUnits.length} units, ${totalLessons} lessons`);
+
+    return {
+      versionId: packageVersionId,
+      versionNumber: pkg.currentVersion?.versionNumber ?? 1,
+      totalLessons,
+      units: createdUnits
+    };
   },
 
   /**
