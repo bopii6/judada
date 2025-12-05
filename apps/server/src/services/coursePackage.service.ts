@@ -39,6 +39,7 @@ export interface GenerateFromUploadInput {
   triggeredById?: string | null;
   splitPdf?: boolean;
   splitPageCount?: number;
+  pageNumberStart?: number;
   unitId?: string | null;
 }
 
@@ -183,7 +184,16 @@ export const coursePackageService = {
   /**
    * 上传 PDF/图片并创建生成任务。
    */
-  enqueueGenerationFromUpload: async ({ packageId, file, files, triggeredById = null }: GenerateFromUploadInput) => {
+  enqueueGenerationFromUpload: async ({
+    packageId,
+    file,
+    files,
+    triggeredById = null,
+    splitPdf,
+    splitPageCount,
+    pageNumberStart,
+    unitId
+  }: GenerateFromUploadInput) => {
     const fileList = files && files.length > 0 ? files : (file ? [file] : []);
     if (fileList.length === 0) {
       throw new Error("请上传有效的文件");
@@ -223,6 +233,23 @@ export const coursePackageService = {
       const sourceType: SourceType =
         contentType.includes("pdf") || uploadFile.originalname.toLowerCase().endsWith(".pdf") ? "pdf_upload" : "image_ocr";
 
+      const assetMetadata: Prisma.JsonObject = {
+        uploadedAt: new Date().toISOString(),
+        originalFileName: originalName
+      };
+      if (typeof pageNumberStart === "number") {
+        assetMetadata.pageNumberStart = pageNumberStart;
+      }
+      if (typeof splitPageCount === "number") {
+        assetMetadata.splitPageCount = splitPageCount;
+      }
+      if (typeof splitPdf === "boolean") {
+        assetMetadata.splitPdf = splitPdf;
+      }
+      if (unitId) {
+        assetMetadata.unitId = unitId;
+      }
+
       const asset = await prisma.asset.create({
         data: {
           packageId,
@@ -231,10 +258,7 @@ export const coursePackageService = {
           mimeType: contentType,
           fileSize: uploadFile.size,
           sourceType,
-          metadata: {
-            uploadedAt: new Date().toISOString(),
-            originalFileName: originalName
-          }
+          metadata: assetMetadata
         }
       });
 
@@ -252,7 +276,11 @@ export const coursePackageService = {
             storagePath: asset.storagePath,
             originalName: asset.originalName,
             mimeType: asset.mimeType,
-            size: asset.fileSize
+            size: asset.fileSize,
+            ...(typeof splitPdf === "boolean" ? { splitPdf } : {}),
+            ...(typeof splitPageCount === "number" ? { splitPageCount } : {}),
+            ...(typeof pageNumberStart === "number" ? { pageNumberStart } : {}),
+            ...(unitId ? { unitId } : {})
           }
         });
 
@@ -858,17 +886,20 @@ export const coursePackageService = {
   startTextbookImportJob: async ({
     packageId,
     file,
-    triggeredById
+    triggeredById,
+    pageNumberStart
   }: {
     packageId: string;
     file: Express.Multer.File;
     triggeredById?: string | null;
+    pageNumberStart?: number;
   }) => {
     // 使用 enqueueGenerationFromUpload 来处理
     const result = await coursePackageService.enqueueGenerationFromUpload({
       packageId,
       file,
-      triggeredById
+      triggeredById,
+      pageNumberStart
     });
     return { job: result.job };
   },
