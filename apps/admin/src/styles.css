@@ -1,5 +1,6 @@
 :root {
-  font-family: "Source Han Sans", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: "Source Han Sans", "Microsoft YaHei", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji",
+    system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   color: #0f172a;
   background-color: #f1f5f9;
 }

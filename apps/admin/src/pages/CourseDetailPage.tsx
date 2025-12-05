@@ -1,4 +1,4 @@
-﻿import {
+import {
   useEffect,
   useMemo,
   useRef,
@@ -196,21 +196,20 @@ const formatMaterialLabel = (material: PackageMaterialSummary) => {
 const MATERIAL_LESSON_TARGET_OPTIONS = [3, 5, 8] as const;
 type LessonTargetOption = (typeof MATERIAL_LESSON_TARGET_OPTIONS)[number];
 const DEFAULT_MATERIAL_LESSON_TARGET: LessonTargetOption = 5;
-const ROUND_COUNT = 4;
+const MIN_ROUND_COUNT = 4;
 const LESSONS_PER_ROUND = 16;
 
 const computeRoundIndex = (sequence?: number | null) => {
   if (!sequence || sequence <= 0) {
     return 0;
   }
-  const index = Math.floor((sequence - 1) / LESSONS_PER_ROUND);
-  return Math.max(0, Math.min(ROUND_COUNT - 1, index));
+  return Math.floor((sequence - 1) / LESSONS_PER_ROUND);
 };
 
 const formatRoundTitle = (index: number) => `第 ${index + 1} 轮`;
 const deriveRoundIndexFromLesson = (lesson: MaterialLessonSummary) => {
   if (typeof lesson.roundIndex === "number" && lesson.roundIndex > 0) {
-    return Math.max(0, Math.min(ROUND_COUNT - 1, lesson.roundIndex - 1));
+    return lesson.roundIndex - 1;
   }
   return computeRoundIndex(lesson.sequence);
 };
@@ -272,7 +271,7 @@ const sanitizeLessonTitle = (title: string | null | undefined, material?: Packag
   }
   for (const candidate of candidates) {
     if (!candidate) continue;
-    const pattern = new RegExp(`\\s*[·•．・\\-]*\\s*${escapeRegExp(candidate)}\\s*$`);
+    const pattern = new RegExp(`\\s*[·?．?\\-]*\\s*${escapeRegExp(candidate)}\\s*$`);
     if (pattern.test(result)) {
       result = result.replace(pattern, "").trim();
     }
@@ -538,14 +537,21 @@ export const CourseDetailPage = () => {
       setCsvImportMessage({ type: "info", text: "正在上传 CSV..." });
     },
     onSuccess: response => {
-      const unitCount = response.result.units.length;
-      const lessonCount = response.result.totalLessons;
-      setCsvImportMessage({
-        type: "success",
-        text: `CSV 导入完成：${unitCount} 个单元 / ${lessonCount} 条关卡`
-      });
-      void refetchUnits();
-      void refetchMaterials();
+      if (response.result) {
+        const unitCount = response.result.units.length;
+        const lessonCount = response.result.totalLessons;
+        setCsvImportMessage({
+          type: "success",
+          text: `CSV 导入完成：${unitCount} 个单元 / ${lessonCount} 条关卡`
+        });
+        void refetchUnits();
+        void refetchMaterials();
+      } else {
+        setCsvImportMessage({
+          type: "success",
+          text: response.message || "CSV 上传成功，系统正在后台导入，请稍后刷新页面查看结果"
+        });
+      }
     },
     onError: failure => {
       setCsvImportMessage({ type: "error", text: (failure as Error).message });
@@ -872,9 +878,9 @@ export const CourseDetailPage = () => {
         </div>
         <div className="course-detail-actions">
           {publishedUnits > 0 ? (
-            <span className="publish-hint success">✓ 已有 {publishedUnits} 个单元发布，用户端可见</span>
+            <span className="publish-hint success">✅ 已有 {publishedUnits} 个单元发布，用户端可见</span>
           ) : (
-            <span className="publish-hint warning">⚠ 尚未发布任何单元，用户端不可见</span>
+            <span className="publish-hint warning">⚠️ 尚未发布任何单元，用户端不可见</span>
           )}
         </div>
       </header>
@@ -919,7 +925,7 @@ export const CourseDetailPage = () => {
               onClick={handleCsvUploadClick}
               disabled={csvImportMutation.isPending}
             >
-              {csvImportMutation.isPending ? "导入中..." : "📊 上传 CSV"}
+              {csvImportMutation.isPending ? "导入中..." : "📄 上传 CSV"}
             </button>
             {csvImportMessage && (
               <p className={`textbook-import-message ${csvImportMessage.type}`}>
@@ -937,7 +943,7 @@ export const CourseDetailPage = () => {
               onClick={handleFullBookUploadClick}
               disabled={importBookMutation.isPending}
             >
-              {importBookMutation.isPending ? "解析中..." : "📚 上传整本教材"}
+              {importBookMutation.isPending ? "解析中..." : "📘 上传整本教材"}
             </button>
             <p className="textbook-import-hint">PDF ≤ 80MB，目录需带有单元名称与页码</p>
             <label className="upload-hint">
@@ -1501,9 +1507,16 @@ const UnitCard = ({
     return [];
   }, [unitMaterials, unit.lessons]);
 
+  const roundCount = useMemo(() => {
+    const explicit = roundEntries.reduce((max, entry) => Math.max(max, (entry.roundIndex ?? 0) + 1), 0);
+    const estimated = Math.ceil((unit.lessons?.length ?? 0) / LESSONS_PER_ROUND);
+    const fallback = estimated || explicit || MIN_ROUND_COUNT;
+    return Math.max(MIN_ROUND_COUNT, explicit, fallback);
+  }, [roundEntries, unit.lessons]);
+
   const roundGroups = useMemo(
     () =>
-      Array.from({ length: ROUND_COUNT }, (_item, index) => {
+      Array.from({ length: roundCount }, (_item, index) => {
         const lessons = roundEntries
           .filter(entry => entry.roundIndex === index)
           .sort((a, b) => {
@@ -1518,7 +1531,7 @@ const UnitCard = ({
           });
         return { roundIndex: index, lessons };
       }),
-    [roundEntries]
+    [roundEntries, roundCount]
   );
 
   const openLessonEditor = (
@@ -1603,7 +1616,7 @@ const UnitCard = ({
                 onClick={handleRegenerateUnit}
                 disabled={unitRegenerateMutation.isPending}
               >
-                {unitRegenerateMutation.isPending ? "重新生成中..." : "♻️ 重新生成单元"}
+                {unitRegenerateMutation.isPending ? "重新生成中..." : "🔁 重新生成单元"}
               </button>
               <button type="button" onClick={() => setIsEditing(true)}>
                 ✏️ 编辑单元
@@ -1615,7 +1628,7 @@ const UnitCard = ({
                 onClick={() => unpublishMutation.mutate()}
                 disabled={unpublishMutation.isPending}
               >
-                {unpublishMutation.isPending ? "下架中..." : "⬇️ 下架单元"}
+                {unpublishMutation.isPending ? "下架中..." : "📥 下架单元"}
               </button>
             ) : (
               <button
@@ -1628,7 +1641,7 @@ const UnitCard = ({
               </button>
             )}
             <button type="button" className="danger" onClick={handleDelete} disabled={deleteMutation.isPending}>
-              🗑️ 删除
+              🗑 删除
             </button>
             <div className="upload-hint">
               <label>

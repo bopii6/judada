@@ -247,10 +247,16 @@ export interface JsonImportResult {
   }>;
 }
 
+export interface CsvImportResponse {
+  success: boolean;
+  message: string;
+  result?: JsonImportResult | null;
+}
+
 export const uploadCoursePackageCsv = (packageId: string, file: File) => {
   const formData = new FormData();
   formData.append("file", file);
-  return apiFetch<{ success: boolean; result: JsonImportResult }>(
+  return apiFetch<CsvImportResponse>(
     `/admin/course-packages/${packageId}/import-csv`,
     {
       method: "POST",
