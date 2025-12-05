@@ -526,6 +526,13 @@ export const CourseDetailPage = () => {
     }
   });
 
+  const [csvImporting, setCsvImporting] = useState(false);
+  const [csvProgressLogs, setCsvProgressLogs] = useState<string[]>([]);
+
+  const appendCsvLog = (message: string) => {
+    setCsvProgressLogs(prev => [`[${new Date().toLocaleTimeString()}] ${message}`, ...prev].slice(0, 8));
+  };
+
   const csvImportMutation = useMutation({
     mutationFn: async (file: File) => {
       if (!id) {
@@ -534,7 +541,9 @@ export const CourseDetailPage = () => {
       return uploadCoursePackageCsv(id, file);
     },
     onMutate: () => {
+      setCsvImporting(true);
       setCsvImportMessage({ type: "info", text: "正在上传 CSV..." });
+      appendCsvLog("开始上传 CSV 文件");
     },
     onSuccess: response => {
       if (response.result) {
@@ -544,17 +553,23 @@ export const CourseDetailPage = () => {
           type: "success",
           text: `CSV 导入完成：${unitCount} 个单元 / ${lessonCount} 条关卡`
         });
+        appendCsvLog(`导入完成：${unitCount} 个单元 / ${lessonCount} 条关卡`);
+        setCsvImporting(false);
         void refetchUnits();
         void refetchMaterials();
       } else {
         setCsvImportMessage({
-          type: "success",
-          text: response.message || "CSV 上传成功，系统正在后台导入，请稍后刷新页面查看结果"
+          type: "info",
+          text: response.message || "CSV 上传成功，系统正在逐个单元导入，请稍后刷新页面"
         });
+        appendCsvLog("后台已接收 CSV，正在逐个单元导入...");
       }
     },
     onError: failure => {
-      setCsvImportMessage({ type: "error", text: (failure as Error).message });
+      const message = (failure as Error).message;
+      setCsvImportMessage({ type: "error", text: message });
+      appendCsvLog(`导入失败：${message}`);
+      setCsvImporting(false);
     },
     onSettled: () => {
       if (csvInputRef.current) {
@@ -923,9 +938,9 @@ export const CourseDetailPage = () => {
               type="button"
               className="secondary"
               onClick={handleCsvUploadClick}
-              disabled={csvImportMutation.isPending}
+              disabled={csvImportMutation.isPending || csvImporting}
             >
-              {csvImportMutation.isPending ? "导入中..." : "📄 上传 CSV"}
+              {csvImportMutation.isPending || csvImporting ? "⏳ 导入中..." : "📄 上传 CSV"}
             </button>
             {csvImportMessage && (
               <p className={`textbook-import-message ${csvImportMessage.type}`}>
@@ -935,6 +950,16 @@ export const CourseDetailPage = () => {
             <p className="textbook-import-hint">
               CSV 格式: unit,unit_title,round,round_title,en,cn,page（推荐用 ChatGPT 生成）
             </p>
+            {csvProgressLogs.length > 0 && (
+              <div className="csv-progress-panel">
+                <div className="csv-progress-header">{csvImporting ? "正在导入..." : "最近导入记录"}</div>
+                <ul>
+                  {csvProgressLogs.map(log => (
+                    <li key={log}>{log}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
           <div className="textbook-import-group">
             <button
@@ -1196,6 +1221,7 @@ interface RoundLessonEntry {
   lesson: MaterialLessonSummary;
   roundIndex: number;
   roundOrder: number;
+  roundTitle?: string | null;
 }
 
 const UnitCard = ({
@@ -1451,7 +1477,8 @@ const UnitCard = ({
           material,
           lesson,
           roundIndex: deriveRoundIndexFromLesson(lesson),
-          roundOrder: deriveRoundOrderFromLesson(lesson)
+          roundOrder: deriveRoundOrderFromLesson(lesson),
+          roundTitle: lesson.roundTitle ?? null
         }))
       );
     }
@@ -1477,6 +1504,7 @@ const UnitCard = ({
           status: lesson.status,
           roundIndex: lesson.roundIndex ?? null,
           roundOrder: lesson.roundOrder ?? null,
+          roundTitle: lesson.roundTitle ?? null,
           pageNumber,
           contentEn,
           contentCn
@@ -1499,7 +1527,8 @@ const UnitCard = ({
           material: dummyMaterial,
           lesson: lessonData,
           roundIndex: deriveRoundIndexFromLesson(lessonData),
-          roundOrder: deriveRoundOrderFromLesson(lessonData)
+          roundOrder: deriveRoundOrderFromLesson(lessonData),
+          roundTitle: lesson.roundTitle ?? null
         };
       });
     }
@@ -1529,7 +1558,8 @@ const UnitCard = ({
             const seqB = b.lesson.sequence ?? 0;
             return seqA - seqB;
           });
-        return { roundIndex: index, lessons };
+        const roundTitle = lessons[0]?.roundTitle ?? null;
+        return { roundIndex: index, roundTitle, lessons };
       }),
     [roundEntries, roundCount]
   );
@@ -1709,7 +1739,7 @@ const UnitCard = ({
                     <div key={group.roundIndex} className="round-card">
                       <div className="round-card-header">
                         <div>
-                          <p className="round-title">{formatRoundTitle(group.roundIndex)}</p>
+                          <p className="round-title">{group.roundTitle ?? formatRoundTitle(group.roundIndex)}</p>
                           <p className="round-meta">{group.lessons.length} 个关卡</p>
                         </div>
                         <button

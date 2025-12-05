@@ -412,6 +412,33 @@
   text-align: right;
 }
 
+.csv-progress-panel {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5f5;
+  border-radius: 8px;
+  max-width: 360px;
+}
+
+.csv-progress-panel .csv-progress-header {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 6px;
+}
+
+.csv-progress-panel ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #475569;
+}
+
 .textbook-import-message {
   margin: 8px 0 0 0;
   padding: 8px 12px;

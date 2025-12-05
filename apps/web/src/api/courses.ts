@@ -34,6 +34,7 @@ export interface CourseStage {
   stageSequence: number;
   roundIndex?: number | null;
   roundOrder?: number | null;
+  roundTitle?: string | null;
   unitNumber?: number | null;  // 单元序号
   unitName?: string | null;    // 单元名称
   sourceAssetId?: string | null;

@@ -39,6 +39,7 @@ export interface LessonSummary {
   unitId?: string | null;
   roundIndex?: number | null;
   roundOrder?: number | null;
+  roundTitle?: string | null;
   pageNumber?: number | null;
   currentVersion: {
     id: string;
@@ -65,6 +66,7 @@ export interface MaterialLessonSummary {
   sourceAssetOrder?: number | null;
   roundIndex?: number | null;
   roundOrder?: number | null;
+  roundTitle?: string | null;
   pageNumber?: number | null;
   itemType?: string;
   contentEn?: string | null;

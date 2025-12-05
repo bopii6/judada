@@ -10,6 +10,7 @@ interface AdventureMapProps {
 
 interface RoundData {
   roundNumber: number;
+  title?: string | null;
   stages: CourseStage[];
 }
 
@@ -85,21 +86,27 @@ export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
           });
           rounds = Array.from(roundMap.entries())
             .sort((a, b) => a[0] - b[0])
-            .map(([roundNumber, roundStages]) => ({
-              roundNumber,
-              stages: roundStages.sort((a, b) => {
+            .map(([roundNumber, roundStages]) => {
+              const sortedStages = roundStages.sort((a, b) => {
                 const orderA = (a.roundOrder ?? a.stageSequence) ?? 0;
                 const orderB = (b.roundOrder ?? b.stageSequence) ?? 0;
                 if (orderA === orderB) {
                   return a.stageSequence - b.stageSequence;
                 }
                 return orderA - orderB;
-              })
-            }));
+              });
+              const roundTitle = sortedStages[0]?.roundTitle ?? sortedStages[0]?.sourceAssetName ?? null;
+              return {
+                roundNumber,
+                title: roundTitle ?? undefined,
+                stages: sortedStages
+              };
+            });
         } else {
           for (let i = 0; i < unitStages.length; i += 16) {
             rounds.push({
               roundNumber: rounds.length + 1,
+              title: undefined,
               stages: unitStages.slice(i, i + 16)
             });
           }
@@ -363,7 +370,7 @@ export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
                         } hover:border-slate-400`}
                       >
                         <div className="flex items-center justify-between text-xs">
-                          <span>第 {round.roundNumber} 组</span>
+                          <span>{round.title ?? `第 ${round.roundNumber} 组`}</span>
                           <span>{summary.completed}/{summary.total}</span>
                         </div>
                         <div className="mt-2 h-1.5 w-full rounded-full bg-white/30">

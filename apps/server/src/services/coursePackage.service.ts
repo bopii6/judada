@@ -497,7 +497,7 @@ export const coursePackageService = {
     const parseResult = jsonCourseImportSchema.safeParse(payload);
     if (!parseResult.success) {
       const firstError = parseResult.error.errors[0];
-      throw new Error(`JSON parse failed: ${firstError?.path.join('.')} - ${firstError?.message}`);
+      throw new Error(`JSON validation failed: ${firstError?.path.join(".")} - ${firstError?.message}`);
     }
 
     const validatedPayload = parseResult.data;
@@ -538,9 +538,12 @@ export const coursePackageService = {
       (sum, u) => sum + u.rounds.reduce((s, r) => s + r.sentences.length, 0),
       0
     );
-    console.log(`[CSV Import] Start ${validatedPayload.units.length} units, ${totalSentences} sentences`);
+    const logPrefix = `[CSV Import][package:${packageId}]`;
+    console.info(`${logPrefix} payload verified: ${validatedPayload.units.length} units / ${totalSentences} sentences`);
 
-    for (const unitData of validatedPayload.units) {
+    for (const [unitIndex, unitData] of validatedPayload.units.entries()) {
+      console.info(`${logPrefix} unit ${unitIndex + 1}/${validatedPayload.units.length} \"${unitData.title}\" start`);
+
       const result = await prisma.$transaction(
         async (tx) => {
           await tx.$executeRawUnsafe('SET LOCAL statement_timeout = 0');
@@ -582,6 +585,7 @@ export const coursePackageService = {
 
           for (const roundData of unitData.rounds) {
             const roundIndex = roundData.roundNumber ?? (unitData.rounds.indexOf(roundData) + 1);
+            console.info(`${logPrefix} unit \"${unit.title}\" round ${roundIndex} start (${roundData.sentences.length} sentences)`);
 
             for (let sentenceIdx = 0; sentenceIdx < roundData.sentences.length; sentenceIdx++) {
               const sentence = roundData.sentences[sentenceIdx];
@@ -598,9 +602,10 @@ export const coursePackageService = {
                   unitName: unit.title,
                   roundIndex,
                   roundOrder: sentenceIdx + 1,
+                  roundTitle: roundData.title ?? null,
                   createdById: triggeredById ?? null
                 }
-              });
+              } as any);
 
               const lessonVersion = await tx.lessonVersion.create({
                 data: {
@@ -657,6 +662,7 @@ export const coursePackageService = {
       lessonSequence = result.nextLessonSequence;
       unitSequenceBase = result.nextUnitSequenceBase;
       createdUnits.push(result.unitInfo);
+      console.info(`${logPrefix} unit \"${result.unitInfo.unitTitle}\" completed, produced ${result.unitInfo.createdLessons} lessons`);
     }
 
     await prisma.coursePackageVersion.update({
@@ -665,7 +671,7 @@ export const coursePackageService = {
     });
 
     const totalLessons = createdUnits.reduce((sum, u) => sum + u.createdLessons, 0);
-    console.log(`[CSV Import] Done: ${createdUnits.length} units, ${totalLessons} lessons`);
+    console.info(`${logPrefix} completed: ${createdUnits.length} units, ${totalLessons} lessons`);
 
     return {
       versionId: packageVersionId,
@@ -790,6 +796,7 @@ export const coursePackageService = {
             sourceAssetOrder: lesson.sourceAssetOrder,
             roundIndex: lesson.roundIndex,
             roundOrder: lesson.roundOrder,
+            roundTitle: lesson.roundTitle,
             pageNumber: (payload?.pageNumber as number) ?? null,
             itemType: item?.type ?? null,
             contentEn: (payload?.en as string) ?? (payload?.answer as string) ?? null,
@@ -814,6 +821,7 @@ export const coursePackageService = {
         sourceAssetOrder: lesson.sourceAssetOrder,
         roundIndex: lesson.roundIndex,
         roundOrder: lesson.roundOrder,
+        roundTitle: lesson.roundTitle,
         pageNumber: (payload?.pageNumber as number) ?? null,
         itemType: item?.type ?? null,
         contentEn: (payload?.en as string) ?? (payload?.answer as string) ?? null,
@@ -871,8 +879,16 @@ export const coursePackageService = {
       throw new Error(`上传封面失败：${uploadResult.error.message}`);
     }
 
-    const { data: urlData } = supabase.storage.from(SUPABASE_STORAGE_BUCKET).getPublicUrl(storagePath);
-    const coverUrl = urlData.publicUrl;
+    // Generate long-lived signed URL to avoid依赖桶是否公开
+    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+      .from(SUPABASE_STORAGE_BUCKET)
+      .createSignedUrl(storagePath, 60 * 60 * 24 * 365); // 1年有效期
+
+    if (signedUrlError || !signedUrlData?.signedUrl) {
+      throw new Error(`生成封面访问链接失败：${signedUrlError?.message ?? "signedUrl 为空"}`);
+    }
+
+    const coverUrl = signedUrlData.signedUrl;
 
     await prisma.coursePackage.update({
       where: { id: packageId },

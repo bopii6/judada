@@ -303,6 +303,7 @@ router.get("/:id/questions", async (req, res, next) => {
         stageSequence: stageSequence++,
         roundIndex: lesson.roundIndex,
         roundOrder: lesson.roundOrder,
+        roundTitle: lesson.roundTitle,
         unitNumber: lesson.unitNumber,    // 单元序号
         unitName: lesson.unitName,        // 单元名称
         sourceAssetId: lesson.sourceAssetId,
