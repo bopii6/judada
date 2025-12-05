@@ -16,6 +16,9 @@ export interface CoursePackageListItem {
   title: string;
   topic: string;
   status: CourseStatus;
+  grade?: string | null;
+  publisher?: string | null;
+  semester?: string | null;
   coverUrl: string | null;
   createdAt: string;
   updatedAt: string;
@@ -122,6 +125,9 @@ export interface CoursePackageDetail {
   title: string;
   topic: string;
   description: string | null;
+  grade?: string | null;
+  publisher?: string | null;
+  semester?: string | null;
   status: CourseStatus;
   coverUrl: string | null;
   createdAt: string;
@@ -197,6 +203,9 @@ export interface CreateCoursePackagePayload {
   coverUrl?: string;
   label?: string;
   notes?: string;
+  grade?: string;
+  publisher?: string;
+  semester?: string;
 }
 
 export const createCoursePackage = (payload: CreateCoursePackagePayload) =>

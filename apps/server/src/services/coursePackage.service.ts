@@ -14,6 +14,7 @@ import {
 import { enqueuePackageGenerationJob } from "../jobs/packageGeneration.queue";
 import { jsonCourseImportSchema, type JsonCourseImportPayload } from "../types/jsonCourseImport";
 import { parseCsvToJsonPayload } from "../utils/csvParser";
+import { ensureCourseCoverUrl } from "../utils/coverUrl";
 
 const prisma = getPrisma();
 
@@ -69,7 +70,15 @@ export const coursePackageService = {
   /**
    * 课程包列表（含关卡数量、版本数量）。
    */
-  listPackages: () => coursePackageRepository.listWithStats(),
+  listPackages: async () => {
+    const items = await coursePackageRepository.listWithStats();
+    return Promise.all(
+      items.map(async item => ({
+        ...item,
+        coverUrl: await ensureCourseCoverUrl(item.coverUrl)
+      }))
+    );
+  },
 
   /**
    * 获取课程包详情。
@@ -81,7 +90,11 @@ export const coursePackageService = {
       (error as any).status = 404;
       throw error;
     }
-    return detail;
+    const coverUrl = await ensureCourseCoverUrl(detail.coverUrl);
+    return {
+      ...detail,
+      coverUrl
+    };
   },
 
   /**
@@ -95,6 +108,9 @@ export const coursePackageService = {
           topic: input.topic,
           description: input.description ?? null,
           coverUrl: input.coverUrl ?? null,
+          grade: input.grade ?? null,
+          publisher: input.publisher ?? null,
+          semester: input.semester ?? null,
           createdById: input.createdById ?? null
         }
       });

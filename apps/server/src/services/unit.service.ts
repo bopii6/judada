@@ -4,6 +4,22 @@ import { getPrisma } from "../lib/prisma";
 
 const prisma = getPrisma();
 
+const syncPackagePublishStatus = async (tx: Prisma.TransactionClient, packageId: string) => {
+  const publishedUnits = await tx.unit.count({
+    where: {
+      packageId,
+      deletedAt: null,
+      status: "published"
+    }
+  });
+
+  const nextStatus: CourseStatus = publishedUnits > 0 ? "published" : "draft";
+  await tx.coursePackage.update({
+    where: { id: packageId },
+    data: { status: nextStatus }
+  });
+};
+
 export interface CreateUnitInput {
   packageId: string;
   sequence: number;
@@ -214,6 +230,8 @@ export const unitService = {
         });
       }
 
+      await syncPackagePublishStatus(tx, unit.packageId);
+
       return {
         unitId,
         lessonCount: lessonIds.length
@@ -253,6 +271,8 @@ export const unitService = {
           data: { status: "draft" }
         });
       }
+
+      await syncPackagePublishStatus(tx, unit.packageId);
 
       return {
         unitId,

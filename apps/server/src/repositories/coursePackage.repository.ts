@@ -10,6 +10,9 @@ export interface CoursePackageListItem {
   title: string;
   topic: string;
   status: string;
+  grade: string | null;
+  publisher: string | null;
+  semester: string | null;
   coverUrl: string | null;
   updatedAt: Date;
   createdAt: Date;
@@ -28,6 +31,9 @@ export interface CoursePackageDetail {
   title: string;
   topic: string;
   description: string | null;
+  grade: string | null;
+  publisher: string | null;
+  semester: string | null;
   status: string;
   coverUrl: string | null;
   createdAt: Date;
@@ -84,6 +90,9 @@ export interface CreateCoursePackageInput {
   topic: string;
   description?: string | null;
   coverUrl?: string | null;
+  grade?: string | null;
+  publisher?: string | null;
+  semester?: string | null;
   createdById?: string | null;
 }
 
@@ -104,6 +113,9 @@ const mapToListItem = (pkg: any): CoursePackageListItem => ({
   title: pkg.title,
   topic: pkg.topic,
   status: pkg.status,
+  grade: pkg.grade ?? null,
+  publisher: pkg.publisher ?? null,
+  semester: pkg.semester ?? null,
   coverUrl: pkg.coverUrl || null,
   createdAt: pkg.createdAt,
   updatedAt: pkg.updatedAt,
@@ -213,6 +225,9 @@ export const coursePackageRepository = {
         topic: input.topic,
         description: input.description ?? null,
         coverUrl: input.coverUrl ?? null,
+        grade: input.grade ?? null,
+        publisher: input.publisher ?? null,
+        semester: input.semester ?? null,
         createdById: input.createdById ?? null
       }
     }),

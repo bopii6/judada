@@ -3,6 +3,7 @@ import { Router } from "express";
 
 import { callHunyuanChat } from "../lib/hunyuan";
 import { getPrisma } from "../lib/prisma";
+import { ensureCourseCoverUrl } from "../utils/coverUrl";
 
 const router: Router = Router();
 const prisma = getPrisma();
@@ -73,8 +74,7 @@ router.get("/", async (req, res, next) => {
     });
 
     // 映射结果
-    const items = packages.map((pkg: any) => {
-      // 计算已发布单元数量和总关卡数
+    const items = await Promise.all(packages.map(async (pkg: any) => {
       const publishedUnits = pkg.units;
       const totalLessons = publishedUnits.reduce((sum: number, u: any) => sum + u._count.lessons, 0);
 
@@ -83,7 +83,7 @@ router.get("/", async (req, res, next) => {
         title: pkg.title,
         topic: pkg.topic,
         description: pkg.description,
-        coverUrl: pkg.coverUrl,
+        coverUrl: await ensureCourseCoverUrl(pkg.coverUrl),
         grade: pkg.grade,
         publisher: pkg.publisher,
         semester: pkg.semester,
@@ -91,7 +91,7 @@ router.get("/", async (req, res, next) => {
         lessonCount: totalLessons,
         unitCount: publishedUnits.length
       };
-    });
+    }));
 
     // 获取所有可用的筛选选项（基于有已发布单元的课程包）
     const packagesWithPublishedUnits: Array<{ grade: string | null; publisher: string | null }> = await (prisma as any).coursePackage.findMany({
@@ -323,6 +323,7 @@ router.get("/:id/questions", async (req, res, next) => {
 
     // 单元数量就是已发布单元的数量
     const unitCount = (course as any).units.length;
+    const coverUrl = await ensureCourseCoverUrl(course.coverUrl);
 
     res.json({
       course: {
@@ -330,7 +331,7 @@ router.get("/:id/questions", async (req, res, next) => {
         title: course.title,
         topic: course.topic,
         description: course.description,
-        coverUrl: course.coverUrl,
+        coverUrl,
         grade: course.grade,
         publisher: course.publisher,
         semester: course.semester,

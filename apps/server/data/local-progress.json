@@ -1221,6 +1221,21 @@
         "createdAt": "2025-12-02T05:47:11.425Z",
         "updatedAt": "2025-12-02T05:47:11.425Z"
       }
+    ],
+    "guest-1764924316594-nru0tg40o": [
+      {
+        "userId": "guest-1764924316594-nru0tg40o",
+        "stageId": "f4969aca-0c1f-455a-9fdf-dbdfab977c8b-a66ccf91-2949-4b62-89b0-5ac4fc5a55f0",
+        "courseId": "4a397c30-03fb-4186-8386-f81d5e3922b4",
+        "bestStars": 3,
+        "attempts": 1,
+        "lastPlayedAt": "2025-12-05T11:32:08.479Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-12-05T11:32:08.479Z",
+        "updatedAt": "2025-12-05T11:32:08.479Z"
+      }
     ]
   },
   "stats": {
@@ -1410,6 +1425,17 @@
       "lastActiveAt": "2025-12-02T05:47:11.425Z",
       "createdAt": "2025-12-02T05:44:30.983Z",
       "updatedAt": "2025-12-02T05:47:11.425Z"
+    },
+    "guest-1764924316594-nru0tg40o": {
+      "userId": "guest-1764924316594-nru0tg40o",
+      "totalPlayTime": 0,
+      "totalStars": 3,
+      "completedStages": 1,
+      "currentStreak": 0,
+      "longestStreak": 0,
+      "lastActiveAt": "2025-12-05T11:32:08.479Z",
+      "createdAt": "2025-12-05T11:23:34.189Z",
+      "updatedAt": "2025-12-05T11:32:08.479Z"
     }
   },
   "daily": {
@@ -1534,6 +1560,17 @@
         "typingStages": 1,
         "createdAt": "2025-12-02T05:47:11.427Z",
         "updatedAt": "2025-12-02T05:47:11.427Z"
+      }
+    ],
+    "guest-1764924316594-nru0tg40o": [
+      {
+        "userId": "guest-1764924316594-nru0tg40o",
+        "date": "2025-12-05",
+        "completedStages": 1,
+        "starsEarned": 3,
+        "typingStages": 1,
+        "createdAt": "2025-12-05T11:32:08.481Z",
+        "updatedAt": "2025-12-05T11:32:08.481Z"
       }
     ]
   }
