@@ -126,6 +126,12 @@ router.get("/", async (req, res, next) => {
 
 router.get("/:id/questions", async (req, res, next) => {
   try {
+    const routeStart = Date.now();
+    const logDuration = (label: string) => {
+      const elapsed = Date.now() - routeStart;
+      console.log(`[course-questions] ${label} courseId=${req.params.id} elapsed=${elapsed}ms`);
+    };
+    logDuration("start");
     // 获取课程包及其已发布的单元和关卡
     const course = await (prisma as any).coursePackage.findUnique({
       where: { id: req.params.id },
@@ -161,6 +167,7 @@ router.get("/:id/questions", async (req, res, next) => {
         }
       }
     });
+    logDuration("after course query");
 
     if (!course) {
       res.status(404).json({ error: "课程不存在" });
@@ -181,6 +188,7 @@ router.get("/:id/questions", async (req, res, next) => {
         unitName: unit.title
       }))
     );
+    logDuration("after flatten lessons");
 
     if (allLessons.length === 0) {
       res.status(404).json({ error: "该课程暂无关卡内容" });
@@ -295,6 +303,7 @@ router.get("/:id/questions", async (req, res, next) => {
     // 单元数量就是已发布单元的数量
     const unitCount = (course as any).units.length;
     const coverUrl = await ensureCourseCoverUrl(course.coverUrl);
+    logDuration("after response prepare");
 
     res.json({
       course: {
@@ -312,6 +321,7 @@ router.get("/:id/questions", async (req, res, next) => {
       },
       stages
     });
+    logDuration("end");
   } catch (error) {
     next(error);
   }
