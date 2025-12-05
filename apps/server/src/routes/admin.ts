@@ -296,12 +296,26 @@ router.post(
       }
       const raw = req.file.buffer.toString("utf-8");
       const userId = (req as any).user?.id ?? null;
-      const result = await coursePackageService.importCourseDataFromCsv({
-        packageId: req.params.id,
-        csvText: raw,
-        triggeredById: userId
+      coursePackageService
+        .importCourseDataFromCsv({
+          packageId: req.params.id,
+          csvText: raw,
+          triggeredById: userId
+        })
+        .then((result) => {
+          console.info(
+            `[admin][csv-import] 导入完成 packageId=${req.params.id} units=${result.units.length} lessons=${result.totalLessons}`
+          );
+        })
+        .catch((error) => {
+          console.error(
+            `[admin][csv-import] 导入失败 packageId=${req.params.id} message=${(error as Error).message}`
+          );
+        });
+      res.status(202).json({
+        success: true,
+        message: "CSV 导入任务已开始，请稍后刷新页面查看结果"
       });
-      res.json({ success: true, result });
     } catch (error) {
       next(error);
     }
