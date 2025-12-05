@@ -653,7 +653,8 @@ export const coursePackageService = {
         };
       },
       {
-        timeout: 60000 // 60秒超时
+        timeout: 300000, // 5分钟超时，处理大量数据
+        maxWait: 60000 // 最长等待获取连接时间
       }
     );
   },
