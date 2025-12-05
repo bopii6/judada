@@ -1,7 +1,6 @@
 ﻿import { CourseStatus, LessonItemType } from "@prisma/client";
 import { Router } from "express";
 
-import { callHunyuanChat } from "../lib/hunyuan";
 import { getPrisma } from "../lib/prisma";
 import { ensureCourseCoverUrl } from "../utils/coverUrl";
 
@@ -22,9 +21,6 @@ const lessonItemTypeMap: Record<LessonItemType, "type" | "tiles" | "listenTap" |
   writing: "type",
   custom: "type"
 };
-
-const translationCache = new Map<string, { value: string; expiresAt: number }>();
-const TRANSLATION_CACHE_TTL_MS = 1000 * 60 * 60 * 24; // cache translations for 24h
 
 router.get("/", async (req, res, next) => {
   try {
@@ -202,67 +198,15 @@ router.get("/:id/questions", async (req, res, next) => {
         .replace(/^以下是.*翻译[：:\s]*/i, "")
         .replace(/^.*翻译结果[：:\s]*/i, "")
         .trim();
-
-    // 翻译函数：确保始终返回英文句子的中文翻译
-    // 严格禁止使用课程描述、课程标题等非翻译内容
-    const getTranslation = async ({
-      en,
-      payload,
-      lessonItemId
-    }: {
-      en: string;
-      payload: Record<string, any>;
-      lessonItemId: string;
-    }): Promise<string> => {
-      if (!en || !en.trim()) {
-        return "";
-      }
-
-      const cacheKey = lessonItemId || en;
-      const now = Date.now();
-      const cached = translationCache.get(cacheKey);
-      if (cached && cached.expiresAt > now) {
-        return cached.value;
-      }
-      
-      // 优先使用管理员手动配置的中文翻译 payload.cn，其次才尝试 payload.translation
+    const getTranslation = (payload: Record<string, any>, fallbackEn: string): string => {
       let translationCn = payload.cn || (payload.translation as string) || "";
       if (translationCn) {
         translationCn = cleanTranslationText(translationCn);
-        translationCache.set(cacheKey, { value: translationCn, expiresAt: now + TRANSLATION_CACHE_TTL_MS });
-        return translationCn;
       }
-      
-      // 如果缺失或空，而英文句子存在，才使用 Hunyuan 生成新的翻译
-      try {
-        console.log(`[Translation] Generating translation for: ${en.substring(0, 50)}...`);
-        const translationResponse = await callHunyuanChat([
-          {
-            Role: "system",
-            Content: "你是一位专业的英语翻译助手。请将英文句子准确翻译成中文。要求：1. 只返回翻译结果，不要包含任何解释、说明或课程相关的内容；2. 需要准确、自然，符合中文表述习惯；3. 绝不要输出课程介绍、学习目标、练习说明等无关内容；4. 如果是句子，返回完整句子的翻译；如果是单词，返回词义。"
-          },
-          {
-            Role: "user",
-            Content: `请将以下英文翻译成中文：\n\n${en}`
-          }
-        ], { temperature: 0.2 });
-        
-        translationCn = cleanTranslationText(translationResponse);
-        
-        console.log(`[Translation] Generated: ${translationCn.substring(0, 50)}...`);
-      } catch (error) {
-        console.error("[Translation] Failed to translate:", error);
-        // 如果生成失败，返回一个兜底占位符
-        translationCn = "[翻译生成中...]";
+      if (!translationCn && fallbackEn) {
+        translationCn = fallbackEn;
       }
-      
-      // 最后保障：如果还是没有翻译，但英文存在，则返回一个兜底提示
-      if (!translationCn && en) {
-        translationCn = "[翻译生成中...]";
-      }
-
-      translationCache.set(cacheKey, { value: translationCn, expiresAt: now + TRANSLATION_CACHE_TTL_MS });
-      return translationCn;
+      return translationCn || "";
     };
 
     // 先收集所有需要处理的数据
@@ -271,7 +215,6 @@ router.get("/:id/questions", async (req, res, next) => {
       firstItem: NonNullable<typeof allLessons[0]['currentVersion']>['items'][0];
       payload: Record<string, any>;
       en: string;
-      lessonItemId: string;
     }> = [];
 
     for (const lesson of allLessons) {
@@ -297,15 +240,12 @@ router.get("/:id/questions", async (req, res, next) => {
         lesson,
         firstItem,
         payload,
-        en,
-        lessonItemId: firstItem.id
+        en
       });
     }
 
     // 批量获取翻译
-    const translations = await Promise.all(
-      stageData.map(({ en, payload, lessonItemId }) => getTranslation({ en, payload, lessonItemId }))
-    );
+    const translations = stageData.map(({ en, payload }) => getTranslation(payload, en));
 
     // 构建 stages 数组
     const stages = stageData.map(({ lesson, firstItem, payload, en }, index) => {
@@ -378,3 +318,7 @@ router.get("/:id/questions", async (req, res, next) => {
 });
 
 export default router;
+
+
+
+
