@@ -503,6 +503,8 @@ export const coursePackageService = {
 
     return prisma.$transaction(
       async (tx) => {
+        // CSV/JSON 导入需要执行大量插入操作，禁用当前事务内的语句超时
+        await tx.$executeRawUnsafe("SET LOCAL statement_timeout = 0");
         // 验证课程包存在
         const pkg = await tx.coursePackage.findUnique({
           where: { id: packageId },
