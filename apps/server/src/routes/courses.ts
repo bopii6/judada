@@ -23,6 +23,9 @@ const lessonItemTypeMap: Record<LessonItemType, "type" | "tiles" | "listenTap" |
   custom: "type"
 };
 
+const translationCache = new Map<string, { value: string; expiresAt: number }>();
+const TRANSLATION_CACHE_TTL_MS = 1000 * 60 * 60 * 24; // cache translations for 24h
+
 router.get("/", async (req, res, next) => {
   try {
     // 从查询参数获取筛选条件
@@ -143,7 +146,18 @@ router.get("/:id/questions", async (req, res, next) => {
               orderBy: { sequence: "asc" },
               include: {
                 currentVersion: {
-                  include: { items: true }
+                  include: {
+                    items: {
+                      orderBy: { orderIndex: "asc" },
+                      take: 1,
+                      select: {
+                        id: true,
+                        type: true,
+                        payload: true,
+                        orderIndex: true
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -191,47 +205,63 @@ router.get("/:id/questions", async (req, res, next) => {
 
     // 翻译函数：确保始终返回英文句子的中文翻译
     // 严格禁止使用课程描述、课程标题等非翻译内容
-    const getTranslation = async (en: string, payload: Record<string, any>): Promise<string> => {
+    const getTranslation = async ({
+      en,
+      payload,
+      lessonItemId
+    }: {
+      en: string;
+      payload: Record<string, any>;
+      lessonItemId: string;
+    }): Promise<string> => {
       if (!en || !en.trim()) {
         return "";
       }
+
+      const cacheKey = lessonItemId || en;
+      const now = Date.now();
+      const cached = translationCache.get(cacheKey);
+      if (cached && cached.expiresAt > now) {
+        return cached.value;
+      }
       
-      // 优先使用管理员手动设置的中文翻译 payload.cn，然后才是自动翻译 payload.translation
+      // 优先使用管理员手动配置的中文翻译 payload.cn，其次才尝试 payload.translation
       let translationCn = payload.cn || (payload.translation as string) || "";
       if (translationCn) {
         translationCn = cleanTranslationText(translationCn);
+        translationCache.set(cacheKey, { value: translationCn, expiresAt: now + TRANSLATION_CACHE_TTL_MS });
+        return translationCn;
       }
       
-      // 如果翻译不存在或无效，且英文句子存在，必须使用 Hunyuan 生成真正的翻译
-      if (!translationCn && en) {
-        try {
-          console.log(`[Translation] Generating translation for: ${en.substring(0, 50)}...`);
-          const translationResponse = await callHunyuanChat([
-            {
-              Role: "system",
-              Content: "你是一位专业的英语翻译助手。请将英文句子准确翻译成中文。重要要求：1. 只返回翻译结果，不要添加任何解释、说明、课程描述或额外内容；2. 翻译要准确、自然、符合中文表达习惯；3. 绝对不要返回课程描述、学习目标、练习说明等非翻译内容；4. 如果输入是句子，返回句子的中文翻译；如果输入是单词，返回单词的中文意思。"
-            },
-            {
-              Role: "user",
-              Content: `请将以下英文句子翻译成中文，只返回翻译结果，不要添加任何其他内容：\n\n${en}`
-            }
-          ], { temperature: 0.2 });
-          
-          translationCn = cleanTranslationText(translationResponse);
-          
-          console.log(`[Translation] Generated: ${translationCn.substring(0, 50)}...`);
-        } catch (error) {
-          console.error("[Translation] Failed to translate:", error);
-          // 如果翻译失败，返回一个明确的占位符
-          translationCn = "[翻译生成中...]";
-        }
-      }
-      
-      // 最终验证：如果还是没有翻译，且英文句子存在，返回一个明确的提示
-      if (!translationCn && en) {
+      // 如果缺失或空，而英文句子存在，才使用 Hunyuan 生成新的翻译
+      try {
+        console.log(`[Translation] Generating translation for: ${en.substring(0, 50)}...`);
+        const translationResponse = await callHunyuanChat([
+          {
+            Role: "system",
+            Content: "你是一位专业的英语翻译助手。请将英文句子准确翻译成中文。要求：1. 只返回翻译结果，不要包含任何解释、说明或课程相关的内容；2. 需要准确、自然，符合中文表述习惯；3. 绝不要输出课程介绍、学习目标、练习说明等无关内容；4. 如果是句子，返回完整句子的翻译；如果是单词，返回词义。"
+          },
+          {
+            Role: "user",
+            Content: `请将以下英文翻译成中文：\n\n${en}`
+          }
+        ], { temperature: 0.2 });
+        
+        translationCn = cleanTranslationText(translationResponse);
+        
+        console.log(`[Translation] Generated: ${translationCn.substring(0, 50)}...`);
+      } catch (error) {
+        console.error("[Translation] Failed to translate:", error);
+        // 如果生成失败，返回一个兜底占位符
         translationCn = "[翻译生成中...]";
       }
       
+      // 最后保障：如果还是没有翻译，但英文存在，则返回一个兜底提示
+      if (!translationCn && en) {
+        translationCn = "[翻译生成中...]";
+      }
+
+      translationCache.set(cacheKey, { value: translationCn, expiresAt: now + TRANSLATION_CACHE_TTL_MS });
       return translationCn;
     };
 
@@ -241,11 +271,11 @@ router.get("/:id/questions", async (req, res, next) => {
       firstItem: NonNullable<typeof allLessons[0]['currentVersion']>['items'][0];
       payload: Record<string, any>;
       en: string;
+      lessonItemId: string;
     }> = [];
 
     for (const lesson of allLessons) {
-      const lessonItems = [...(lesson.currentVersion?.items ?? [])].sort((a, b) => a.orderIndex - b.orderIndex);
-      const firstItem = lessonItems[0];
+      const firstItem = lesson.currentVersion?.items?.[0];
 
       if (!firstItem) {
         continue;
@@ -267,13 +297,14 @@ router.get("/:id/questions", async (req, res, next) => {
         lesson,
         firstItem,
         payload,
-        en
+        en,
+        lessonItemId: firstItem.id
       });
     }
 
     // 批量获取翻译
     const translations = await Promise.all(
-      stageData.map(({ en, payload }) => getTranslation(en, payload))
+      stageData.map(({ en, payload, lessonItemId }) => getTranslation({ en, payload, lessonItemId }))
     );
 
     // 构建 stages 数组

@@ -6,6 +6,14 @@ const supabaseHost = new URL(SUPABASE_URL).host;
 const STORAGE_PATH_REGEX = /\/object\/(?:sign|public)\/([^/]+)\/(.+)/;
 const supabaseClient = getSupabase();
 
+type CoverUrlCacheEntry = {
+  url: string;
+  expiresAt: number;
+};
+
+const coverUrlCache = new Map<string, CoverUrlCacheEntry>();
+const CACHE_TTL_MS = 1000 * 60 * 60; // 1 hour cache
+
 const extractStoragePath = (rawUrl?: string | null): string | null => {
   if (!rawUrl) {
     return null;
@@ -41,6 +49,13 @@ export const ensureCourseCoverUrl = async (rawUrl?: string | null): Promise<stri
     return rawUrl ?? null;
   }
 
+  const cacheKey = storagePath;
+  const cached = coverUrlCache.get(cacheKey);
+  const now = Date.now();
+  if (cached && cached.expiresAt > now) {
+    return cached.url;
+  }
+
   try {
     const { data, error } = await supabaseClient.storage
       .from(SUPABASE_STORAGE_BUCKET)
@@ -51,7 +66,12 @@ export const ensureCourseCoverUrl = async (rawUrl?: string | null): Promise<stri
       return rawUrl ?? null;
     }
 
-    return data.signedUrl;
+    const signedUrl = data.signedUrl;
+    coverUrlCache.set(cacheKey, {
+      url: signedUrl,
+      expiresAt: now + CACHE_TTL_MS
+    });
+    return signedUrl;
   } catch (error) {
     console.error("[cover-url] 生成签名 URL 异常", error);
     return rawUrl ?? null;

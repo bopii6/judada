@@ -1,20 +1,22 @@
-﻿import type { Express } from "express";
-import { LessonItemType, Prisma, SourceType, VersionStatus } from "@prisma/client";
 import path from "node:path";
+
+import { LessonItemType, Prisma, SourceType, VersionStatus } from "@prisma/client";
+import type { Express } from "express";
+
+import { getEnv } from "../config/env";
+import { enqueuePackageGenerationJob } from "../jobs/packageGeneration.queue";
 import { getPrisma } from "../lib/prisma";
 import { getSupabase } from "../lib/supabase";
-import { getEnv } from "../config/env";
 import {
   coursePackageRepository,
-  generationJobRepository,
-  lessonRepository,
   CreateCoursePackageInput,
-  CreateCoursePackageVersionInput
+  CreateCoursePackageVersionInput,
+  generationJobRepository,
+  lessonRepository
 } from "../repositories";
-import { enqueuePackageGenerationJob } from "../jobs/packageGeneration.queue";
-import { jsonCourseImportSchema, type JsonCourseImportPayload } from "../types/jsonCourseImport";
-import { parseCsvToJsonPayload } from "../utils/csvParser";
+import { jsonCourseImportSchema } from "../types/jsonCourseImport";
 import { ensureCourseCoverUrl } from "../utils/coverUrl";
+import { parseCsvToJsonPayload } from "../utils/csvParser";
 
 const prisma = getPrisma();
 
@@ -37,7 +39,6 @@ export interface GenerateFromUploadInput {
   triggeredById?: string | null;
   splitPdf?: boolean;
   splitPageCount?: number;
-  pageNumberStart?: number;
   unitId?: string | null;
 }
 
@@ -558,7 +559,7 @@ export const coursePackageService = {
     console.info(`${logPrefix} payload verified: ${validatedPayload.units.length} units / ${totalSentences} sentences`);
 
     for (const [unitIndex, unitData] of validatedPayload.units.entries()) {
-      console.info(`${logPrefix} unit ${unitIndex + 1}/${validatedPayload.units.length} \"${unitData.title}\" start`);
+      console.info(`${logPrefix} unit ${unitIndex + 1}/${validatedPayload.units.length} "${unitData.title}" start`);
 
       const result = await prisma.$transaction(
         async (tx) => {
@@ -601,7 +602,7 @@ export const coursePackageService = {
 
           for (const roundData of unitData.rounds) {
             const roundIndex = roundData.roundNumber ?? (unitData.rounds.indexOf(roundData) + 1);
-            console.info(`${logPrefix} unit \"${unit.title}\" round ${roundIndex} start (${roundData.sentences.length} sentences)`);
+            console.info(`${logPrefix} unit "${unit.title}" round ${roundIndex} start (${roundData.sentences.length} sentences)`);
 
             for (let sentenceIdx = 0; sentenceIdx < roundData.sentences.length; sentenceIdx++) {
               const sentence = roundData.sentences[sentenceIdx];
@@ -678,7 +679,7 @@ export const coursePackageService = {
       lessonSequence = result.nextLessonSequence;
       unitSequenceBase = result.nextUnitSequenceBase;
       createdUnits.push(result.unitInfo);
-      console.info(`${logPrefix} unit \"${result.unitInfo.unitTitle}\" completed, produced ${result.unitInfo.createdLessons} lessons`);
+      console.info(`${logPrefix} unit "${result.unitInfo.unitTitle}" completed, produced ${result.unitInfo.createdLessons} lessons`);
     }
 
     await prisma.coursePackageVersion.update({
@@ -857,13 +858,11 @@ export const coursePackageService = {
   startTextbookImportJob: async ({
     packageId,
     file,
-    triggeredById,
-    pageNumberStart
+    triggeredById
   }: {
     packageId: string;
     file: Express.Multer.File;
     triggeredById?: string | null;
-    pageNumberStart?: number;
   }) => {
     // 使用 enqueueGenerationFromUpload 来处理
     const result = await coursePackageService.enqueueGenerationFromUpload({
