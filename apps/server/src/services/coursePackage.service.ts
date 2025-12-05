@@ -1,148 +1,21 @@
-﻿import path from "node:path";
-
-import { Prisma, SourceType } from "@prisma/client";
-import type { Express } from "express";
-
-import { getEnv } from "../config/env";
-import { enqueuePackageGenerationJob } from "../jobs/packageGeneration.queue";
+﻿import type { Express } from "express";
+import { LessonItemType, Prisma, SourceType } from "@prisma/client";
+import path from "node:path";
 import { getPrisma } from "../lib/prisma";
 import { getSupabase } from "../lib/supabase";
+import { getEnv } from "../config/env";
 import {
   coursePackageRepository,
-  CreateCoursePackageInput,
-  CreateCoursePackageVersionInput,
   generationJobRepository,
-  lessonRepository
+  lessonRepository,
+  CreateCoursePackageInput,
+  CreateCoursePackageVersionInput
 } from "../repositories";
-import { extractPdfRange,splitPdfIntoChunks } from "../utils/pdfSplit";
-import { extractTextbookToc } from "../utils/textbookToc";
+import { enqueuePackageGenerationJob } from "../jobs/packageGeneration.queue";
+import { jsonCourseImportSchema, type JsonCourseImportPayload } from "../types/jsonCourseImport";
+import { parseCsvToJsonPayload } from "../utils/csvParser";
 
 const prisma = getPrisma();
-type UploadableFile = Pick<Express.Multer.File, "originalname" | "mimetype" | "size" | "buffer">;
-type IncomingUploadFile = Express.Multer.File | UploadableFile;
-
-const toUploadableFile = (file: IncomingUploadFile): UploadableFile => ({
-  originalname: file.originalname,
-  mimetype: file.mimetype,
-  size: file.size,
-  buffer: file.buffer
-});
-
-const normalizeUploadableFiles = (items?: IncomingUploadFile[]): UploadableFile[] =>
-  (items ?? []).map(toUploadableFile);
-
-const toJsonValue = (value: unknown): Prisma.JsonValue | undefined => {
-  if (value === null) return null;
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-    return value;
-  }
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  if (Array.isArray(value)) {
-    const result = value
-      .map(item => toJsonValue(item))
-      .filter((item): item is Prisma.JsonValue => item !== undefined);
-    return result as Prisma.JsonArray;
-  }
-  if (typeof value === "object" && value) {
-    return Object.entries(value as Record<string, unknown>).reduce<Prisma.JsonObject>((acc, [key, entry]) => {
-      const sanitized = toJsonValue(entry);
-      if (sanitized !== undefined) {
-        acc[key] = sanitized;
-      }
-      return acc;
-    }, {});
-  }
-  return undefined;
-};
-
-const toJsonObject = (value: Record<string, unknown>): Prisma.JsonObject => {
-  const jsonObject: Prisma.JsonObject = {};
-  for (const [key, entry] of Object.entries(value)) {
-    const sanitized = toJsonValue(entry);
-    if (sanitized !== undefined) {
-      jsonObject[key] = sanitized;
-    }
-  }
-  return jsonObject;
-};
-
-const ensureLessonTargetMetadata = (metadata: Prisma.JsonObject) => {
-  const record = metadata as Record<string, unknown>;
-  if (record.lessonTargetCount === undefined) {
-    record.lessonTargetCount = DEFAULT_UNIT_LESSON_TARGET;
-  }
-  return metadata;
-};
-
-const COURSE_COVER_FOLDER = "course-covers";
-const COURSE_COVER_ROUTE_PREFIX = "/api/course-covers";
-const ALLOWED_COVER_MIME = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
-const COVER_PATH_REGEX = /course-covers\/.+$/;
-let hasEnsuredCoverBucket = false;
-const MAX_UPLOAD_FILES = 10;
-const MAX_SPLIT_PDF_PARTS = 200;
-const DEFAULT_SPLIT_PAGE_COUNT = 8;
-const MIN_SPLIT_PAGE_COUNT = 1;
-const MAX_SPLIT_PAGE_COUNT = 16;
-const MAX_DIRECT_FILE_SIZE = 15 * 1024 * 1024; // 15MB 图片/小文件限制
-const MAX_SPLITTABLE_PDF_SIZE = 80 * 1024 * 1024; // 80MB 单个PDF上限，用于自动切分
-const DEFAULT_UNIT_LESSON_TARGET = 5;
-
-const sanitizeCoverFileName = (name: string) => {
-  if (!name) return "cover";
-  const base = path.basename(name, path.extname(name));
-  const normalized = base
-    .normalize("NFKD")
-    .replace(/[^\w]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .toLowerCase();
-  return normalized || "cover";
-};
-
-const inferCoverExtension = (file: Express.Multer.File) => {
-  const originalExt = path.extname(file.originalname || "").toLowerCase();
-  if ([".jpg", ".jpeg", ".png", ".webp"].includes(originalExt)) {
-    return originalExt;
-  }
-  if (file.mimetype === "image/png") return ".png";
-  if (file.mimetype === "image/webp") return ".webp";
-  return ".jpg";
-};
-
-const getCoverStoragePath = (coverUrl?: string | null) => {
-  if (!coverUrl) return null;
-  const match = coverUrl.match(COVER_PATH_REGEX);
-  if (!match) return null;
-  return match[0];
-};
-
-const ensureCoverBucket = async () => {
-  if (hasEnsuredCoverBucket) return;
-  const { SUPABASE_STORAGE_BUCKET } = getEnv();
-  const supabase = getSupabase();
-
-  const { data, error } = await supabase.storage.getBucket(SUPABASE_STORAGE_BUCKET);
-  if (error && error.message && !error.message.toLowerCase().includes("not found")) {
-    throw new Error(`封面存储空间暂不可用：${error.message}`);
-  }
-
-  if (!data) {
-    const { error: createError } = await supabase.storage.createBucket(SUPABASE_STORAGE_BUCKET, {
-      public: false,
-      allowedMimeTypes: Array.from(ALLOWED_COVER_MIME),
-      fileSizeLimit: "5242880"
-    });
-
-    if (createError && !createError.message.toLowerCase().includes("already exists")) {
-      throw new Error(`封面存储空间初始化失败：${createError.message}`);
-    }
-  }
-
-  hasEnsuredCoverBucket = true;
-};
 
 export interface PackageOverview {
   packagesTotal: number;
@@ -154,45 +27,12 @@ export interface PackageOverview {
 export interface CreatePackagePayload extends CreateCoursePackageInput {
   label?: string | null;
   notes?: string | null;
-  grade?: string | null;      // 年级
-  publisher?: string | null;  // 出版社
-  semester?: string | null;   // 学期
 }
 
 export interface GenerateFromUploadInput {
   packageId: string;
-  file?: IncomingUploadFile;
-  files?: IncomingUploadFile[];
+  file: Express.Multer.File;
   triggeredById?: string | null;
-  unitId?: string | null; // 关联的单元ID
-  splitPdf?: boolean;
-  splitPageCount?: number;
-  fileMetadata?: Array<Record<string, unknown>>;
-  maxFileCountOverride?: number;
-  pageNumberStart?: number;
-}
-
-const isPdfFile = (file: UploadableFile | null | undefined) => {
-  if (!file) return false;
-  const mime = file.mimetype?.toLowerCase() ?? "";
-  if (mime.includes("pdf")) return true;
-  const ext = path.extname(file.originalname ?? "").toLowerCase();
-  return ext === ".pdf";
-};
-
-const clampSplitPageCount = (value?: number) => {
-  if (typeof value !== "number") return DEFAULT_SPLIT_PAGE_COUNT;
-  if (Number.isNaN(value)) return DEFAULT_SPLIT_PAGE_COUNT;
-  return Math.min(Math.max(Math.round(value), MIN_SPLIT_PAGE_COUNT), MAX_SPLIT_PAGE_COUNT);
-};
-
-export interface UpdatePackagePayload {
-  title?: string;
-  topic?: string;
-  description?: string | null;
-  grade?: string | null;      // 年级
-  publisher?: string | null;  // 出版社
-  semester?: string | null;   // 学期
 }
 
 export const coursePackageService = {
@@ -250,9 +90,6 @@ export const coursePackageService = {
           topic: input.topic,
           description: input.description ?? null,
           coverUrl: input.coverUrl ?? null,
-          grade: input.grade ?? null,
-          publisher: input.publisher ?? null,
-          semester: input.semester ?? null,
           createdById: input.createdById ?? null
         }
       });
@@ -279,66 +116,6 @@ export const coursePackageService = {
   },
 
   /**
-   * 更新课程包的基础信息（标题、主题、简介、年级、出版社、学期）
-   */
-  updatePackageMetadata: async (packageId: string, input: UpdatePackagePayload) => {
-    const pkg = await prisma.coursePackage.findUnique({ where: { id: packageId } });
-    if (!pkg) {
-      const error = new Error("课程包不存在");
-      (error as any).status = 404;
-      throw error;
-    }
-
-    const data: Prisma.CoursePackageUpdateInput = {};
-    if (input.title !== undefined) {
-      const trimmedTitle = input.title.trim();
-      if (!trimmedTitle) {
-        const error = new Error("课程包名称不能为空");
-        (error as any).status = 400;
-        throw error;
-      }
-      data.title = trimmedTitle;
-    }
-    if (input.topic !== undefined) {
-      const trimmedTopic = input.topic.trim();
-      if (!trimmedTopic) {
-        const error = new Error("课程主题不能为空");
-        (error as any).status = 400;
-        throw error;
-      }
-      data.topic = trimmedTopic;
-    }
-    if (input.description !== undefined) {
-      const trimmedDescription = input.description?.trim();
-      data.description = trimmedDescription && trimmedDescription.length > 0 ? trimmedDescription : null;
-    }
-    if (input.grade !== undefined) {
-      const trimmedGrade = input.grade?.trim();
-      data.grade = trimmedGrade && trimmedGrade.length > 0 ? trimmedGrade : null;
-    }
-    if (input.publisher !== undefined) {
-      const trimmedPublisher = input.publisher?.trim();
-      data.publisher = trimmedPublisher && trimmedPublisher.length > 0 ? trimmedPublisher : null;
-    }
-    if (input.semester !== undefined) {
-      const trimmedSemester = input.semester?.trim();
-      data.semester = trimmedSemester && trimmedSemester.length > 0 ? trimmedSemester : null;
-    }
-
-    if (Object.keys(data).length > 0) {
-      await coursePackageRepository.update(packageId, data);
-    }
-
-    const detail = await coursePackageRepository.findDetailById(packageId);
-    if (!detail) {
-      const error = new Error("课程包不存在");
-      (error as any).status = 404;
-      throw error;
-    }
-    return detail;
-  },
-
-  /**
    * 记录生成任务（后续接入自动生成时会真正执行）。
    */
   createGenerationJob: (packageId: string, payload?: Prisma.InputJsonValue) =>
@@ -353,7 +130,6 @@ export const coursePackageService = {
    * 获取最近的生成任务列表。
    */
   listRecentJobs: (limit = 20) => generationJobRepository.listRecent(limit),
-  getGenerationJob: (jobId: string) => generationJobRepository.findDetailById(jobId),
 
   /**
    * 创建关卡草稿（用于手动新增关卡）。
@@ -384,286 +160,72 @@ export const coursePackageService = {
 
   /**
    * 上传 PDF/图片并创建生成任务。
-   * 支持单文件或多文件上传，若开启自动切分可将整本 PDF 拆成多个素材。
    */
-  enqueueGenerationFromUpload: async ({
-    packageId,
-    file,
-    files,
-    triggeredById = null,
-    unitId = null,
-    splitPdf = false,
-    splitPageCount,
-    fileMetadata = [],
-    maxFileCountOverride,
-    pageNumberStart
-  }: GenerateFromUploadInput) => {
-    let filesToUpload: UploadableFile[] =
-      files && files.length > 0 ? normalizeUploadableFiles(files) : file ? [toUploadableFile(file)] : [];
-
-    if (filesToUpload.length === 0) {
+  enqueueGenerationFromUpload: async ({ packageId, file, triggeredById = null }: GenerateFromUploadInput) => {
+    if (!file || !file.buffer?.length) {
       throw new Error("请上传有效的文件");
-    }
-
-    const normalizedSplitPages = clampSplitPageCount(splitPageCount);
-    const normalizedPageNumberStart =
-      typeof pageNumberStart === "number" && Number.isFinite(pageNumberStart) && pageNumberStart > 0
-        ? Math.round(pageNumberStart)
-        : null;
-    const shouldSplitPdf = splitPdf && filesToUpload.length === 1 && isPdfFile(filesToUpload[0]);
-    const baseMetadata = fileMetadata.map(entry => ensureLessonTargetMetadata(toJsonObject(entry ?? {})));
-    const cloneMetadataList = (length: number, source: Prisma.JsonObject[]) =>
-      Array.from({ length }, (_, index) => ({ ...(source[index] ?? {}) }));
-    let perFileMetadata = cloneMetadataList(filesToUpload.length, baseMetadata);
-    const pageNumberOffset = normalizedPageNumberStart !== null ? normalizedPageNumberStart - 1 : 0;
-
-    if (shouldSplitPdf) {
-      const targetFile = filesToUpload[0];
-      if (targetFile.size > MAX_SPLITTABLE_PDF_SIZE) {
-        throw new Error("PDF 文件过大，暂不支持自动切分（上限 80MB）");
-      }
-
-      const originalExt = path.extname(targetFile.originalname || ".pdf") || ".pdf";
-      const baseName = path.basename(targetFile.originalname || "material.pdf", originalExt);
-      const chunks = await splitPdfIntoChunks(targetFile.buffer, {
-        pagesPerChunk: normalizedSplitPages,
-        maxChunks: MAX_SPLIT_PDF_PARTS
-      });
-
-      if (chunks.length === 0) {
-        throw new Error("未能从 PDF 中读取有效页面");
-      }
-
-      const metadataForChunks: Prisma.JsonObject[] = chunks.map(chunk =>
-        ensureLessonTargetMetadata(
-          toJsonObject({
-            ...(baseMetadata[0] ?? {}),
-            pageRange: {
-              start: chunk.pageStart + pageNumberOffset,
-              end: chunk.pageEnd + pageNumberOffset,
-              total: chunk.totalPages
-            },
-            splitIndex: chunk.chunkIndex,
-            splitCount: chunks.length
-          })
-        )
-      );
-
-      filesToUpload = chunks.map(chunk => {
-        const paddedStart = String(chunk.pageStart).padStart(2, "0");
-        const paddedEnd = String(chunk.pageEnd).padStart(2, "0");
-        const chunkName = `${baseName}-p${paddedStart}-p${paddedEnd}${originalExt}`;
-        return {
-          originalname: chunkName,
-          mimetype: targetFile.mimetype || "application/pdf",
-          size: chunk.buffer.byteLength,
-          buffer: chunk.buffer
-        };
-      });
-      perFileMetadata = metadataForChunks;
-    } else {
-      perFileMetadata = cloneMetadataList(filesToUpload.length, baseMetadata);
-    }
-
-    const maxAllowed = shouldSplitPdf ? MAX_SPLIT_PDF_PARTS : maxFileCountOverride ?? MAX_UPLOAD_FILES;
-    if (filesToUpload.length > maxAllowed) {
-      throw new Error(`最多只能上传 ${maxAllowed} 份素材`);
     }
 
     const { SUPABASE_STORAGE_BUCKET } = getEnv();
     const supabase = getSupabase();
     const now = Date.now();
-    const assets: Array<{ id: string; storagePath: string; originalName: string; mimeType: string; fileSize: number }> = [];
+    const originalName = file.originalname || "upload.bin";
+    const ext = path.extname(originalName).toLowerCase();
+    const baseName = path.basename(originalName, ext);
+    const normalizedBase = baseName
+      .normalize("NFKD")
+      .replace(/[^\w.-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .toLowerCase();
+    const safeBaseName = normalizedBase || "upload";
+    const safeFileName = `${now}-${safeBaseName}${ext || ".bin"}`;
+    const storagePath = `packages/${packageId}/${safeFileName}`;
+    const contentType = file.mimetype || "application/octet-stream";
 
-    // 批量上传文件
-    for (let i = 0; i < filesToUpload.length; i++) {
-      const currentFile = filesToUpload[i];
-      if (!currentFile || !currentFile.buffer?.length) {
-        continue;
-      }
+    const uploadResult = await supabase.storage
+      .from(SUPABASE_STORAGE_BUCKET)
+      .upload(storagePath, file.buffer, { contentType, upsert: false });
 
-       if (!shouldSplitPdf && currentFile.size > MAX_DIRECT_FILE_SIZE) {
-         throw new Error("文件大小不能超过15MB");
-       }
-
-      const originalName = currentFile.originalname || `upload-${i}.bin`;
-      const ext = path.extname(originalName).toLowerCase();
-      const baseName = path.basename(originalName, ext);
-      const normalizedBase = baseName
-        .normalize("NFKD")
-        .replace(/[^\w.-]+/g, "-")
-        .replace(/-+/g, "-")
-        .replace(/^-|-$/g, "")
-        .toLowerCase();
-      const safeBaseName = normalizedBase || `upload-${i}`;
-      const safeFileName = `${now}-${i}-${safeBaseName}${ext || ".bin"}`;
-      const storagePath = `packages/${packageId}/${safeFileName}`;
-      const contentType = currentFile.mimetype || "application/octet-stream";
-
-      const uploadResult = await supabase.storage
-        .from(SUPABASE_STORAGE_BUCKET)
-        .upload(storagePath, currentFile.buffer, { contentType, upsert: false });
-
-      if (uploadResult.error) {
-        throw new Error(`上传文件 ${originalName} 到存储失败：${uploadResult.error.message}`);
-      }
-
-      const sourceType: SourceType =
-        contentType.includes("pdf") || originalName.toLowerCase().endsWith(".pdf") ? "pdf_upload" : "image_ocr";
-
-      const extra = perFileMetadata[i] ?? ({} as Prisma.JsonObject);
-      const metadata = toJsonObject({
-        uploadedAt: new Date().toISOString(),
-        originalFileName: originalName,
-        fileIndex: i,
-        totalFiles: filesToUpload.length,
-        ...extra
-      });
-      if (shouldSplitPdf) {
-        const splitData = extra as Record<string, unknown>;
-        const splitInfo = toJsonValue({
-          chunkIndex: typeof splitData.splitIndex === "number" ? (splitData.splitIndex as number) : i,
-          chunkCount: typeof splitData.splitCount === "number" ? (splitData.splitCount as number) : filesToUpload.length,
-          splitPageCount: normalizedSplitPages
-        });
-        if (splitInfo !== undefined) {
-          metadata.splitInfo = splitInfo;
-        }
-      }
-
-      const asset = await prisma.asset.create({
-        data: {
-          packageId,
-          storagePath,
-          originalName: safeFileName,
-          mimeType: contentType,
-          fileSize: currentFile.size,
-          sourceType,
-          metadata
-        }
-      });
-
-      const safeMimeType = asset.mimeType ?? contentType ?? "application/octet-stream";
-      const safeFileSize = asset.fileSize ?? currentFile.size ?? currentFile.buffer?.length ?? 0;
-
-      assets.push({
-        id: asset.id,
-        storagePath: asset.storagePath,
-        originalName: asset.originalName,
-        mimeType: safeMimeType,
-        fileSize: safeFileSize
-      });
+    if (uploadResult.error) {
+      throw new Error(`上传文件到存储失败：${uploadResult.error.message}`);
     }
 
-    if (assets.length === 0) {
-      throw new Error("没有成功上传任何文件");
-    }
+    const sourceType: SourceType =
+      contentType.includes("pdf") || file.originalname.toLowerCase().endsWith(".pdf") ? "pdf_upload" : "image_ocr";
 
-    // 确定sourceType：如果有PDF则优先使用pdf_upload，否则使用image_ocr
-    const hasPdf = assets.some(a => a.mimeType.includes("pdf") || a.originalName.toLowerCase().endsWith(".pdf"));
-    const sourceType: SourceType = hasPdf ? "pdf_upload" : "image_ocr";
+    const asset = await prisma.asset.create({
+      data: {
+        packageId,
+        storagePath,
+        originalName: safeFileName,
+        mimeType: contentType,
+        fileSize: file.size,
+        sourceType,
+        metadata: {
+          uploadedAt: new Date().toISOString(),
+          originalFileName: originalName
+        }
+      }
+    });
 
-    // 创建生成任务，包含所有文件信息
     const job = await generationJobRepository.create({
       jobType: "package_generation",
       packageId,
       triggeredById,
       sourceType,
-      unitId, // 关联单元ID
       inputInfo: {
-        assetIds: assets.map(a => a.id),
-        assets: assets.map(a => ({
-          assetId: a.id,
-          storagePath: a.storagePath,
-          originalName: a.originalName,
-          mimeType: a.mimeType,
-          size: a.fileSize
-        })),
-        totalFiles: assets.length,
-        unitId, // 也存储在 inputInfo 中
-        // 保持向后兼容
-        assetId: assets[0].id,
-        storagePath: assets[0].storagePath,
-        originalName: assets[0].originalName,
-        mimeType: assets[0].mimeType,
-        size: assets[0].fileSize,
-        pageNumberStart: normalizedPageNumberStart
+        assetId: asset.id,
+        storagePath: asset.storagePath,
+        originalName: asset.originalName,
+        mimeType: asset.mimeType,
+        size: asset.fileSize
       }
     });
 
     await enqueuePackageGenerationJob(job.id);
 
-    return { job, assets };
-  },
-
-  /**
-   * 上传或替换课程封面图
-   */
-  updateCoverImage: async (packageId: string, file: Express.Multer.File) => {
-    if (!file) {
-      const error = new Error("请上传封面图片");
-      (error as any).status = 400;
-      throw error;
-    }
-
-    if (!file.mimetype || !ALLOWED_COVER_MIME.has(file.mimetype.toLowerCase())) {
-      const error = new Error("仅支持 PNG/JPG/WebP 图片作为封面");
-      (error as any).status = 400;
-      throw error;
-    }
-
-    const pkg = await prisma.coursePackage.findUnique({ where: { id: packageId } });
-    if (!pkg) {
-      const error = new Error("课程包不存在");
-      (error as any).status = 404;
-      throw error;
-    }
-
-    const { SUPABASE_STORAGE_BUCKET } = getEnv();
-    const supabase = getSupabase();
-    const ext = inferCoverExtension(file);
-    const baseName = sanitizeCoverFileName(file.originalname ?? "cover").slice(0, 40);
-    const uniqueSuffix = Math.random().toString(36).slice(2, 8);
-    const safeFileName = `${baseName}-${Date.now()}-${uniqueSuffix}${ext}`;
-    const storagePath = `${COURSE_COVER_FOLDER}/${packageId}/${safeFileName}`;
-    const contentType = file.mimetype || "image/jpeg";
-
-    await ensureCoverBucket();
-
-    const uploadOnce = () =>
-      supabase.storage.from(SUPABASE_STORAGE_BUCKET).upload(storagePath, file.buffer, {
-        contentType,
-        upsert: false
-      });
-
-    let uploadResult = await uploadOnce();
-    if (uploadResult.error && uploadResult.error.message?.toLowerCase().includes("not found")) {
-      hasEnsuredCoverBucket = false;
-      await ensureCoverBucket();
-      uploadResult = await uploadOnce();
-    }
-
-    if (uploadResult.error) {
-      throw new Error(`上传封面失败：${uploadResult.error.message}`);
-    }
-
-    const previousPath = getCoverStoragePath(pkg.coverUrl);
-    if (previousPath && previousPath !== storagePath) {
-      await supabase.storage
-        .from(SUPABASE_STORAGE_BUCKET)
-        .remove([previousPath])
-        .catch(() => {
-          /* ignore cleanup failure */
-        });
-    }
-
-    const coverUrl = `${COURSE_COVER_ROUTE_PREFIX}/${packageId}/${safeFileName}`;
-    await prisma.coursePackage.update({
-      where: { id: packageId },
-      data: { coverUrl }
-    });
-
-    return { coverUrl };
+    return { job, asset };
   },
 
   /**
@@ -761,9 +323,20 @@ export const coursePackageService = {
   deletePackage: async (packageId: string) => {
     return prisma.$transaction(
       async transaction => {
+        // 检查课程包是否存在
         const pkg = await transaction.coursePackage.findUnique({
           where: { id: packageId },
-          select: { id: true }
+          include: {
+            versions: {
+              include: {
+                lessons: {
+                  include: {
+                    versions: true
+                  }
+                }
+              }
+            }
+          }
         });
 
         if (!pkg) {
@@ -771,27 +344,55 @@ export const coursePackageService = {
           (error as any).status = 404;
           throw error;
         }
-        // Keep the deletion atomic and free FK-constrained tables first
-        // Remove job/material records that keep FK references to the package
+
+        // 检查是否已发布，已发布的课程包不能删除
+        if (pkg.status === 'published') {
+          const error = new Error("已发布的课程包不能删除");
+          (error as any).status = 400;
+          throw error;
+        }
+
+        // 递归删除所有相关数据
+        // 1. 删除所有课程版本
+        for (const version of pkg.versions) {
+          for (const lesson of version.lessons) {
+            // 删除课程版本
+            await transaction.lessonVersion.deleteMany({
+              where: { lessonId: lesson.id }
+            });
+          }
+          // 删除课程
+          await transaction.lesson.deleteMany({
+            where: { packageVersionId: version.id }
+          });
+        }
+
+        // 2. 删除课程包版本
+        await transaction.coursePackageVersion.deleteMany({
+          where: { packageId }
+        });
+
+        // 3. 删除相关的生成任务
         await transaction.generationJob.deleteMany({
           where: { packageId }
         });
 
+        // 4. 删除相关的资源
         await transaction.asset.deleteMany({
           where: { packageId }
         });
 
-        // Remaining relations (units, lessons, versions...) rely on ON DELETE CASCADE
-
+        // 5. 最后删除课程包
         await transaction.coursePackage.delete({
           where: { id: packageId }
         });
       },
       {
-        timeout: 60000 // 60秒超时，删除链路可能需要更长时间
+        timeout: 60000 // 60秒超时，删除操作可能需要更长时间
       }
     );
   },
+
   /**
    * 批量删除课程包
    */
@@ -856,415 +457,334 @@ export const coursePackageService = {
     return results;
   },
 
-  enqueueGenerationFromAssets: async (params: {
+  /**
+   * 从 JSON 导入课程数据
+   * 支持批量创建单元和关卡
+   */
+  importCourseDataFromJson: async ({
+    packageId,
+    payload,
+    triggeredById
+  }: {
     packageId: string;
-    assetIds: string[];
-    unitId?: string | null;
+    payload: unknown;
     triggeredById?: string | null;
   }) => {
-    const assets = await prisma.asset.findMany({
-      where: {
-        id: { in: params.assetIds },
-        packageId: params.packageId,
-        deletedAt: null
-      }
-    });
-
-    if (assets.length === 0) {
-      const error = new Error("未找到可用的素材文件");
-      (error as any).status = 404;
-      throw error;
+    // 验证 payload 格式
+    const parseResult = jsonCourseImportSchema.safeParse(payload);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.errors[0];
+      throw new Error(`JSON 格式错误: ${firstError?.path.join(".")} - ${firstError?.message}`);
     }
 
-    const hasPdf = assets.some(
-      asset => asset.mimeType?.toLowerCase().includes("pdf") || asset.originalName.toLowerCase().endsWith(".pdf")
-    );
-    const sourceType: SourceType = hasPdf ? "pdf_upload" : "image_ocr";
+    const validatedPayload = parseResult.data;
 
-    const job = await generationJobRepository.create({
-      jobType: "package_generation",
-      packageId: params.packageId,
-      triggeredById: params.triggeredById,
-      sourceType,
-      unitId: params.unitId ?? null,
-      inputInfo: {
-        assetIds: assets.map(asset => asset.id),
-        assets: assets.map(asset => ({
-          assetId: asset.id,
-          storagePath: asset.storagePath,
-          originalName: asset.originalName,
-          mimeType: asset.mimeType,
-          size: asset.fileSize ?? 0
-        })),
-        totalFiles: assets.length,
-        unitId: params.unitId ?? null
+    return prisma.$transaction(
+      async (tx) => {
+        // 验证课程包存在
+        const pkg = await tx.coursePackage.findUnique({
+          where: { id: packageId },
+          include: { currentVersion: true }
+        });
+
+        if (!pkg) {
+          throw new Error("课程包不存在");
+        }
+
+        const packageVersionId = pkg.currentVersionId;
+        if (!packageVersionId) {
+          throw new Error("课程包没有当前版本");
+        }
+
+        // 获取当前最大单元序号
+        const maxUnitSeq = await tx.unit.aggregate({
+          where: { packageId },
+          _max: { sequence: true }
+        });
+        let unitSequenceBase = maxUnitSeq._max.sequence ?? 0;
+
+        // 获取当前最大关卡序号
+        const maxLessonSeq = await tx.lesson.aggregate({
+          where: { packageVersionId },
+          _max: { sequence: true }
+        });
+        let lessonSequence = (maxLessonSeq._max.sequence ?? 0) + 1;
+
+        const createdUnits: Array<{
+          unitId: string;
+          unitTitle: string;
+          createdLessons: number;
+        }> = [];
+
+        // 遍历每个单元
+        for (const unitData of validatedPayload.units) {
+          // 创建或获取单元
+          let unit;
+          if (unitData.unitId) {
+            // 如果提供了 unitId，尝试查找现有单元
+            unit = await tx.unit.findUnique({
+              where: { id: unitData.unitId }
+            });
+            if (!unit) {
+              throw new Error(`单元 ${unitData.unitId} 不存在`);
+            }
+          } else {
+            // 创建新单元
+            const unitSequence = unitData.sequence ?? ++unitSequenceBase;
+            unit = await tx.unit.create({
+              data: {
+                packageId,
+                sequence: unitSequence,
+                title: unitData.title,
+                description: unitData.description ?? null,
+                status: "draft"
+              }
+            });
+          }
+
+          let unitLessonCount = 0;
+
+          // 遍历每一轮
+          for (const roundData of unitData.rounds) {
+            // roundNumber 从 1 开始，roundIndex 也应该从 1 开始
+            // 这样前端可以正确显示 "第 1 轮", "第 2 轮" 等
+            const roundIndex = roundData.roundNumber ?? (unitData.rounds.indexOf(roundData) + 1);
+
+            // 遍历每个句子
+            for (let sentenceIdx = 0; sentenceIdx < roundData.sentences.length; sentenceIdx++) {
+              const sentence = roundData.sentences[sentenceIdx];
+
+              // 创建关卡（pageNumber 存储在 LessonItem 的 payload 中）
+              const lesson = await tx.lesson.create({
+                data: {
+                  packageId, // 必需字段：关联到课程包
+                  packageVersionId,
+                  unitId: unit.id,
+                  title: sentence.title || sentence.en,
+                  sequence: lessonSequence++,
+                  status: "draft",
+                  unitNumber: unit.sequence,
+                  unitName: unit.title,
+                  roundIndex, // 从 1 开始
+                  roundOrder: sentenceIdx + 1, // 轮内序号，从 1 开始
+                  createdById: triggeredById ?? null
+                }
+              });
+
+              // 创建关卡版本
+              const lessonVersion = await tx.lessonVersion.create({
+                data: {
+                  lessonId: lesson.id,
+                  versionNumber: 1,
+                  title: sentence.title || sentence.en,
+                  summary: sentence.summary ?? null,
+                  difficulty: sentence.difficulty ?? null,
+                  status: "draft",
+                  createdById: triggeredById ?? null
+                }
+              });
+
+              // 创建关卡内容项
+              await tx.lessonItem.create({
+                data: {
+                  lessonVersionId: lessonVersion.id,
+                  type: (sentence.type as LessonItemType) || "sentence",
+                  title: sentence.title || sentence.en,
+                  orderIndex: 0,
+                  payload: {
+                    en: sentence.en,
+                    cn: sentence.cn || null,
+                    answer: sentence.en,
+                    pageNumber: sentence.pageNumber ?? null
+                  }
+                }
+              });
+
+              // 更新关卡的当前版本
+              await tx.lesson.update({
+                where: { id: lesson.id },
+                data: { currentVersionId: lessonVersion.id }
+              });
+
+              unitLessonCount++;
+            }
+          }
+
+          createdUnits.push({
+            unitId: unit.id,
+            unitTitle: unit.title,
+            createdLessons: unitLessonCount
+          });
+        }
+
+        // 更新课程包版本的 sourceType（使用 manual_input 表示 CSV/JSON 导入）
+        await tx.coursePackageVersion.update({
+          where: { id: packageVersionId },
+          data: { sourceType: "manual_input" }
+        });
+
+        return {
+          versionId: packageVersionId,
+          versionNumber: pkg.currentVersion?.versionNumber ?? 1,
+          totalLessons: createdUnits.reduce((sum, u) => sum + u.createdLessons, 0),
+          units: createdUnits
+        };
+      },
+      {
+        timeout: 60000 // 60秒超时
       }
-    });
-
-    await enqueuePackageGenerationJob(job.id);
-    return { job, assets };
+    );
   },
 
   /**
-   * 上传整本教材 PDF，解析目录并自动创建单元和生成任务
+   * 从 CSV 导入课程数据
+   * 先将 CSV 转换为 JSON 格式，然后调用 importCourseDataFromJson
    */
-  importTextbookFromPdf: async (
-    packageId: string,
-    file: Express.Multer.File,
-    triggeredById?: string | null,
-    pageNumberStart?: number
-  ) => {
-    if (!file || !file.buffer?.length) {
-      const error = new Error("请上传完整的教材 PDF");
-      (error as any).status = 400;
-      throw error;
-    }
-
-    if (!isPdfFile(file)) {
-      const error = new Error("仅支持上传 PDF 格式的教材文件");
-      (error as any).status = 400;
-      throw error;
-    }
-
-    const tocResult = await extractTextbookToc(file.buffer);
-    if (!tocResult.units.length) {
-      throw new Error("未能从教材目录中解析出单元信息，请检查目录排版");
-    }
-    const autoOffset = tocResult.pageOffset ?? 0;
-    const pdfPageOffset =
-      typeof pageNumberStart === "number" && Number.isFinite(pageNumberStart) && pageNumberStart > 0
-        ? pageNumberStart - 1
-        : autoOffset;
-
-    const clampPdfPage = (printedPage: number) => {
-      const page = printedPage - pdfPageOffset;
-      return Math.max(1, Math.min(tocResult.totalPages, page));
-    };
-
-    const allUnits = await prisma.unit.findMany({
-      where: { packageId },
-      orderBy: { sequence: "asc" }
-    });
-    const activeUnits = allUnits.filter(unit => unit.deletedAt === null);
-    const existingMap = new Map(activeUnits.map(unit => [unit.title.toLowerCase(), unit]));
-    const existingSequences = new Set(allUnits.map(unit => unit.sequence));
-    let sequenceCursor = activeUnits.reduce((max, unit) => Math.max(max, unit.sequence ?? 0), 0);
-    const createdUnits: Array<{
-      unitId: string;
-      title: string;
-      pageStart: number;
-      pageEnd: number;
-      jobId: string;
-    }> = [];
-
-    for (const entry of tocResult.units) {
-      const titleFromToc = entry.topic ? `${entry.unitLabel} ${entry.topic}` : entry.unitLabel;
-      const normalizedTitle = titleFromToc.trim() || entry.unitLabel;
-      const normalizedKey = normalizedTitle.toLowerCase();
-      let unit = existingMap.get(normalizedKey);
-
-      if (!unit) {
-        sequenceCursor += 1;
-        while (existingSequences.has(sequenceCursor)) {
-          sequenceCursor += 1;
-        }
-        unit = await prisma.unit.create({
-          data: {
-            packageId,
-            sequence: sequenceCursor,
-            title: normalizedTitle,
-            description: entry.topic ?? null,
-            status: "draft"
-          }
-        });
-        existingSequences.add(sequenceCursor);
-        existingMap.set(normalizedKey, unit);
-      }
-
-      const safeName = normalizedTitle.replace(/[\\/:*?"<>|]+/g, "-").slice(0, 48) || `unit-${sequenceCursor}`;
-      const perPageFiles: UploadableFile[] = [];
-      const fileMetadata: Record<string, unknown>[] = [];
-      for (let page = entry.startPage; page <= entry.endPage; page++) {
-        const pdfPageIndex = clampPdfPage(page);
-        const slice = await extractPdfRange(file.buffer, pdfPageIndex, pdfPageIndex);
-        const detectedPrintedPage =
-          tocResult.printedPageNumbers[pdfPageIndex - 1] ?? pdfPageIndex + pdfPageOffset;
-        perPageFiles.push({
-          originalname: `${safeName}-page-${detectedPrintedPage}.pdf`,
-          mimetype: file.mimetype || "application/pdf",
-          size: slice.buffer.byteLength,
-          buffer: slice.buffer
-        });
-        fileMetadata.push({
-          source: "textbook_import",
-          pageRange: {
-            start: detectedPrintedPage,
-            end: detectedPrintedPage,
-            total: slice.totalPages
-          },
-          lessonPages: [detectedPrintedPage],
-          lessonTargetCount: 5
-        });
-      }
-
-      const { job } = await coursePackageService.enqueueGenerationFromUpload({
-        packageId,
-        files: perPageFiles,
-        triggeredById: triggeredById ?? null,
-        unitId: unit.id,
-        fileMetadata,
-        maxFileCountOverride: perPageFiles.length
-      });
-
-      createdUnits.push({
-        unitId: unit.id,
-        title: unit.title,
-        pageStart: entry.startPage,
-        pageEnd: entry.endPage,
-        jobId: job.id
-      });
-    }
-
-    const reorderedUnits = await prisma.unit.findMany({
-      where: { packageId, deletedAt: null },
-      orderBy: { createdAt: "asc" }
-    });
-    await prisma.$transaction(
-      reorderedUnits.map((unit, index) =>
-        prisma.unit.update({
-          where: { id: unit.id },
-          data: { sequence: index + 1 }
-        })
-      )
-    );
-
-    return { units: createdUnits };
-  },
-  startTextbookImportJob: async ({
+  importCourseDataFromCsv: async ({
     packageId,
-    file,
-    triggeredById,
-    pageNumberStart
+    csvText,
+    triggeredById
   }: {
     packageId: string;
-    file: Express.Multer.File;
+    csvText: string;
     triggeredById?: string | null;
-    pageNumberStart?: number;
   }) => {
-    const job = await generationJobRepository.create({
-      jobType: "asset_processing",
+    // 解析 CSV 为 JSON 格式
+    const parsedPayload = parseCsvToJsonPayload(csvText);
+    
+    // 调用 JSON 导入方法
+    return coursePackageService.importCourseDataFromJson({
       packageId,
-      triggeredById: triggeredById ?? null,
-      sourceType: "pdf_upload",
-      inputInfo: {
-        type: "textbook_import",
-        originalName: file.originalname,
-        fileSize: file.size,
-        pageNumberStart: pageNumberStart ?? null
-      }
+      payload: parsedPayload,
+      triggeredById
     });
-
-    const runJob = async () => {
-      try {
-        await generationJobRepository.updateStatus(job.id, {
-          status: "processing",
-          startedAt: new Date(),
-          progress: 5
-        });
-
-        const result = await coursePackageService.importTextbookFromPdf(
-          packageId,
-          file,
-          triggeredById ?? null,
-          pageNumberStart
-        );
-
-        await generationJobRepository.updateStatus(job.id, {
-          status: "succeeded",
-          progress: 100,
-          result
-        });
-      } catch (error) {
-        console.error(`[textbook-import] job ${job.id} failed`, error);
-        await generationJobRepository.updateStatus(job.id, {
-          status: "failed",
-          errorMessage: (error as Error).message
-        });
-      }
-    };
-
-    setImmediate(() => {
-      runJob().catch(err => {
-        console.error(`[textbook-import] job ${job.id} crashed`, err);
-      });
-    });
-
-    return job;
   },
+
+  /**
+   * 获取课程包的素材-关卡树结构
+   * 用于前端展示素材和关联的关卡
+   */
   getMaterialLessonTree: async (packageId: string) => {
-    const [assets, lessons] = await Promise.all([
-      prisma.asset.findMany({
-        where: { packageId, deletedAt: null },
-        orderBy: [{ createdAt: "asc" }]
-      }),
-      prisma.lesson.findMany({
-        where: { packageId, deletedAt: null },
-        orderBy: [{ sequence: "asc" }],
-        include: {
-          currentVersion: {
-            include: {
-              items: {
-                orderBy: { orderIndex: "asc" }
-              }
+    // 获取课程包的所有素材
+    const assets = await prisma.asset.findMany({
+      where: {
+        packageId,
+        deletedAt: null
+      },
+      orderBy: { createdAt: "asc" }
+    });
+
+    // 获取课程包当前版本
+    const pkg = await prisma.coursePackage.findUnique({
+      where: { id: packageId },
+      select: { currentVersionId: true }
+    });
+
+    if (!pkg?.currentVersionId) {
+      return {
+        materials: [],
+        unassignedLessons: []
+      };
+    }
+
+    // 获取所有关卡
+    const lessons = await prisma.lesson.findMany({
+      where: {
+        packageVersionId: pkg.currentVersionId,
+        deletedAt: null
+      },
+      include: {
+        currentVersion: {
+          include: {
+            items: {
+              orderBy: { orderIndex: "asc" },
+              take: 1
             }
           }
         }
-      })
-    ]);
+      },
+      orderBy: [
+        { roundIndex: "asc" },
+        { roundOrder: "asc" },
+        { sequence: "asc" }
+      ]
+    });
 
-    const lessonMap = new Map<string, typeof lessons>();
+    // 按素材ID分组关卡
+    const lessonsByAsset = new Map<string, typeof lessons>();
+    const unassignedLessons: typeof lessons = [];
+
     for (const lesson of lessons) {
-      if (!lesson.sourceAssetId) continue;
-      if (!lessonMap.has(lesson.sourceAssetId)) {
-        lessonMap.set(lesson.sourceAssetId, []);
+      const assetId = lesson.sourceAssetId;
+      if (assetId) {
+        const existing = lessonsByAsset.get(assetId) ?? [];
+        existing.push(lesson);
+        lessonsByAsset.set(assetId, existing);
+      } else {
+        unassignedLessons.push(lesson);
       }
-      lessonMap.get(lesson.sourceAssetId)?.push(lesson);
     }
 
-    const materials = assets.map(asset => ({
-      id: asset.id,
-      originalName: asset.originalName,
-      mimeType: asset.mimeType,
-      fileSize: asset.fileSize,
-      sourceType: asset.sourceType,
-      metadata: asset.metadata ?? null,
-      createdAt: asset.createdAt,
-      lessonCount: lessonMap.get(asset.id)?.length ?? 0,
-      lessons: (lessonMap.get(asset.id) ?? []).map(entry => {
-        const firstItem = entry.currentVersion?.items?.[0];
-        const payload = (firstItem?.payload ?? {}) as Record<string, unknown>;
-        
-        // 详细日志：追踪数据读取
-        const summary = entry.currentVersion?.summary;
-        const payloadCn = payload.cn as string | undefined;
-        const payloadPrompt = payload.prompt as string | undefined;
-        const payloadEn = (payload.en as string) ?? (payload.target as string) ?? (payload.answer as string) ?? null;
-        
-        // 详细日志：打印每个关卡的数据结构
-        console.log(`[DEBUG MaterialLessonTree] Lesson #${entry.sequence} "${entry.title}":`, {
-          lessonId: entry.id,
-          summary: summary || '(null)',
-          payloadKeys: Object.keys(payload),
-          payloadCn: payloadCn || '(null)',
-          payloadPrompt: payloadPrompt || '(null)',
-          payloadEn: payloadEn || '(null)',
-          // 检查是否有问题：如果 cn 等于 summary，说明数据有问题
-          isCnSameAsSummary: payloadCn === summary ? '⚠️ 警告：cn 等于 summary!' : '✓ 正常'
-        });
-        
-        return {
-          id: entry.id,
-          title: entry.title,
-          sequence: entry.sequence,
-          unitNumber: entry.unitNumber,
-          unitName: entry.unitName,
-          unitId: entry.unitId,
-          status: entry.status,
-          sourceAssetOrder: entry.sourceAssetOrder,
-          itemType: firstItem?.type ?? "sentence",
-          roundIndex: entry.roundIndex,
-          roundOrder: entry.roundOrder,
-          pageNumber:
-            typeof (payload.pageNumber as number | undefined) === "number"
-              ? Number(payload.pageNumber)
-              : typeof entry.sourceAssetOrder === "number"
-                ? entry.sourceAssetOrder + 1
-                : null,
-          contentEn:
-            (payload.en as string) ??
-            (payload.target as string) ??
-            (payload.answer as string) ??
-            null,
-          contentCn: (() => {
-            const cn = (payload.cn as string) ?? (payload.prompt as string) ?? null;
-            const en = (payload.en as string) ?? (payload.target as string) ?? (payload.answer as string) ?? null;
-            // 如果 cn 等于 en，说明存储的是英文而不是翻译，返回 null
-            if (cn && en && cn.trim() === en.trim()) {
-              return null;
-            }
-            // 如果 cn 等于 summary，说明存储的是摘要而不是翻译，返回 null
-            if (cn && summary && cn.trim() === summary.trim()) {
-              return null;
-            }
-            return cn;
-          })()
-        };
-      })
-    }));
-
-    const unassignedLessons = lessons
-      .filter(item => !item.sourceAssetId)
-      .map(item => ({
-        id: item.id,
-        title: item.title,
-        sequence: item.sequence,
-        unitNumber: item.unitNumber,
-        unitName: item.unitName,
-        unitId: item.unitId,
-        status: item.status
-      }));
-
-    return { materials, unassignedLessons };
-  },
-
-  deleteMaterial: async (packageId: string, assetId: string) => {
-    await prisma.$transaction(async tx => {
-      const asset = await tx.asset.findFirst({
-        where: { id: assetId, packageId, deletedAt: null }
-      });
-      if (!asset) {
-        const error = new Error("素材不存在或已被删除");
-        (error as any).status = 404;
-        throw error;
-      }
-      await tx.asset.update({
-        where: { id: assetId },
-        data: { deletedAt: new Date() }
-      });
-
-      await tx.lesson.updateMany({
-        where: { packageId, sourceAssetId: assetId },
-        data: {
-          sourceAssetId: null,
-          sourceAssetName: null,
-          sourceAssetOrder: null
-        }
-      });
+    // 构建素材树
+    const materials = assets.map(asset => {
+      const assetLessons = lessonsByAsset.get(asset.id) ?? [];
+      return {
+        id: asset.id,
+        originalName: asset.originalName,
+        mimeType: asset.mimeType,
+        fileSize: asset.fileSize,
+        sourceType: asset.sourceType,
+        metadata: asset.metadata as Record<string, unknown> | null,
+        createdAt: asset.createdAt.toISOString(),
+        lessonCount: assetLessons.length,
+        lessons: assetLessons.map(lesson => {
+          const item = lesson.currentVersion?.items?.[0];
+          const payload = item?.payload as Record<string, unknown> | null;
+          return {
+            id: lesson.id,
+            title: lesson.title,
+            sequence: lesson.sequence,
+            unitNumber: lesson.unitNumber,
+            unitName: lesson.unitName,
+            unitId: lesson.unitId,
+            status: lesson.status,
+            sourceAssetOrder: lesson.sourceAssetOrder,
+            roundIndex: lesson.roundIndex,
+            roundOrder: lesson.roundOrder,
+            pageNumber: lesson.pageNumber,
+            itemType: item?.type ?? null,
+            contentEn: (payload?.en as string) ?? (payload?.answer as string) ?? null,
+            contentCn: (payload?.cn as string) ?? null
+          };
+        })
+      };
     });
 
-    return { success: true };
-  },
-
-  getMaterialPreviewUrl: async (packageId: string, assetId: string) => {
-    const asset = await prisma.asset.findFirst({
-      where: { id: assetId, packageId, deletedAt: null }
+    // 转换未分配的关卡
+    const unassignedLessonsList = unassignedLessons.map(lesson => {
+      const item = lesson.currentVersion?.items?.[0];
+      const payload = item?.payload as Record<string, unknown> | null;
+      return {
+        id: lesson.id,
+        title: lesson.title,
+        sequence: lesson.sequence,
+        unitNumber: lesson.unitNumber,
+        unitName: lesson.unitName,
+        unitId: lesson.unitId,
+        status: lesson.status,
+        sourceAssetOrder: lesson.sourceAssetOrder,
+        roundIndex: lesson.roundIndex,
+        roundOrder: lesson.roundOrder,
+        pageNumber: lesson.pageNumber,
+        itemType: item?.type ?? null,
+        contentEn: (payload?.en as string) ?? (payload?.answer as string) ?? null,
+        contentCn: (payload?.cn as string) ?? null
+      };
     });
-    if (!asset) {
-      const error = new Error("素材不存在或已被删除");
-      (error as any).status = 404;
-      throw error;
-    }
 
-    const { SUPABASE_STORAGE_BUCKET } = getEnv();
-    const supabase = getSupabase();
-    const result = await supabase.storage
-      .from(SUPABASE_STORAGE_BUCKET)
-      .createSignedUrl(asset.storagePath, 60 * 10);
-
-    if (result.error || !result.data?.signedUrl) {
-      throw new Error(`素材签名链接生成失败：${result.error?.message || "未知错误"}`);
-    }
-
-    return { url: result.data.signedUrl };
+    return {
+      materials,
+      unassignedLessons: unassignedLessonsList
+    };
   }
 };

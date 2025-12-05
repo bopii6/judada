@@ -255,6 +255,60 @@ router.post(
 );
 
 router.post(
+  "/course-packages/:id/import-json",
+  upload.single("file"),
+  async (req, res, next) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "请上传 JSON 文件" });
+        return;
+      }
+      let parsedPayload: unknown;
+      try {
+        const raw = req.file.buffer.toString("utf-8");
+        parsedPayload = JSON.parse(raw);
+      } catch (error) {
+        res.status(400).json({ error: "JSON 文件解析失败，请检查格式" });
+        return;
+      }
+
+      const userId = (req as any).user?.id ?? null;
+      const result = await coursePackageService.importCourseDataFromJson({
+        packageId: req.params.id,
+        payload: parsedPayload,
+        triggeredById: userId
+      });
+      res.json({ success: true, result });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.post(
+  "/course-packages/:id/import-csv",
+  upload.single("file"),
+  async (req, res, next) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "请上传 CSV 文件" });
+        return;
+      }
+      const raw = req.file.buffer.toString("utf-8");
+      const userId = (req as any).user?.id ?? null;
+      const result = await coursePackageService.importCourseDataFromCsv({
+        packageId: req.params.id,
+        csvText: raw,
+        triggeredById: userId
+      });
+      res.json({ success: true, result });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.post(
   "/course-packages/:id/cover",
   coverUpload.single("cover"),
   async (req, res, next) => {

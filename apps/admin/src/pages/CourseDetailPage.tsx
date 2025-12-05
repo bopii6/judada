@@ -35,6 +35,7 @@ import {
   deleteLessonById,
   createManualLesson,
   importTextbookPdf,
+  uploadCoursePackageCsv,
   fetchGenerationJob,
   regenerateUnit,
   type UpdateCoursePackagePayload,
@@ -284,6 +285,7 @@ export const CourseDetailPage = () => {
   const queryClient = useQueryClient();
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const fullBookInputRef = useRef<HTMLInputElement | null>(null);
+  const csvInputRef = useRef<HTMLInputElement | null>(null);
   const importJobPollerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [coverError, setCoverError] = useState<string | null>(null);
   const [coverSuccess, setCoverSuccess] = useState<string | null>(null);
@@ -304,6 +306,9 @@ export const CourseDetailPage = () => {
   const [newUnitDescription, setNewUnitDescription] = useState("");
   const [newUnitSequence, setNewUnitSequence] = useState("");
   const [bookImportMessage, setBookImportMessage] = useState<
+    { type: "success" | "error" | "info"; text: string } | null
+  >(null);
+  const [csvImportMessage, setCsvImportMessage] = useState<
     { type: "success" | "error" | "info"; text: string } | null
   >(null);
   const [bookPageNumberStart, setBookPageNumberStart] = useState("");
@@ -364,7 +369,6 @@ export const CourseDetailPage = () => {
   });
 
   const materials = materialsData?.materials ?? [];
-  const unassignedLessons = materialsData?.unassignedLessons ?? [];
   const [materialsFeedback, setMaterialsFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [materialActionId, setMaterialActionId] = useState<string | null>(null);
 
@@ -523,6 +527,36 @@ export const CourseDetailPage = () => {
     }
   });
 
+  const csvImportMutation = useMutation({
+    mutationFn: async (file: File) => {
+      if (!id) {
+        throw new Error("课程包ID缺失");
+      }
+      return uploadCoursePackageCsv(id, file);
+    },
+    onMutate: () => {
+      setCsvImportMessage({ type: "info", text: "正在上传 CSV..." });
+    },
+    onSuccess: response => {
+      const unitCount = response.result.units.length;
+      const lessonCount = response.result.totalLessons;
+      setCsvImportMessage({
+        type: "success",
+        text: `CSV 导入完成：${unitCount} 个单元 / ${lessonCount} 条关卡`
+      });
+      void refetchUnits();
+      void refetchMaterials();
+    },
+    onError: failure => {
+      setCsvImportMessage({ type: "error", text: (failure as Error).message });
+    },
+    onSettled: () => {
+      if (csvInputRef.current) {
+        csvInputRef.current.value = "";
+      }
+    }
+  });
+
   const runMaterialsAction = async (materialId: string, action: () => Promise<unknown>, successTip: string) => {
     if (!id) return;
     setMaterialActionId(materialId);
@@ -670,7 +704,31 @@ export const CourseDetailPage = () => {
     fullBookInputRef.current?.click();
   };
 
-    const handleFullBookFileChange: ChangeEventHandler<HTMLInputElement> = event => {
+  const handleCsvUploadClick = () => {
+    setCsvImportMessage(null);
+    csvInputRef.current?.click();
+  };
+
+  const handleCsvFileChange: ChangeEventHandler<HTMLInputElement> = event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_UPLOAD_SIZE) {
+      setCsvImportMessage({ type: "error", text: "CSV 文件不能超过 15MB" });
+      event.target.value = "";
+      return;
+    }
+    const lowerName = file.name.toLowerCase();
+    const isCsv = file.type.includes("csv") || lowerName.endsWith(".csv");
+    if (!isCsv) {
+      setCsvImportMessage({ type: "error", text: "请上传 .csv 格式的文件" });
+      event.target.value = "";
+      return;
+    }
+    csvImportMutation.mutate(file);
+    event.target.value = "";
+  };
+
+  const handleFullBookFileChange: ChangeEventHandler<HTMLInputElement> = event => {
     const file = event.target.files?.[0];
     if (!file) return;
     if (file.size > MAX_PDF_UPLOAD_SIZE) {
@@ -835,6 +893,13 @@ export const CourseDetailPage = () => {
         hidden
         onChange={handleFullBookFileChange}
       />
+      <input
+        ref={csvInputRef}
+        type="file"
+        accept="text/csv,.csv"
+        hidden
+        onChange={handleCsvFileChange}
+      />
 
       <section className="textbook-import-card">
         <div className="textbook-import-info">
@@ -847,25 +912,45 @@ export const CourseDetailPage = () => {
           )}
         </div>
         <div className="textbook-import-actions">
-          <button
-            type="button"
-            className="primary"
-            onClick={handleFullBookUploadClick}
-            disabled={importBookMutation.isPending}
-          >
-            {importBookMutation.isPending ? "解析中..." : "📚 上传整本教材"}
-          </button>
-          <p className="textbook-import-hint">PDF ≤ 80MB，目录需带有单元名称与页码</p>
-          <label className="upload-hint">
-            <span>PDF 第一页的教材页码</span>
-            <input
-              type="number"
-              min={1}
-              placeholder="默认 1"
-              value={bookPageNumberStart}
-              onChange={event => setBookPageNumberStart(event.target.value)}
-            />
-          </label>
+          <div className="textbook-import-group">
+            <button
+              type="button"
+              className="secondary"
+              onClick={handleCsvUploadClick}
+              disabled={csvImportMutation.isPending}
+            >
+              {csvImportMutation.isPending ? "导入中..." : "📊 上传 CSV"}
+            </button>
+            {csvImportMessage && (
+              <p className={`textbook-import-message ${csvImportMessage.type}`}>
+                {csvImportMessage.text}
+              </p>
+            )}
+            <p className="textbook-import-hint">
+              CSV 格式: unit,unit_title,round,round_title,en,cn,page（推荐用 ChatGPT 生成）
+            </p>
+          </div>
+          <div className="textbook-import-group">
+            <button
+              type="button"
+              className="primary"
+              onClick={handleFullBookUploadClick}
+              disabled={importBookMutation.isPending}
+            >
+              {importBookMutation.isPending ? "解析中..." : "📚 上传整本教材"}
+            </button>
+            <p className="textbook-import-hint">PDF ≤ 80MB，目录需带有单元名称与页码</p>
+            <label className="upload-hint">
+              <span>PDF 第一页的教材页码</span>
+              <input
+                type="number"
+                min={1}
+                placeholder="默认 1"
+                value={bookPageNumberStart}
+                onChange={event => setBookPageNumberStart(event.target.value)}
+              />
+            </label>
+          </div>
         </div>
       </section>
 
@@ -1073,21 +1158,6 @@ export const CourseDetailPage = () => {
         </div>
       )}
 
-      {unassignedLessons.length > 0 && (
-        <section className="materials-unassigned">
-          <h3>未关联素材的关卡</h3>
-          <p className="hint">这些关卡尚未匹配到具体素材，可在单元中手动调整</p>
-          <ul>
-            {unassignedLessons.map(lesson => (
-                <li key={lesson.id}>
-                  <span className="material-lesson-title">
-                    #{lesson.sequence ?? "—"} {lesson.contentEn || "未提供句子"}
-                  </span>
-                </li>
-            ))}
-          </ul>
-        </section>
-      )}
     </div>
   );
 };
@@ -1368,18 +1438,68 @@ const UnitCard = ({
   }, [materials, unit.id]);
 
   const roundEntries = useMemo<RoundLessonEntry[]>(() => {
-    if (!unitMaterials.length) {
-      return [];
+    // 优先使用素材关联的关卡
+    if (unitMaterials.length > 0) {
+      return unitMaterials.flatMap(({ material, lessons }) =>
+        lessons.map(lesson => ({
+          material,
+          lesson,
+          roundIndex: deriveRoundIndexFromLesson(lesson),
+          roundOrder: deriveRoundOrderFromLesson(lesson)
+        }))
+      );
     }
-    return unitMaterials.flatMap(({ material, lessons }) =>
-      lessons.map(lesson => ({
-        material,
-        lesson,
-        roundIndex: deriveRoundIndexFromLesson(lesson),
-        roundOrder: deriveRoundOrderFromLesson(lesson)
-      }))
-    );
-  }, [unitMaterials]);
+    
+    // 如果没有素材，从 unit.lessons 获取关卡（CSV/JSON 导入的情况）
+    if (unit.lessons && unit.lessons.length > 0) {
+      return unit.lessons.map(lesson => {
+        // 从 currentVersion.items 中提取内容
+        const item = lesson.currentVersion?.items?.[0];
+        const payload = item?.payload as Record<string, unknown> | null;
+        const contentEn = (payload?.en as string) ?? (payload?.answer as string) ?? lesson.title;
+        const contentCn = (payload?.cn as string) ?? "";
+        const pageNumber = (payload?.pageNumber as number) ?? lesson.pageNumber ?? null;
+        
+        // 转换为 MaterialLessonSummary 兼容格式
+        const lessonData: MaterialLessonSummary = {
+          id: lesson.id,
+          title: lesson.title,
+          sequence: lesson.sequence,
+          unitNumber: lesson.unitNumber ?? null,
+          unitName: lesson.unitName ?? null,
+          unitId: lesson.unitId,
+          status: lesson.status,
+          roundIndex: lesson.roundIndex ?? null,
+          roundOrder: lesson.roundOrder ?? null,
+          pageNumber,
+          contentEn,
+          contentCn
+        };
+        
+        // 创建一个虚拟的素材对象用于显示
+        const dummyMaterial: PackageMaterialSummary = {
+          id: "csv-import",
+          originalName: "CSV 导入",
+          mimeType: null,
+          fileSize: null,
+          sourceType: "csv_import",
+          metadata: null,
+          createdAt: "",
+          lessonCount: 0,
+          lessons: []
+        };
+        
+        return {
+          material: dummyMaterial,
+          lesson: lessonData,
+          roundIndex: deriveRoundIndexFromLesson(lessonData),
+          roundOrder: deriveRoundOrderFromLesson(lessonData)
+        };
+      });
+    }
+    
+    return [];
+  }, [unitMaterials, unit.lessons]);
 
   const roundGroups = useMemo(
     () =>
