@@ -1,5 +1,5 @@
 ﻿import type { Express } from "express";
-import { LessonItemType, Prisma, SourceType } from "@prisma/client";
+import { LessonItemType, Prisma, SourceType, VersionStatus } from "@prisma/client";
 import path from "node:path";
 import { getPrisma } from "../lib/prisma";
 import { getSupabase } from "../lib/supabase";
@@ -538,6 +538,12 @@ export const coursePackageService = {
           createdLessons: number;
         }> = [];
 
+        const totalSentences = validatedPayload.units.reduce(
+          (sum, u) => sum + u.rounds.reduce((s, r) => s + r.sentences.length, 0),
+          0
+        );
+        console.log(`[CSV Import] 开始导入 ${validatedPayload.units.length} 个单元，共 ${totalSentences} 个句子`);
+
         // 遍历每个单元
         for (const unitData of validatedPayload.units) {
           // 创建或获取单元
@@ -601,7 +607,7 @@ export const coursePackageService = {
                   title: sentence.title || sentence.en,
                   summary: sentence.summary ?? null,
                   difficulty: sentence.difficulty ?? null,
-                  status: "draft",
+                  status: VersionStatus.draft,
                   createdById: triggeredById ?? null
                 }
               });
@@ -645,10 +651,13 @@ export const coursePackageService = {
           data: { sourceType: "manual_input" }
         });
 
+        const totalLessons = createdUnits.reduce((sum, u) => sum + u.createdLessons, 0);
+        console.log(`[CSV Import] 导入完成：${createdUnits.length} 个单元，${totalLessons} 个关卡`);
+
         return {
           versionId: packageVersionId,
           versionNumber: pkg.currentVersion?.versionNumber ?? 1,
-          totalLessons: createdUnits.reduce((sum, u) => sum + u.createdLessons, 0),
+          totalLessons,
           units: createdUnits
         };
       },
