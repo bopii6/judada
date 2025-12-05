@@ -345,6 +345,7 @@ export const coursePackageService = {
   deletePackage: async (packageId: string) => {
     return prisma.$transaction(
       async transaction => {
+        await transaction.$executeRawUnsafe("SET LOCAL statement_timeout = 0");
         // 检查课程包是否存在
         const pkg = await transaction.coursePackage.findUnique({
           where: { id: packageId },
@@ -374,19 +375,20 @@ export const coursePackageService = {
           throw error;
         }
 
-        // 递归删除所有相关数据
-        // 1. 删除所有课程版本
         for (const version of pkg.versions) {
-          for (const lesson of version.lessons) {
-            // 删除课程版本
+          const lessonIds = version.lessons.map(lesson => lesson.id);
+          if (lessonIds.length > 0) {
             await transaction.lessonVersion.deleteMany({
-              where: { lessonId: lesson.id }
+              where: { lessonId: { in: lessonIds } }
+            });
+            await transaction.lesson.deleteMany({
+              where: { id: { in: lessonIds } }
+            });
+          } else {
+            await transaction.lesson.deleteMany({
+              where: { packageVersionId: version.id }
             });
           }
-          // 删除课程
-          await transaction.lesson.deleteMany({
-            where: { packageVersionId: version.id }
-          });
         }
 
         // 2. 删除课程包版本
