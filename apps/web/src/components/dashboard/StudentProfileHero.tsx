@@ -1,12 +1,11 @@
 import React from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { useProgressStore, getUserStats } from "../../store/progressStore";
+import { getUserStats } from "../../store/progressStore";
 import { Trophy, Star, Flame, Share2, Crown } from "lucide-react";
 
 export const StudentProfileHero: React.FC = () => {
     const { getUserDisplayName, getUserAvatar } = useAuth();
     const userStats = getUserStats();
-    const progress = useProgressStore();
 
     // Calculate level based on total stars (mock logic for now)
     const level = Math.floor((userStats?.totalStars || 0) / 50) + 1;

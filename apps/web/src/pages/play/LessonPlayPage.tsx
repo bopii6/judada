@@ -10,6 +10,7 @@ import { StagesProgressSidebar } from "../../components/StagesProgressSidebar";
 import { progressStore } from "../../store/progressStore";
 import { ArrowLeft, Star, Keyboard, MousePointer2, Share2, Volume2, LifeBuoy } from "lucide-react";
 import { formatStageOriginLabel } from "../../utils/stageOrigin";
+import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
 
 const MODES = ["tiles", "type", "dictation"] as const;
 
@@ -436,4 +437,3 @@ function Trophy(props: TrophyProps) {
     </svg>
   )
 }
-

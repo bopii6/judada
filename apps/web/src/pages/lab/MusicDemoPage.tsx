@@ -26,14 +26,14 @@ interface WordSlot {
     fillableLength: number;
 }
 
-const sanitizeLetters = (value: string) => value.replace(/[^A-Za-z']/g, "");
+const sanitizeLetters = (value: string) => value.replace(/[^A-Za-z0-9']/g, "");
 
 const buildWordSlots = (text: string): WordSlot[] => {
     if (!text.trim()) return [];
 
     const tokens = text.split(/\s+/).filter(Boolean);
     const slots: WordSlot[] = tokens.map((token, index) => {
-        const match = token.match(/^([A-Za-z']+)(.*)$/);
+        const match = token.match(/^([A-Za-z0-9']+)([^A-Za-z0-9']*)$/);
         const core = match ? match[1] : token;
         const suffix = match ? match[2] : "";
 

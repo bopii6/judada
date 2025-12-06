@@ -91,7 +91,7 @@ export const WeeklyReportCard: React.FC = () => {
                     <div className="relative bg-yellow-50 dark:bg-yellow-900/10 rounded-xl p-4 border border-yellow-100 dark:border-yellow-900/30">
                         <Quote className="absolute top-3 left-3 w-4 h-4 text-yellow-400 opacity-50" />
                         <p className="text-center text-sm font-bold text-slate-700 dark:text-slate-300 pt-2 pb-1">
-                            "{getEncouragement()}"
+                            &quot;{getEncouragement()}&quot;
                         </p>
                     </div>
 

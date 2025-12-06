@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { X, Volume2, Monitor, User, Info, Keyboard, Check, ChevronRight, Play, Mic, LogOut, Smartphone, Mail, Shield } from "lucide-react";
+import type { ComponentType } from "react";
+import { X, Volume2, Monitor, User, Info, Keyboard, Check, ChevronRight, Play, LogOut, Smartphone, Mail, Shield } from "lucide-react";
 import classNames from "classnames";
 import { useTheme } from "../contexts/ThemeContext";
 import { useAuth } from "../hooks/useAuth";
@@ -14,7 +15,7 @@ interface SettingsModalProps {
 
 type TabId = 'input' | 'sound' | 'display' | 'account' | 'about';
 
-const TABS: { id: TabId; label: string; icon: any }[] = [
+const TABS: { id: TabId; label: string; icon: ComponentType<{ className?: string }> }[] = [
     { id: 'input', label: '输入设置', icon: Keyboard },
     { id: 'sound', label: '音效设置', icon: Volume2 },
     { id: 'display', label: '显示设置', icon: Monitor },
@@ -161,7 +162,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                 {activeTab === 'sound' && "调整语音朗读和音效反馈"}
                                 {activeTab === 'display' && "个性化界面外观和主题"}
                                 {activeTab === 'account' && "管理个人信息和账户安全"}
-                                {activeTab === 'about' && "了解更多关于 Jude English 的信息"}
+                                {activeTab === 'about' && "了解更多关于毛豆英语的信息"}
                             </p>
                         </div>
 
@@ -194,7 +195,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                         <div className="flex items-center justify-between">
                                             <div>
                                                 <div className="font-bold text-slate-900 dark:text-white text-lg">是否忽略大小写</div>
-                                                <div className="text-sm text-slate-500 mt-1">开启后，输入时不区分大小写，如输入"hello"和"Hello"都会被认为是正确的</div>
+                                                <div className="text-sm text-slate-500 mt-1">开启后，输入时不区分大小写，如输入&nbsp;&quot;hello&quot;&nbsp;和&nbsp;&quot;Hello&quot;&nbsp;都会被认为是正确的</div>
                                             </div>
                                             <button
                                                 onClick={() => setIgnoreCase(!ignoreCase)}
@@ -427,10 +428,10 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                             {activeTab === 'about' && (
                                 <div className="text-center py-10">
                                     <div className="w-24 h-24 bg-indigo-100 dark:bg-indigo-900/30 rounded-3xl mx-auto flex items-center justify-center mb-6">
-                                        <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">JE</span>
+                                        <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">MD</span>
                                     </div>
-                                    <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-2">Jude English</h3>
-                                    <p className="text-slate-500 mb-8">Learning Studio v2.4.0</p>
+                                    <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-2">毛豆英语</h3>
+                                    <p className="text-slate-500 mb-8">Maodou Learning Lab v2.4.0</p>
 
                                     <div className="flex justify-center gap-4">
                                         <a href="#" className="text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400">服务条款</a>

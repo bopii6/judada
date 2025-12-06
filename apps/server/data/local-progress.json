@@ -1235,8 +1235,126 @@
         ],
         "createdAt": "2025-12-05T11:32:08.479Z",
         "updatedAt": "2025-12-05T11:32:08.479Z"
+      },
+      {
+        "userId": "guest-1764924316594-nru0tg40o",
+        "stageId": "dab621b5-fefa-4eec-9e1d-b5be6e1e3480-77e621e4-2477-490a-b399-269e212e700b",
+        "courseId": "2760c4ad-f438-46bb-87c3-efcdcfc31e0a",
+        "bestStars": 3,
+        "attempts": 7,
+        "lastPlayedAt": "2025-12-06T05:09:59.018Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-12-06T02:58:25.718Z",
+        "updatedAt": "2025-12-06T05:09:59.018Z"
+      },
+      {
+        "userId": "guest-1764924316594-nru0tg40o",
+        "stageId": "7703d186-264c-45f7-97cd-c8da8bbc9489-75cd517a-f6b5-49d2-9782-e342cb240fc6",
+        "courseId": "2760c4ad-f438-46bb-87c3-efcdcfc31e0a",
+        "bestStars": 3,
+        "attempts": 6,
+        "lastPlayedAt": "2025-12-06T05:10:09.382Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-12-06T02:58:38.824Z",
+        "updatedAt": "2025-12-06T05:10:09.382Z"
+      },
+      {
+        "userId": "guest-1764924316594-nru0tg40o",
+        "stageId": "83f9c901-b3fa-445d-8b04-38d4224be5b9-e57f0ae5-1325-4079-8274-c5f029fc9db9",
+        "courseId": "2760c4ad-f438-46bb-87c3-efcdcfc31e0a",
+        "bestStars": 3,
+        "attempts": 5,
+        "lastPlayedAt": "2025-12-06T04:59:19.445Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-12-06T02:58:57.959Z",
+        "updatedAt": "2025-12-06T04:59:19.445Z"
+      },
+      {
+        "userId": "guest-1764924316594-nru0tg40o",
+        "stageId": "86080b71-b2f8-40db-8875-aeb1a3f5b518-2e61de74-f4b1-4fc7-8064-624a574c8225",
+        "courseId": "2760c4ad-f438-46bb-87c3-efcdcfc31e0a",
+        "bestStars": 3,
+        "attempts": 4,
+        "lastPlayedAt": "2025-12-06T04:59:28.805Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-12-06T02:59:08.939Z",
+        "updatedAt": "2025-12-06T04:59:28.805Z"
+      },
+      {
+        "userId": "guest-1764924316594-nru0tg40o",
+        "stageId": "6cb46e93-6f42-418c-a31d-70e3f621c8c0-706bf865-c3cc-40bd-9190-a698f6f8bd79",
+        "courseId": "2760c4ad-f438-46bb-87c3-efcdcfc31e0a",
+        "bestStars": 3,
+        "attempts": 1,
+        "lastPlayedAt": "2025-12-06T05:04:08.514Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-12-06T05:04:08.514Z",
+        "updatedAt": "2025-12-06T05:04:08.514Z"
+      },
+      {
+        "userId": "guest-1764924316594-nru0tg40o",
+        "stageId": "5c274c38-3a36-4284-83a4-5c2ea893d29f-d19baaad-9486-46b8-8392-e330dbfbc44b",
+        "courseId": "2760c4ad-f438-46bb-87c3-efcdcfc31e0a",
+        "bestStars": 3,
+        "attempts": 1,
+        "lastPlayedAt": "2025-12-06T05:04:27.009Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-12-06T05:04:27.009Z",
+        "updatedAt": "2025-12-06T05:04:27.009Z"
+      },
+      {
+        "userId": "guest-1764924316594-nru0tg40o",
+        "stageId": "b9fe2193-aefe-4ab0-8a18-77afaab27e73-48006534-8e0e-4e67-83b2-59c0123131d8",
+        "courseId": "2760c4ad-f438-46bb-87c3-efcdcfc31e0a",
+        "bestStars": 3,
+        "attempts": 1,
+        "lastPlayedAt": "2025-12-06T05:04:40.325Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-12-06T05:04:40.325Z",
+        "updatedAt": "2025-12-06T05:04:40.325Z"
+      },
+      {
+        "userId": "guest-1764924316594-nru0tg40o",
+        "stageId": "f12c88ba-4af1-4eb3-88b2-3effd0f3f7c0-40b9c223-f1b1-4545-b1d1-f130ffe6c476",
+        "courseId": "2760c4ad-f438-46bb-87c3-efcdcfc31e0a",
+        "bestStars": 3,
+        "attempts": 1,
+        "lastPlayedAt": "2025-12-06T05:04:55.301Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-12-06T05:04:55.301Z",
+        "updatedAt": "2025-12-06T05:04:55.301Z"
+      },
+      {
+        "userId": "guest-1764924316594-nru0tg40o",
+        "stageId": "d25f05db-33b7-4b31-a46c-eeab0a0303fd-70c6594d-e4ed-4ed4-8e2d-e8091ab657bf",
+        "courseId": "2760c4ad-f438-46bb-87c3-efcdcfc31e0a",
+        "bestStars": 3,
+        "attempts": 1,
+        "lastPlayedAt": "2025-12-06T05:05:25.404Z",
+        "modes": [
+          "type"
+        ],
+        "createdAt": "2025-12-06T05:05:25.404Z",
+        "updatedAt": "2025-12-06T05:05:25.404Z"
       }
-    ]
+    ],
+    "guest-1764124004109-s35m6rg6w": []
   },
   "stats": {
     "email-user-1763297345673-trpuvnlod": {
@@ -1429,13 +1547,24 @@
     "guest-1764924316594-nru0tg40o": {
       "userId": "guest-1764924316594-nru0tg40o",
       "totalPlayTime": 0,
-      "totalStars": 3,
-      "completedStages": 1,
+      "totalStars": 30,
+      "completedStages": 10,
       "currentStreak": 0,
       "longestStreak": 0,
-      "lastActiveAt": "2025-12-05T11:32:08.479Z",
+      "lastActiveAt": "2025-12-06T05:10:09.382Z",
       "createdAt": "2025-12-05T11:23:34.189Z",
-      "updatedAt": "2025-12-05T11:32:08.479Z"
+      "updatedAt": "2025-12-06T05:10:09.382Z"
+    },
+    "guest-1764124004109-s35m6rg6w": {
+      "userId": "guest-1764124004109-s35m6rg6w",
+      "totalPlayTime": 0,
+      "totalStars": 0,
+      "completedStages": 0,
+      "currentStreak": 0,
+      "longestStreak": 0,
+      "lastActiveAt": "2025-12-06T02:57:05.389Z",
+      "createdAt": "2025-12-06T02:57:05.389Z",
+      "updatedAt": "2025-12-06T02:57:05.389Z"
     }
   },
   "daily": {
@@ -1571,7 +1700,17 @@
         "typingStages": 1,
         "createdAt": "2025-12-05T11:32:08.481Z",
         "updatedAt": "2025-12-05T11:32:08.481Z"
+      },
+      {
+        "userId": "guest-1764924316594-nru0tg40o",
+        "date": "2025-12-06",
+        "completedStages": 27,
+        "starsEarned": 80,
+        "typingStages": 27,
+        "createdAt": "2025-12-06T02:58:25.719Z",
+        "updatedAt": "2025-12-06T05:10:09.383Z"
       }
-    ]
+    ],
+    "guest-1764124004109-s35m6rg6w": []
   }
 }

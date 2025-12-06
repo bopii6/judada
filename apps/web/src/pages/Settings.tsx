@@ -1,11 +1,9 @@
-﻿import { useEffect, useState } from "react";
-import { speak, useVoices } from "../hooks/useTTS";
+import { useEffect, useState } from "react";
+import { speak, useVoices, VOICE_KEY } from "../hooks/useTTS";
 import { useTheme } from "../contexts/ThemeContext";
 import { useAuth } from "../hooks/useAuth";
 import { Moon, Sun, Volume2, Play, Check, ChevronDown, Palette, Mic, Shield, User, KeyRound, Smartphone, Mail } from "lucide-react";
 import classNames from "classnames";
-
-const VOICE_KEY = "judada:voice";
 
 export const Settings = () => {
   const voices = useVoices();
@@ -78,7 +76,7 @@ export const Settings = () => {
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">邮箱</label>
                   <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
                     <Mail className="w-4 h-4 text-slate-400" />
-                    <span className="font-bold text-slate-700 dark:text-slate-200">user@example.com</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-200">{user?.email ?? "user@example.com"}</span>
                   </div>
                 </div>
               </div>
@@ -250,3 +248,4 @@ export const Settings = () => {
     </div>
   );
 };
+

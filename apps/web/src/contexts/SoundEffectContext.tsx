@@ -94,7 +94,7 @@ const playAudioFile = async (url: string, volume: number = 0.5) => {
     audio.currentTime = 0;
     
     // 添加详细的错误监听
-    audio.addEventListener('error', (e) => {
+    audio.addEventListener('error', () => {
       const error = audio.error;
       console.error('[SoundEffect] Audio error details:', {
         url,
@@ -195,64 +195,11 @@ const playTelegraphSound = (ctx: AudioContext) => {
 
   tack.start(t + 0.01);
   tack.stop(t + 0.04);
-};
-
-// 机械键盘音效（保留作为备选）
-const playMechanicalKeyboard = (ctx: AudioContext) => {
-  const t = ctx.currentTime;
-
-  // 主按键音 - 低沉的"咔"声
-  const mainClick = ctx.createOscillator();
-  const mainGain = ctx.createGain();
-  const mainFilter = ctx.createBiquadFilter();
-
-  mainFilter.type = 'lowpass';
-  mainFilter.frequency.setValueAtTime(800, t);
-  mainFilter.Q.setValueAtTime(2, t);
-
-  mainClick.type = 'square';
-  const baseFreq = 200 + Math.random() * 100;
-  mainClick.frequency.setValueAtTime(baseFreq, t);
-  mainClick.frequency.exponentialRampToValueAtTime(baseFreq * 0.6, t + 0.05);
-
-  mainGain.gain.setValueAtTime(0.6, t);
-  mainGain.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
-
-  mainClick.connect(mainFilter);
-  mainFilter.connect(mainGain);
-  mainGain.connect(ctx.destination);
-
-  mainClick.start(t);
-  mainClick.stop(t + 0.05);
-
-  // 高频回弹音
-  const reboundClick = ctx.createOscillator();
-  const reboundGain = ctx.createGain();
-  const reboundFilter = ctx.createBiquadFilter();
-
-  reboundFilter.type = 'bandpass';
-  reboundFilter.frequency.setValueAtTime(2000, t);
-  reboundFilter.Q.setValueAtTime(5, t);
-
-  reboundClick.type = 'sine';
-  reboundClick.frequency.setValueAtTime(2500 + Math.random() * 500, t);
-  reboundClick.frequency.exponentialRampToValueAtTime(1500, t + 0.02);
-
-  reboundGain.gain.setValueAtTime(0.32, t);
-  reboundGain.gain.exponentialRampToValueAtTime(0.01, t + 0.02);
-
-  reboundClick.connect(reboundFilter);
-  reboundFilter.connect(reboundGain);
-  reboundGain.connect(ctx.destination);
-
-  reboundClick.start(t + 0.01);
-  reboundClick.stop(t + 0.03);
-
   // 噪声层
   const bufferSize = ctx.sampleRate * 0.01;
   const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
   const data = buffer.getChannelData(0);
-  for (let i = 0; i < bufferSize; i++) {
+  for (let i = 0; i < bufferSize; i += 1) {
     data[i] = (Math.random() * 2 - 1) * 0.1;
   }
 
@@ -316,7 +263,8 @@ const getAudioContext = (): AudioContext | null => {
   if (typeof window === "undefined") {
     return null;
   }
-  const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+  type WindowWithWebkit = Window & { webkitAudioContext?: typeof AudioContext };
+  const AudioCtx = window.AudioContext || (window as WindowWithWebkit).webkitAudioContext;
   if (!AudioCtx) {
     return null;
   }
@@ -358,14 +306,11 @@ export const SoundEffectProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (!ctx) return;
 
     switch (soundMode) {
-      case 'telegraph':
-        // 优先使用音频文件，如果不存在则使用生成的音效
+      case 'telegraph': {
         const telegraphFile = SOUND_FILES.telegraph;
         console.log('[SoundEffect] Telegraph mode, file path:', telegraphFile);
         if (telegraphFile) {
-          // 播放完整的音频文件（文件本身就很短，约0.1秒）
           playAudioFile(telegraphFile, 1.0).catch((error) => {
-            // 如果文件不存在，使用生成的音效
             console.warn('[SoundEffect] Failed to play audio file, using generated sound:', error);
             playTelegraphSound(ctx);
           });
@@ -374,6 +319,7 @@ export const SoundEffectProvider: React.FC<{ children: React.ReactNode }> = ({ c
           playTelegraphSound(ctx);
         }
         break;
+      }
       case 'classic':
         playClassicClick(ctx);
         break;

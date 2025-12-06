@@ -1,0 +1,30 @@
+<svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="20" y1="0" x2="140" y2="160" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF7E6"/>
+      <stop offset="1" stop-color="#FFE0B5"/>
+    </linearGradient>
+    <linearGradient id="bean" x1="40" y1="30" x2="110" y2="130" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8CCF35"/>
+      <stop offset="1" stop-color="#3BA55D"/>
+    </linearGradient>
+    <linearGradient id="bean-highlight" x1="40" y1="20" x2="120" y2="110" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E3FFB3" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="140%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#3BA55D" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+  <rect x="8" y="8" width="144" height="144" rx="40" fill="url(#bg)"/>
+  <g filter="url(#shadow)">
+    <path d="M55 40C71 26 98 30 114 48C130 66 132 92 118 111C104 129 78 138 57 129C36 120 24 101 28 79C32 58 39 48 55 40Z" fill="url(#bean)"/>
+    <path d="M104 54C86 42 62 48 50 63C38 78 34 101 51 114C55 117 58 118 63 119C57 111 56 99 60 88C64 76 74 66 87 62C98 58 106 55 104 54Z" fill="url(#bean-highlight)" opacity="0.85"/>
+    <circle cx="76" cy="83" r="6" fill="#0F172A"/>
+    <circle cx="99" cy="85" r="6" fill="#0F172A"/>
+    <path d="M87 100C90 100 93 101 95 103" stroke="#0F172A" stroke-width="4" stroke-linecap="round"/>
+    <path d="M64 71C62 64 65 58 72 55" stroke="#D7F8A2" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="118" cy="46" r="16" fill="#9FDD4B"/>
+    <path d="M130 38C130 42 126 46 120 46C114 46 110 42 110 38" stroke="#77B829" stroke-width="5" stroke-linecap="round"/>
+  </g>
+</svg>

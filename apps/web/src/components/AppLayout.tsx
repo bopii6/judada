@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { LogOut, Menu, LogIn, LayoutDashboard, BookOpen, UserRound, Sparkles, Music3, ArrowRight, Crown } from "lucide-react";
+import { Menu, LogIn, LayoutDashboard, BookOpen, UserRound, Music3, ArrowRight, Crown } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { SettingsModal } from "./SettingsModal";
 
@@ -15,9 +15,8 @@ const links = [
 export const AppLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const navigate = useNavigate();
-  const { isAuthenticated, logout, getUserAvatar, getUserDisplayName } = useAuth();
+  const { isAuthenticated, getUserAvatar, getUserDisplayName } = useAuth();
 
   const location = useLocation();
   // Hide sidebar on /courses (list) and /courses/:id (overview)
@@ -41,12 +40,12 @@ export const AppLayout = () => {
         >
           <div className="flex items-center justify-between px-8 py-8">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-orange-100 text-orange-500">
-                <img src="/icons/bear-icon.svg" alt="Logo" className="h-6 w-6" />
+              <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-500 shadow-inner shadow-emerald-100/60">
+                <img src="/icons/maodou-logo.svg" alt="毛豆英语 Logo" className="h-7 w-7 drop-shadow-sm" />
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-orange-400 dark:text-orange-500 font-bold">Jude English</p>
-                <h1 className="text-lg font-black text-slate-800 dark:text-slate-100 tracking-tight">Learning Studio</h1>
+                <p className="text-[10px] uppercase tracking-[0.3em] text-emerald-500 dark:text-emerald-400 font-bold">MAODOU ENGLISH</p>
+                <h1 className="text-lg font-black text-slate-800 dark:text-slate-100 tracking-tight">毛豆英语</h1>
               </div>
             </div>
             <button
@@ -175,7 +174,7 @@ export const AppLayout = () => {
                     <Menu className="w-6 h-6" />
                   </button>
                   <div className="lg:hidden">
-                    <span className="text-base font-bold text-slate-800 dark:text-slate-100">Jude English</span>
+                    <span className="text-base font-bold text-slate-800 dark:text-slate-100">毛豆英语</span>
                   </div>
                 </>
               )}

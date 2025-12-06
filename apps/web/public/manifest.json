@@ -1,7 +1,7 @@
 {
-  "name": "Jude English Lab",
-  "short_name": "JudeLab",
-  "description": "英语学习平台 - 专为中文学习者设计的英语练习应用",
+  "name": "毛豆英语",
+  "short_name": "毛豆英语",
+  "description": "毛豆英语 - 为小朋友打造的卡通闯关式英语学习平台",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -9,7 +9,11 @@
   "orientation": "portrait",
   "scope": "/",
   "lang": "zh-CN",
-  "categories": ["education", "learning", "language"],
+  "categories": [
+    "education",
+    "learning",
+    "language"
+  ],
   "screenshots": [
     {
       "src": "/screenshots/mobile-1.png",
@@ -20,13 +24,13 @@
   ],
   "icons": [
     {
-      "src": "/icons/bear-icon.svg",
+      "src": "/icons/maodou-logo.svg",
       "sizes": "192x192",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "/icons/bear-icon.svg",
+      "src": "/icons/maodou-logo.svg",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "maskable any"
@@ -36,24 +40,24 @@
     {
       "name": "开始学习",
       "short_name": "学习",
-      "description": "进入课程学习",
+      "description": "进入课程闯关",
       "url": "/courses",
       "icons": [
         {
-          "src": "/icons/bear-icon.svg",
+          "src": "/icons/maodou-logo.svg",
           "sizes": "96x96",
           "type": "image/svg+xml"
         }
       ]
     },
     {
-      "name": "微练位",
-      "short_name": "练习",
-      "description": "快速英语练习",
+      "name": "继续闯关",
+      "short_name": "闯关",
+      "description": "快速开始今日练习",
       "url": "/",
       "icons": [
         {
-          "src": "/icons/bear-icon.svg",
+          "src": "/icons/maodou-logo.svg",
           "sizes": "96x96",
           "type": "image/svg+xml"
         }

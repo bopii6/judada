@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import classNames from "classnames";
 import type { CourseStage } from "../../api/courses";
 import { speak } from "../../hooks/useTTS";
@@ -24,14 +24,14 @@ interface WordSlot {
   fillableLength: number;
 }
 
-const sanitizeLetters = (value: string) => value.replace(/[^A-Za-z']/g, "");
+const sanitizeLetters = (value: string) => value.replace(/[^A-Za-z0-9']/g, "");
 
 const buildWordSlots = (text: string): WordSlot[] => {
   if (!text.trim()) return [];
 
   const tokens = text.split(/\s+/).filter(Boolean);
   const slots: WordSlot[] = tokens.map((token, index) => {
-    const match = token.match(/^([A-Za-z']+)(.*)$/);
+    const match = token.match(/^([A-Za-z0-9']+)([^A-Za-z0-9']*)$/);
     const core = match ? match[1] : token;
     const suffix = match ? match[2] : "";
 
@@ -60,7 +60,7 @@ const assembleWordInputs = (slots: WordSlot[], inputs: string[]): string =>
     .filter(Boolean)
     .join(" ");
 
-// 与音乐闯关保持一致的文本标准化逻辑
+// ÓëÒôÀÖ´³¹Ø±£³ÖÒ»ÖÂµÄÎÄ±¾±ê×¼»¯Âß¼­
 const normalizeForCompare = (value: string) =>
   value
     .toLowerCase()
@@ -87,23 +87,22 @@ export const TypingLessonExperience = ({
   const englishPrompt = stage.promptEn || stage.answerEn || "Loading...";
   const translationText = (stage.promptCn || "").trim();
   const isDictationMode = variant === "dictation";
-  const displaySentence = isDictationMode ? translationText || "请根据语音提示默写英文句子" : englishPrompt;
+  const displaySentence = isDictationMode ? translationText || "Çë¸ù¾ÝÓïÒôÌáÊ¾Ä¬Ð´Ó¢ÎÄ¾ä×Ó" : englishPrompt;
   const wordSlots = useMemo(() => buildWordSlots(answerText), [answerText]);
 
   const [wordInputs, setWordInputs] = useState<string[]>([]);
   const [wordErrors, setWordErrors] = useState<Record<number, boolean>>({});
   const [feedback, setFeedback] = useState<{ type: "correct" | "incorrect" | null; message?: string }>({ type: null });
-  const [autoCheckLocked, setAutoCheckLocked] = useState(false);
 
   const prevHelpLevelRef = useRef(externalHelpLevel);
 
   const blockRefs = useRef<Array<HTMLInputElement | null>>([]);
   const successTimeoutRef = useRef<number | null>(null);
 
-  // 输入锁定：当答案正确时锁定输入（与音乐闯关保持一致）
+  // ÊäÈëËø¶¨£ºµ±´ð°¸ÕýÈ·Ê±Ëø¶¨ÊäÈë£¨ÓëÒôÀÖ´³¹Ø±£³ÖÒ»ÖÂ£©
   const isInputLocked = feedback.type === "correct";
 
-  // 聚焦函数
+  // ¾Û½¹º¯Êý
   const focusBlock = useCallback((index: number) => {
     if (index < 0 || index >= wordSlots.length) return;
     if (wordSlots[index]?.fillableLength === 0) return;
@@ -133,22 +132,21 @@ export const TypingLessonExperience = ({
     }
   }, [focusBlock, wordSlots]);
 
-  // 初始化wordInputs（依赖聚焦函数，因此放在其定义之后）
+  // ³õÊ¼»¯wordInputs£¨ÒÀÀµ¾Û½¹º¯Êý£¬Òò´Ë·ÅÔÚÆä¶¨ÒåÖ®ºó£©
   useEffect(() => {
     setWordInputs(wordSlots.map(() => ""));
     setWordErrors({});
     setFeedback({ type: null });
-    setAutoCheckLocked(false);
     blockRefs.current = [];
     speak(stage.answerEn, { rate: 0.95, preferredLocales: ["en-US", "en-GB"] });
 
-    // 自动聚焦第一个可输入框
+    // ×Ô¶¯¾Û½¹µÚÒ»¸ö¿ÉÊäÈë¿ò
     setTimeout(() => {
       focusFirstWritableBlock();
     }, 100);
   }, [stage, wordSlots, focusFirstWritableBlock, variant]);
 
-  // 键盘事件处理
+  // ¼üÅÌÊÂ¼þ´¦Àí
   const handleWordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
     if (e.key === "Enter" && !isInputLocked) {
       checkAnswer();
@@ -164,7 +162,7 @@ export const TypingLessonExperience = ({
     }
   };
 
-  // 单词输入变化处理
+  // µ¥´ÊÊäÈë±ä»¯´¦Àí
   const handleWordInputChange = (index: number, rawValue: string) => {
     const slot = wordSlots[index];
     if (!slot) return;
@@ -184,9 +182,8 @@ export const TypingLessonExperience = ({
       next[index] = sanitized;
       return next;
     });
-    setAutoCheckLocked(false);
 
-    // 清除错误状态
+    // Çå³ý´íÎó×´Ì¬
     if (wordErrors[index]) {
       setWordErrors(prev => {
         const next = { ...prev };
@@ -195,12 +192,12 @@ export const TypingLessonExperience = ({
       });
     }
 
-    // 清除反馈
+    // Çå³ý·´À¡
     if (feedback.type === "incorrect") {
       setFeedback({ type: null });
     }
 
-    // 如果填满了，自动移到下一个
+    // Èç¹ûÌîÂúÁË£¬×Ô¶¯ÒÆµ½ÏÂÒ»¸ö
     if (slot.fillableLength && sanitized.length >= slot.fillableLength) {
       const fullWord = sanitized.toLowerCase();
       const expected = slot.core.toLowerCase();
@@ -214,7 +211,7 @@ export const TypingLessonExperience = ({
     }
   };
 
-  // 检查答案
+  // ¼ì²é´ð°¸
   const checkAnswer = useCallback(() => {
     if (!answerText || !wordSlots.length || isInputLocked) return;
 
@@ -226,18 +223,15 @@ export const TypingLessonExperience = ({
 
     if (allCorrectOptions.includes(normalized)) {
       setFeedback({ type: "correct", message: "Perfect!" });
-      setAutoCheckLocked(false);
       playSuccessSound();
 
       successTimeoutRef.current = window.setTimeout(() => {
         setWordInputs(wordSlots.map(() => ""));
         setWordErrors({});
         setFeedback({ type: null });
-        setAutoCheckLocked(false);
         onSuccess();
       }, 1000);
     } else {
-      setAutoCheckLocked(true);
       setFeedback({ type: "incorrect", message: "Not quite. Listen again." });
       onMistake();
       playErrorSound();
@@ -245,30 +239,9 @@ export const TypingLessonExperience = ({
         setFeedback({ type: null });
       }, 360);
     }
-  }, [answerText, wordSlots, wordInputs, isInputLocked, stage.variants, onSuccess, onMistake]);
+  }, [answerText, wordSlots, wordInputs, isInputLocked, stage.variants, onSuccess, onMistake, playErrorSound, playSuccessSound]);
 
-  // 自动检查（当所有单词填满时）
-  useEffect(() => {
-    const requiredWordCount = wordSlots.filter(slot => slot.fillableLength > 0).length;
-    const completedWordCount = wordSlots.filter(
-      (slot, index) => slot.fillableLength === 0 || (wordInputs[index]?.length ?? 0) === slot.fillableLength
-    ).length;
-
-    if (
-      requiredWordCount > 0 &&
-      completedWordCount === requiredWordCount &&
-      !isInputLocked &&
-      !feedback.type &&
-      !autoCheckLocked
-    ) {
-      const timer = setTimeout(() => {
-        checkAnswer();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [wordInputs, wordSlots, isInputLocked, feedback.type, autoCheckLocked, checkAnswer]);
-
-  // 全局键盘事件
+  // È«¾Ö¼üÅÌÊÂ¼þ
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey && event.code === "Space") {
@@ -305,9 +278,9 @@ export const TypingLessonExperience = ({
   const showHintLetters = isDictationMode && externalHelpLevel >= 1;
   const showAnswerReveal = isDictationMode && externalHelpLevel >= 2;
 
-  // 计算单词数量，分成两行，第二行比第一行长
+  // ¼ÆËãµ¥´ÊÊýÁ¿£¬·Ö³ÉÁ½ÐÐ£¬µÚ¶þÐÐ±ÈµÚÒ»ÐÐ³¤
   const totalSlots = wordSlots.length;
-  // 第一行约占总数的40%，第二行约60%，确保第二行更长
+  // µÚÒ»ÐÐÔ¼Õ¼×ÜÊýµÄ40%£¬µÚ¶þÐÐÔ¼60%£¬È·±£µÚ¶þÐÐ¸ü³¤
   const firstLineCount = Math.max(1, Math.floor(totalSlots * 0.4));
   const firstLineSlots = wordSlots.slice(0, firstLineCount);
   const secondLineSlots = wordSlots.slice(firstLineCount);
@@ -320,7 +293,7 @@ export const TypingLessonExperience = ({
           <div className="text-center">
             {!isDictationMode && (
               <div className="inline-flex items-center gap-2 rounded-full bg-orange-50 dark:bg-orange-900/30 px-4 py-1.5 text-xs font-bold text-orange-500 dark:text-orange-400 uppercase tracking-wider ring-1 ring-orange-100 dark:ring-orange-800 mb-6">
-                英文句子
+                Ó¢ÎÄ¾ä×Ó
               </div>
             )}
 
@@ -519,7 +492,7 @@ export const TypingLessonExperience = ({
             }}
             disabled={isSubmitDisabled}
           >
-            <span>提交答案</span>
+            <span>Ìá½»´ð°¸</span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </button>
 
@@ -528,7 +501,7 @@ export const TypingLessonExperience = ({
           <button
             type="button"
             className="p-2.5 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-all active:scale-95"
-            title="重播提示 (Ctrl + Space)"
+            title="ÖØ²¥ÌáÊ¾ (Ctrl + Space)"
             onClick={() => {
               playClickSound();
               speak(stage.answerEn, { rate: 0.95, preferredLocales: ["en-US", "en-GB"] });
@@ -540,13 +513,12 @@ export const TypingLessonExperience = ({
           <button
             type="button"
             className="p-2.5 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:text-rose-500 dark:hover:text-rose-400 transition-all active:scale-95"
-            title="清空"
+            title="Çå¿Õ"
             onClick={() => {
               playClickSound();
               setWordInputs(wordSlots.map(() => ""));
               setWordErrors({});
               setFeedback({ type: null });
-              setAutoCheckLocked(false);
               focusFirstWritableBlock();
             }}
           >
@@ -557,3 +529,4 @@ export const TypingLessonExperience = ({
     </div>
   );
 };
+

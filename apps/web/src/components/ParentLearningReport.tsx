@@ -8,8 +8,6 @@ import {
     ChevronRight,
     Calendar,
     TrendingUp,
-    CheckCircle2,
-    Circle,
     Clock
 } from "lucide-react";
 
@@ -22,7 +20,7 @@ export const ParentLearningReport: React.FC = () => {
         queryFn: () => fetchPublishedCourses()
     });
 
-    const courses = coursesData?.courses ?? [];
+    const courses = useMemo(() => coursesData?.courses ?? [], [coursesData]);
 
     // 计算本周数据
     const weeklyData = useMemo(() => {

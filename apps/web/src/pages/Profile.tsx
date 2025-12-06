@@ -1,15 +1,13 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useTheme } from "../contexts/ThemeContext";
 import { useSoundEffect } from "../contexts/SoundEffectContext";
-import { speak, useVoices } from "../hooks/useTTS";
+import { speak, useVoices, VOICE_KEY } from "../hooks/useTTS";
 import {
   User, KeyRound, Save, Camera, Sun, Moon, Palette, Volume2,
-  Check, Sparkles, Shield, Headphones, AlertCircle, Mail, Smartphone
+  Check, Shield, Headphones, AlertCircle
 } from "lucide-react";
 import classNames from "classnames";
-
-const VOICE_KEY = "judada:voice";
 
 export const Profile: React.FC = () => {
   const { user, updateProfile, setPasswordForEmail } = useAuth();
@@ -35,10 +33,6 @@ export const Profile: React.FC = () => {
   const previewVoice = () => {
     const voice = voices.find(item => item.voiceURI === voiceUri);
     speak("Hello, let's practice English together!", { voice });
-  };
-
-  const previewSound = () => {
-    playClickSound();
   };
 
   const handleSaveProfile = async () => {
@@ -367,3 +361,4 @@ export const Profile: React.FC = () => {
     </div>
   );
 };
+

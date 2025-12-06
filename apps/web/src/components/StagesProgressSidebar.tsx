@@ -111,20 +111,7 @@ export const StagesProgressSidebar: React.FC<StagesProgressSidebarProps> = ({
 
     const currentStage = stages[currentIndex];
     const currentUnitKey = buildUnitKey(currentStage);
-    const unitStages = useMemo(() => {
-        if (!currentStage) return stages;
-        return stages.filter(stage => buildUnitKey(stage) === currentUnitKey);
-    }, [stages, currentUnitKey, currentStage]);
-    const unitStageIndex = useMemo(() => {
-        if (!currentStage) return currentIndex;
-        const idx = unitStages.findIndex(stage => stage.id === currentStage.id);
-        return idx >= 0 ? idx : currentIndex;
-    }, [unitStages, currentStage, currentIndex]);
-
     const displayGroups = currentStage ? pageGroups.filter(group => group.unitKey === currentUnitKey) : pageGroups;
-    const progressLabel = unitStages.length
-        ? `${Math.max(1, unitStageIndex + 1)} / ${unitStages.length}`
-        : `${currentIndex + 1} / ${stages.length}`;
 
     return (
         <div className={classNames("flex flex-col h-full bg-white/40 dark:bg-slate-800/40 backdrop-blur-sm border-r border-white/60 dark:border-slate-700/60", className)}>

@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BookOpen, Users, Target, Star, Mail, LockKeyhole, ArrowRight, Smile } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
@@ -84,7 +84,7 @@ export const LoginPage: React.FC = () => {
             <h1 className="text-5xl lg:text-7xl font-black tracking-tight text-slate-800 leading-[1.1]">
               Hello! <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-pink-500">
-                Jude English
+                毛豆英语
               </span>
             </h1>
             <p className="text-xl text-slate-500 max-w-lg mx-auto lg:mx-0 leading-relaxed font-medium">

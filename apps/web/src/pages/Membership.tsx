@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { useAuth } from "../hooks/useAuth";
-import { Crown, Check, Sparkles, Zap, Infinity, Gift, QrCode, X, Loader2, Shield, Star } from "lucide-react";
+import { Crown, Check, Zap, Infinity, Gift, QrCode, X, Shield, Star } from "lucide-react";
 import classNames from "classnames";
 
 type MembershipTier = 'free' | 'lifetime';
@@ -58,7 +57,6 @@ const plans: MembershipPlan[] = [
 ];
 
 export const Membership: React.FC = () => {
-  const { user } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<MembershipTier | null>(null);
   const [showQRCode, setShowQRCode] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'pending' | 'success'>('idle');

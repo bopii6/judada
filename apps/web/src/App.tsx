@@ -45,7 +45,7 @@ const App = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#FFFBF5] dark:bg-slate-900">
-        <LoadingSpinner text="正在唤醒小熊老师..." />
+        <LoadingSpinner text="毛豆老师正在为你准备课程..." />
       </div>
     );
   }

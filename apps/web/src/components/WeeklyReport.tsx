@@ -22,7 +22,7 @@ export const WeeklyReport: React.FC = () => {
         queryFn: () => fetchPublishedCourses()
     });
 
-    const courses = coursesData?.courses ?? [];
+    const courses = useMemo(() => coursesData?.courses ?? [], [coursesData]);
 
     // 计算本周和上周的统计数据
     const weeklyStats = useMemo(() => {
