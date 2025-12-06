@@ -29,12 +29,19 @@ const LoaderIcon = ({ variant }: { variant: SpinnerVariant }) => {
         <div className="absolute inset-0 rounded-full border-4 border-dashed border-orange-300/40 dark:border-orange-400/30 animate-maodou-spin" />
       </div>
 
-      {/* Logo - 可爱透明版本 */}
-      <img
-        src="/icons/maodou-cute.png"
-        alt="Maodou English"
-        className={`${imageSize} select-none animate-maodou-float drop-shadow-2xl relative z-10`}
-      />
+      {/* Logo容器 - 隐藏白色背景 */}
+      <div className={`${imageSize} relative z-10 rounded-full overflow-hidden`}>
+        {/* Logo - 使用原版Logo并通过滤镜去白底 */}
+        <img
+          src="/icons/maodou-logo-final.png"
+          alt="Maodou English"
+          className="w-full h-full object-contain select-none animate-maodou-float drop-shadow-2xl"
+          style={{
+            filter: 'brightness(1.1) contrast(1.05)',
+            mixBlendMode: 'darken'
+          }}
+        />
+      </div>
 
       {/* 底部阴影 */}
       <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-20 h-4 bg-slate-900/10 dark:bg-slate-100/10 rounded-full blur-md animate-maodou-pulse" />
