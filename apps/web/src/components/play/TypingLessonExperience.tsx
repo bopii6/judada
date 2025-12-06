@@ -27,7 +27,37 @@ interface WordSlot {
 // Only allow letters and digits for user input - symbols are auto-inserted
 const sanitizeLetters = (value: string) => value.replace(/[^A-Za-z0-9]/g, "");
 
-// Insert symbols (apostrophes, colons) at correct positions based on the expected core
+const buildWordSlots = (text: string): WordSlot[] => {
+  if (!text.trim()) return [];
+
+  const tokens = text.split(/\s+/).filter(Boolean);
+  const slots: WordSlot[] = tokens.map((token, index) => {
+    // Extract trailing punctuation (. , ! ? ;) as suffix - sentence-end punctuation
+    // But keep internal symbols (apostrophes, colons, decimal points) in core
+    let core = token;
+    let suffix = "";
+
+    // Check for trailing punctuation
+    const trailingMatch = token.match(/^(.+?)([.,!?;]+)$/);
+    if (trailingMatch) {
+      core = trailingMatch[1];
+      suffix = trailingMatch[2];
+    }
+
+    return {
+      id: `${index}-${token}`,
+      core,              // e.g. "It's" or "1.6" - includes apostrophes, colons, decimal points
+      suffix,            // e.g. "." at sentence end (user doesn't type this)
+      length: core.length,
+      prefill: "",
+      fillableLength: core.length
+    };
+  });
+
+  return slots;
+};
+
+// Insert symbols (apostrophes, colons, decimal points) at correct positions
 const autoInsertSymbols = (input: string, core: string): string => {
   let result = "";
   let inputIndex = 0;
@@ -58,7 +88,6 @@ const assembleWordInputs = (slots: WordSlot[], inputs: string[]): string =>
       if (!slot.fillableLength) return slot.core;
       const typedPart = (inputs[index] ?? "").trim();
       if (!typedPart) return "";
-      // Input already has symbols auto-inserted
       return slot.suffix ? `${typedPart}${slot.suffix}` : typedPart;
     })
     .filter(Boolean)
@@ -164,7 +193,7 @@ export const TypingLessonExperience = ({
     if (slot.fillableLength === 0) return;
     if (isInputLocked) return;
 
-    // Extract only letters and digits from raw input (user types letters only)
+    // Extract only letters and digits from raw input
     const lettersOnly = sanitizeLetters(rawValue).toLowerCase();
 
     // Count how many letters/digits the expected word has
@@ -199,7 +228,7 @@ export const TypingLessonExperience = ({
       setFeedback({ type: null });
     }
 
-    // Check if word is complete (all letters filled)
+    // Check if word is complete
     if (trimmedLetters.length >= maxLetters) {
       const expected = slot.core.toLowerCase();
 
@@ -299,7 +328,7 @@ export const TypingLessonExperience = ({
           )}
         </div>
 
-        {/* Word Slots - Natural Flow */}
+        {/* Word Slots */}
         <div className="w-full flex flex-wrap items-baseline justify-center gap-x-3 gap-y-4 leading-loose mb-8">
           {wordSlots.map((slot, index) => {
             const slotWidthCh = getSlotWidthCh(slot);
@@ -313,7 +342,6 @@ export const TypingLessonExperience = ({
                   </span>
                 ) : (
                   <div className="relative inline-flex items-baseline">
-                    {/* Hint Letter */}
                     {!wordInputs[index] && showHintLetters && (
                       <span className="absolute left-1/2 -translate-x-1/2 -bottom-4 text-[10px] font-medium text-amber-400/70 tracking-wider pointer-events-none">
                         {slot.core.charAt(0).toUpperCase()}
