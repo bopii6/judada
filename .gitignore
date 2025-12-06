@@ -11,3 +11,4 @@ build/
 .turbo/**
 .DS_Store
 .vscode/
+apps/server/data/
