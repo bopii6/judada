@@ -24,55 +24,57 @@ interface WordSlot {
   fillableLength: number;
 }
 
-const sanitizeLetters = (value: string) => value.replace(/[^A-Za-z0-9']/g, "");
+// Only allow letters and digits for user input - symbols are auto-inserted
+const sanitizeLetters = (value: string) => value.replace(/[^A-Za-z0-9]/g, "");
 
-const buildWordSlots = (text: string): WordSlot[] => {
-  if (!text.trim()) return [];
+// Insert symbols (apostrophes, colons) at correct positions based on the expected core
+const autoInsertSymbols = (input: string, core: string): string => {
+  let result = "";
+  let inputIndex = 0;
 
-  const tokens = text.split(/\s+/).filter(Boolean);
-  const slots: WordSlot[] = tokens.map((token, index) => {
-    const match = token.match(/^([A-Za-z0-9']+)([^A-Za-z0-9']*)$/);
-    const core = match ? match[1] : token;
-    const suffix = match ? match[2] : "";
+  for (let i = 0; i < core.length && inputIndex <= input.length; i++) {
+    const coreChar = core[i];
+    // If this position in core is a symbol (apostrophe, colon, or decimal point)
+    if (coreChar === "'" || coreChar === ":" || coreChar === ".") {
+      result += coreChar;  // Auto-insert the symbol
+    } else {
+      // Take the next character from user input
+      if (inputIndex < input.length) {
+        result += input[inputIndex];
+      }
+      inputIndex++;
+    }
+  }
 
-    return {
-      id: `${index}-${token}`,
-      core,
-      suffix,
-      length: core.length,
-      prefill: "",
-      fillableLength: core.length
-    };
-  });
-
-  return slots;
+  return result;
 };
+
+// Extract only letters/digits from a string (for counting and comparison)
+const extractLettersDigits = (str: string): string => str.replace(/[^A-Za-z0-9]/g, "");
 
 const assembleWordInputs = (slots: WordSlot[], inputs: string[]): string =>
   slots
     .map((slot, index) => {
-      if (!slot.length) return slot.core;
+      if (!slot.fillableLength) return slot.core;
       const typedPart = (inputs[index] ?? "").trim();
-      const combined = typedPart;
-      if (!combined.trim()) return "";
-      return slot.suffix ? `${combined}${slot.suffix}` : combined;
+      if (!typedPart) return "";
+      // Input already has symbols auto-inserted
+      return slot.suffix ? `${typedPart}${slot.suffix}` : typedPart;
     })
     .filter(Boolean)
     .join(" ");
 
-// ÓëÒôÀÖ´³¹Ø±£³ÖÒ»ÖÂµÄÎÄ±¾±ê×¼»¯Âß¼­
 const normalizeForCompare = (value: string) =>
   value
     .toLowerCase()
     .normalize("NFKD")
-    .replace(/['"`""'']/g, "")
-    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/[""'']/g, "'")
     .replace(/\s+/g, " ")
     .trim();
 
 const getSlotWidthCh = (slot: WordSlot) => {
   const base = slot.fillableLength || slot.length || 1;
-  return Math.min(Math.max(base, 2.5), 8);
+  return Math.min(Math.max(base, 2.5), 10);
 };
 
 export const TypingLessonExperience = ({
@@ -87,7 +89,7 @@ export const TypingLessonExperience = ({
   const englishPrompt = stage.promptEn || stage.answerEn || "Loading...";
   const translationText = (stage.promptCn || "").trim();
   const isDictationMode = variant === "dictation";
-  const displaySentence = isDictationMode ? translationText || "Çë¸ù¾ÝÓïÒôÌáÊ¾Ä¬Ð´Ó¢ÎÄ¾ä×Ó" : englishPrompt;
+  const displaySentence = isDictationMode ? translationText || "请根据语音提示默写英文句子" : englishPrompt;
   const wordSlots = useMemo(() => buildWordSlots(answerText), [answerText]);
 
   const [wordInputs, setWordInputs] = useState<string[]>([]);
@@ -95,14 +97,11 @@ export const TypingLessonExperience = ({
   const [feedback, setFeedback] = useState<{ type: "correct" | "incorrect" | null; message?: string }>({ type: null });
 
   const prevHelpLevelRef = useRef(externalHelpLevel);
-
   const blockRefs = useRef<Array<HTMLInputElement | null>>([]);
   const successTimeoutRef = useRef<number | null>(null);
 
-  // ÊäÈëËø¶¨£ºµ±´ð°¸ÕýÈ·Ê±Ëø¶¨ÊäÈë£¨ÓëÒôÀÖ´³¹Ø±£³ÖÒ»ÖÂ£©
   const isInputLocked = feedback.type === "correct";
 
-  // ¾Û½¹º¯Êý
   const focusBlock = useCallback((index: number) => {
     if (index < 0 || index >= wordSlots.length) return;
     if (wordSlots[index]?.fillableLength === 0) return;
@@ -132,21 +131,18 @@ export const TypingLessonExperience = ({
     }
   }, [focusBlock, wordSlots]);
 
-  // ³õÊ¼»¯wordInputs£¨ÒÀÀµ¾Û½¹º¯Êý£¬Òò´Ë·ÅÔÚÆä¶¨ÒåÖ®ºó£©
   useEffect(() => {
     setWordInputs(wordSlots.map(() => ""));
     setWordErrors({});
     setFeedback({ type: null });
     blockRefs.current = [];
-    speak(stage.answerEn, { rate: 0.95, preferredLocales: ["en-US", "en-GB"] });
+    speak(stage.answerEn, { rate: 0.75, preferredLocales: ["en-US", "en-GB"] });
 
-    // ×Ô¶¯¾Û½¹µÚÒ»¸ö¿ÉÊäÈë¿ò
     setTimeout(() => {
       focusFirstWritableBlock();
     }, 100);
   }, [stage, wordSlots, focusFirstWritableBlock, variant]);
 
-  // ¼üÅÌÊÂ¼þ´¦Àí
   const handleWordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
     if (e.key === "Enter" && !isInputLocked) {
       checkAnswer();
@@ -162,28 +158,35 @@ export const TypingLessonExperience = ({
     }
   };
 
-  // µ¥´ÊÊäÈë±ä»¯´¦Àí
   const handleWordInputChange = (index: number, rawValue: string) => {
     const slot = wordSlots[index];
     if (!slot) return;
     if (slot.fillableLength === 0) return;
     if (isInputLocked) return;
 
-    const sanitized = sanitizeLetters(rawValue)
-      .slice(0, slot.fillableLength || undefined)
-      .toLowerCase();
+    // Extract only letters and digits from raw input (user types letters only)
+    const lettersOnly = sanitizeLetters(rawValue).toLowerCase();
 
-    if (sanitized !== wordInputs[index]) {
+    // Count how many letters/digits the expected word has
+    const expectedLetters = extractLettersDigits(slot.core);
+    const maxLetters = expectedLetters.length;
+
+    // Limit to max letters needed
+    const trimmedLetters = lettersOnly.slice(0, maxLetters);
+
+    // Auto-insert symbols at correct positions
+    const withSymbols = autoInsertSymbols(trimmedLetters, slot.core);
+
+    if (withSymbols !== wordInputs[index]) {
       playClickSound();
     }
 
     setWordInputs(prev => {
       const next = [...prev];
-      next[index] = sanitized;
+      next[index] = withSymbols;
       return next;
     });
 
-    // Çå³ý´íÎó×´Ì¬
     if (wordErrors[index]) {
       setWordErrors(prev => {
         const next = { ...prev };
@@ -192,17 +195,15 @@ export const TypingLessonExperience = ({
       });
     }
 
-    // Çå³ý·´À¡
     if (feedback.type === "incorrect") {
       setFeedback({ type: null });
     }
 
-    // Èç¹ûÌîÂúÁË£¬×Ô¶¯ÒÆµ½ÏÂÒ»¸ö
-    if (slot.fillableLength && sanitized.length >= slot.fillableLength) {
-      const fullWord = sanitized.toLowerCase();
+    // Check if word is complete (all letters filled)
+    if (trimmedLetters.length >= maxLetters) {
       const expected = slot.core.toLowerCase();
 
-      if (fullWord !== expected) {
+      if (withSymbols.toLowerCase() !== expected) {
         playErrorSound();
         setWordErrors(prev => ({ ...prev, [index]: true }));
       } else {
@@ -211,7 +212,6 @@ export const TypingLessonExperience = ({
     }
   };
 
-  // ¼ì²é´ð°¸
   const checkAnswer = useCallback(() => {
     if (!answerText || !wordSlots.length || isInputLocked) return;
 
@@ -232,7 +232,7 @@ export const TypingLessonExperience = ({
         onSuccess();
       }, 1000);
     } else {
-      setFeedback({ type: "incorrect", message: "Not quite. Listen again." });
+      setFeedback({ type: "incorrect", message: "Not quite. Try again." });
       onMistake();
       playErrorSound();
       window.setTimeout(() => {
@@ -241,12 +241,11 @@ export const TypingLessonExperience = ({
     }
   }, [answerText, wordSlots, wordInputs, isInputLocked, stage.variants, onSuccess, onMistake, playErrorSound, playSuccessSound]);
 
-  // È«¾Ö¼üÅÌÊÂ¼þ
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey && event.code === "Space") {
         event.preventDefault();
-        speak(stage.answerEn, { rate: 0.95, preferredLocales: ["en-US", "en-GB"] });
+        speak(stage.answerEn, { rate: 0.75, preferredLocales: ["en-US", "en-GB"] });
       }
     };
 
@@ -265,262 +264,136 @@ export const TypingLessonExperience = ({
       return;
     }
     if (externalHelpLevel > prevHelpLevelRef.current) {
-      speak(stage.answerEn, { rate: 0.9, preferredLocales: ["en-US", "en-GB"] });
+      speak(stage.answerEn, { rate: 0.7, preferredLocales: ["en-US", "en-GB"] });
     }
     prevHelpLevelRef.current = externalHelpLevel;
   }, [externalHelpLevel, isDictationMode, stage.answerEn]);
 
   const requiredWordCount = wordSlots.filter(slot => slot.fillableLength > 0).length;
   const completedWordCount = wordSlots.filter(
-    (slot, index) => slot.fillableLength === 0 || (wordInputs[index]?.length ?? 0) === slot.fillableLength
+    (slot, index) => {
+      if (slot.fillableLength === 0) return true;
+      const expectedLetters = extractLettersDigits(slot.core).length;
+      const inputLetters = extractLettersDigits(wordInputs[index] ?? "").length;
+      return inputLetters >= expectedLetters;
+    }
   ).length;
   const isSubmitDisabled = isInputLocked || !requiredWordCount || completedWordCount !== requiredWordCount;
   const showHintLetters = isDictationMode && externalHelpLevel >= 1;
   const showAnswerReveal = isDictationMode && externalHelpLevel >= 2;
 
-  // ¼ÆËãµ¥´ÊÊýÁ¿£¬·Ö³ÉÁ½ÐÐ£¬µÚ¶þÐÐ±ÈµÚÒ»ÐÐ³¤
-  const totalSlots = wordSlots.length;
-  // µÚÒ»ÐÐÔ¼Õ¼×ÜÊýµÄ40%£¬µÚ¶þÐÐÔ¼60%£¬È·±£µÚ¶þÐÐ¸ü³¤
-  const firstLineCount = Math.max(1, Math.floor(totalSlots * 0.4));
-  const firstLineSlots = wordSlots.slice(0, firstLineCount);
-  const secondLineSlots = wordSlots.slice(firstLineCount);
-
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-6">
-      <div className="flex flex-col items-center justify-center w-full max-w-4xl">
-        {/* Title Section */}
-        <div className="w-full mb-10">
-          <div className="text-center">
-            {!isDictationMode && (
-              <div className="inline-flex items-center gap-2 rounded-full bg-orange-50 dark:bg-orange-900/30 px-4 py-1.5 text-xs font-bold text-orange-500 dark:text-orange-400 uppercase tracking-wider ring-1 ring-orange-100 dark:ring-orange-800 mb-6">
-                Ó¢ÎÄ¾ä×Ó
-              </div>
-            )}
+    <div className="flex h-full w-full flex-col items-center justify-center">
+      <div className="flex flex-col items-center w-full max-w-2xl px-6">
 
-            <h3 className="text-3xl sm:text-4xl font-black text-slate-800 dark:text-slate-100 leading-tight tracking-tight drop-shadow-sm max-w-3xl mx-auto">
-              {displaySentence}
-            </h3>
-          </div>
+        {/* Sentence Display */}
+        <div className="text-center mb-8">
+          <h3 className="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-slate-100 leading-relaxed">
+            {displaySentence}
+          </h3>
+          {!isDictationMode && translationText && (
+            <p className="text-base text-slate-400 dark:text-slate-500 mt-3">{translationText}</p>
+          )}
+          {showAnswerReveal && (
+            <p className="text-base text-amber-600 dark:text-amber-400 mt-3 font-medium">{englishPrompt}</p>
+          )}
         </div>
 
-        {/* Translation Section - First Red Box Area */}
-        <div className="w-full mb-14 min-h-[60px] flex items-center justify-center">
-          <div className="text-center">
-            {!isDictationMode && translationText && (
-              <p className="text-lg text-slate-500 dark:text-slate-400 font-medium max-w-2xl mx-auto leading-relaxed">{translationText}</p>
-            )}
+        {/* Word Slots - Natural Flow */}
+        <div className="w-full flex flex-wrap items-baseline justify-center gap-x-3 gap-y-4 leading-loose mb-8">
+          {wordSlots.map((slot, index) => {
+            const slotWidthCh = getSlotWidthCh(slot);
+            const isLockedSlot = slot.fillableLength === 0;
 
-            {showAnswerReveal && (
-              <div className="px-6 py-4 rounded-2xl bg-amber-50 dark:bg-amber-900/30 border border-amber-100 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-base font-bold shadow-sm text-center max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-2">
-                {englishPrompt}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Word Slots Input Area - Second Red Box Area (Two Rows) */}
-        <div className="w-full mb-20">
-          <div className="flex flex-col items-center justify-center gap-y-6">
-            {/* First Row */}
-            <div className="flex flex-wrap items-baseline justify-center gap-x-1.5 leading-relaxed max-w-3xl">
-              {firstLineSlots.map((slot, index) => {
-                const slotWidthCh = getSlotWidthCh(slot);
-                const isLockedSlot = slot.fillableLength === 0;
-                return (
-                  <div key={slot.id} className="inline-flex items-baseline">
-                    <div
-                      className={classNames(
-                        "relative inline-flex items-center justify-center transition-all duration-200",
-                        isLockedSlot
-                          ? "px-1"
-                          : "px-2"
-                      )}
-                    >
-                      {isLockedSlot ? (
-                        <span className="text-3xl sm:text-4xl font-bold text-slate-700 dark:text-slate-200 select-none">{slot.core}</span>
-                      ) : (
-                        <>
-                          {!wordInputs[index] && (slot.prefill || (showHintLetters && slot.fillableLength > 0)) && (
-                            <span
-                              className={classNames(
-                                "absolute left-1/2 -translate-x-1/2 bottom-1 text-xs font-medium tracking-[0.15em] pointer-events-none transition-opacity",
-                                showHintLetters ? "text-amber-400/80 dark:text-amber-500/80" : "text-slate-300/60 dark:text-slate-600/60"
-                              )}
-                            >
-                              {(slot.prefill || slot.core).toUpperCase()}
-                            </span>
-                          )}
-
-                          <input
-                            ref={element => {
-                              blockRefs.current[index] = element;
-                            }}
-                            value={wordInputs[index] ?? ""}
-                            onChange={event => handleWordInputChange(index, event.target.value)}
-                            onKeyDown={(e) => handleWordKeyDown(e, index)}
-                            maxLength={slot.fillableLength || undefined}
-                            disabled={isInputLocked}
-                            style={{ width: `${slotWidthCh}ch` }}
-                            className={classNames(
-                              "bg-transparent text-3xl sm:text-4xl font-bold tracking-wide text-center outline-none transition-all relative z-10 font-mono pb-1",
-                              wordErrors[index]
-                                ? "text-rose-500 dark:text-rose-400 border-b-2 border-rose-400 dark:border-rose-500 lesson-animate-shake"
-                                : wordInputs[index]
-                                  ? "text-slate-800 dark:text-slate-100 border-b-2 border-orange-400 dark:border-orange-500"
-                                  : "text-slate-800 dark:text-slate-100 border-b-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-orange-300 dark:hover:border-orange-500 focus:border-solid focus:border-orange-500 dark:focus:border-orange-400",
-                              "placeholder-transparent"
-                            )}
-                            autoComplete="off"
-                            autoCorrect="off"
-                            spellCheck="false"
-                          />
-
-                          {slot.suffix && (
-                            <span className="ml-0.5 text-3xl sm:text-4xl font-bold text-slate-700 dark:text-slate-200 select-none">
-                              {slot.suffix}
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Second Row */}
-            {secondLineSlots.length > 0 && (
-              <div className="flex flex-wrap items-baseline justify-center gap-x-1.5 leading-relaxed max-w-3xl">
-                {secondLineSlots.map((slot, originalIndex) => {
-                  const index = firstLineCount + originalIndex;
-                  const slotWidthCh = getSlotWidthCh(slot);
-                  const isLockedSlot = slot.fillableLength === 0;
-                  return (
-                    <div key={slot.id} className="inline-flex items-baseline">
-                      <div
-                        className={classNames(
-                          "relative inline-flex items-center justify-center transition-all duration-200",
-                          isLockedSlot
-                            ? "px-1"
-                            : "px-2"
-                        )}
-                      >
-                        {isLockedSlot ? (
-                          <span className="text-3xl sm:text-4xl font-bold text-slate-700 dark:text-slate-200 select-none">{slot.core}</span>
-                        ) : (
-                          <>
-                            {!wordInputs[index] && (slot.prefill || (showHintLetters && slot.fillableLength > 0)) && (
-                              <span
-                                className={classNames(
-                                  "absolute left-1/2 -translate-x-1/2 bottom-1 text-xs font-medium tracking-[0.15em] pointer-events-none transition-opacity",
-                                  showHintLetters ? "text-amber-400/80 dark:text-amber-500/80" : "text-slate-300/60 dark:text-slate-600/60"
-                                )}
-                              >
-                                {(slot.prefill || slot.core).toUpperCase()}
-                              </span>
-                            )}
-
-                            <input
-                              ref={element => {
-                                blockRefs.current[index] = element;
-                              }}
-                              value={wordInputs[index] ?? ""}
-                              onChange={event => handleWordInputChange(index, event.target.value)}
-                              onKeyDown={(e) => handleWordKeyDown(e, index)}
-                              maxLength={slot.fillableLength || undefined}
-                              disabled={isInputLocked}
-                              style={{ width: `${slotWidthCh}ch` }}
-                              className={classNames(
-                                "bg-transparent text-3xl sm:text-4xl font-bold tracking-wide text-center outline-none transition-all relative z-10 font-mono pb-1",
-                                wordErrors[index]
-                                  ? "text-rose-500 dark:text-rose-400 border-b-2 border-rose-400 dark:border-rose-500 lesson-animate-shake"
-                                  : wordInputs[index]
-                                    ? "text-slate-800 dark:text-slate-100 border-b-2 border-orange-400 dark:border-orange-500"
-                                    : "text-slate-800 dark:text-slate-100 border-b-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-orange-300 dark:hover:border-orange-500 focus:border-solid focus:border-orange-500 dark:focus:border-orange-400",
-                                "placeholder-transparent"
-                              )}
-                              autoComplete="off"
-                              autoCorrect="off"
-                              spellCheck="false"
-                            />
-
-                            {slot.suffix && (
-                              <span className="ml-0.5 text-3xl sm:text-4xl font-bold text-slate-700 dark:text-slate-200 select-none">
-                                {slot.suffix}
-                              </span>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Feedback Message */}
-          <div className="h-12 mt-8 flex items-center justify-center">
-            {feedback.type && (
-              <div
-                className={classNames(
-                  "flex items-center gap-3 px-6 py-3 rounded-2xl text-base font-bold shadow-xl border animate-in fade-in zoom-in duration-300",
-                  feedback.type === "correct"
-                    ? "bg-emerald-500 dark:bg-emerald-600 text-white border-emerald-600 dark:border-emerald-500 shadow-emerald-500/30"
-                    : "bg-white dark:bg-slate-800 text-rose-500 dark:text-rose-400 border-rose-100 dark:border-rose-800 shadow-rose-200 dark:shadow-rose-900/30"
-                )}
-              >
-                {feedback.type === "correct" ? (
-                  <CheckCircle2 className="w-6 h-6" />
+            return (
+              <div key={slot.id} className="inline-flex items-baseline">
+                {isLockedSlot ? (
+                  <span className="text-2xl sm:text-3xl font-semibold text-slate-600 dark:text-slate-300 select-none px-0.5">
+                    {slot.core}
+                  </span>
                 ) : (
-                  <XCircle className="w-6 h-6" />
+                  <div className="relative inline-flex items-baseline">
+                    {/* Hint Letter */}
+                    {!wordInputs[index] && showHintLetters && (
+                      <span className="absolute left-1/2 -translate-x-1/2 -bottom-4 text-[10px] font-medium text-amber-400/70 tracking-wider pointer-events-none">
+                        {slot.core.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+
+                    <input
+                      ref={el => { blockRefs.current[index] = el; }}
+                      value={wordInputs[index] ?? ""}
+                      onChange={e => handleWordInputChange(index, e.target.value)}
+                      onKeyDown={e => handleWordKeyDown(e, index)}
+                      maxLength={slot.fillableLength || undefined}
+                      disabled={isInputLocked}
+                      style={{ width: `${slotWidthCh + 0.5}ch` }}
+                      className={classNames(
+                        "bg-transparent text-2xl sm:text-3xl font-semibold text-center outline-none transition-colors font-mono",
+                        wordErrors[index]
+                          ? "text-rose-500 border-b border-rose-400 lesson-animate-shake"
+                          : wordInputs[index]
+                            ? "text-slate-800 dark:text-slate-100 border-b border-orange-400"
+                            : "text-slate-800 dark:text-slate-100 border-b border-dashed border-slate-300 dark:border-slate-600 focus:border-orange-400 focus:border-solid"
+                      )}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck="false"
+                    />
+
+                    {slot.suffix && (
+                      <span className="text-2xl sm:text-3xl font-semibold text-slate-600 dark:text-slate-300 select-none">
+                        {slot.suffix}
+                      </span>
+                    )}
+                  </div>
                 )}
-                {feedback.message}
               </div>
-            )}
-          </div>
+            );
+          })}
         </div>
 
-        {/* Bottom Action Bar - Third Red Box Area */}
-        <div className="flex items-center gap-3 w-full justify-center pt-10">
+        {/* Feedback */}
+        <div className="h-10 flex items-center justify-center mb-4">
+          {feedback.type && (
+            <div className={classNames(
+              "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold animate-in fade-in zoom-in duration-200",
+              feedback.type === "correct"
+                ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
+                : "bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400"
+            )}>
+              {feedback.type === "correct" ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+              {feedback.message}
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            className="group flex items-center gap-2 rounded-xl bg-slate-900 dark:bg-slate-700 px-5 py-2.5 text-white dark:text-slate-100 text-sm font-semibold shadow-lg shadow-slate-900/20 dark:shadow-slate-900/40 hover:bg-slate-800 dark:hover:bg-slate-600 hover:scale-[1.02] transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-none"
-            onClick={() => {
-              playClickSound();
-              checkAnswer();
-            }}
+            className="flex items-center gap-2 rounded-full bg-slate-900 dark:bg-slate-100 px-6 py-2.5 text-white dark:text-slate-900 text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-40"
+            onClick={() => { playClickSound(); checkAnswer(); }}
             disabled={isSubmitDisabled}
           >
-            <span>Ìá½»´ð°¸</span>
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            提交
+            <ArrowRight className="w-4 h-4" />
           </button>
-
-          <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 mx-2"></div>
 
           <button
             type="button"
-            className="p-2.5 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-all active:scale-95"
-            title="ÖØ²¥ÌáÊ¾ (Ctrl + Space)"
-            onClick={() => {
-              playClickSound();
-              speak(stage.answerEn, { rate: 0.95, preferredLocales: ["en-US", "en-GB"] });
-            }}
+            className="p-2.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            onClick={() => { playClickSound(); speak(stage.answerEn, { rate: 0.75, preferredLocales: ["en-US", "en-GB"] }); }}
+            title="再听一遍"
           >
             <Volume2 className="w-4 h-4" />
           </button>
 
           <button
             type="button"
-            className="p-2.5 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:text-rose-500 dark:hover:text-rose-400 transition-all active:scale-95"
-            title="Çå¿Õ"
-            onClick={() => {
-              playClickSound();
-              setWordInputs(wordSlots.map(() => ""));
-              setWordErrors({});
-              setFeedback({ type: null });
-              focusFirstWritableBlock();
-            }}
+            className="p-2.5 rounded-full text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+            onClick={() => { playClickSound(); setWordInputs(wordSlots.map(() => "")); setWordErrors({}); setFeedback({ type: null }); focusFirstWritableBlock(); }}
+            title="清空"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -529,4 +402,3 @@ export const TypingLessonExperience = ({
     </div>
   );
 };
-

@@ -71,14 +71,14 @@ export const TilesLessonExperience = ({ stage, onSuccess, onMistake }: TilesLess
     setPool(initializePool(tokens));
     setSelected([]);
     setStatus("idle");
-    speak(stage.answerEn, { rate: 0.95, preferredLocales: ["en-US", "en-GB"] });
+    speak(stage.answerEn, { rate: 0.75, preferredLocales: ["en-US", "en-GB"] });
   }, [stage]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.code === "Space") {
         event.preventDefault();
-        speak(stage.answerEn, { rate: 0.95, preferredLocales: ["en-US", "en-GB"] });
+        speak(stage.answerEn, { rate: 0.75, preferredLocales: ["en-US", "en-GB"] });
       }
       if (event.code === "Backspace") {
         event.preventDefault();
@@ -152,47 +152,37 @@ export const TilesLessonExperience = ({ stage, onSuccess, onMistake }: TilesLess
   const displaySentence = stage.promptEn || stage.answerEn || "Loading...";
   const translationText = stage.promptCn || "";
 
-  const answerBoxClass = classNames(
-    "min-h-[120px] w-full rounded-[2rem] border-2 px-8 py-6 text-2xl font-bold tracking-wide shadow-sm transition-all duration-300 flex items-center",
-    {
-      "border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800": status === "idle",
-      "lesson-animate-shake border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 ring-4 ring-red-100 dark:ring-red-900/30": status === "error",
-      "lesson-animate-pop border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 ring-4 ring-emerald-100 dark:ring-emerald-900/30": status === "success"
-    }
-  );
-
-  const tileButtonClass = (disabled: boolean) =>
-    classNames(
-      "rounded-2xl bg-white dark:bg-slate-700 border-b-4 border-slate-200 dark:border-slate-600 px-6 py-3 text-lg font-bold text-slate-700 dark:text-slate-200 shadow-sm transition-all active:border-b-0 active:translate-y-1 hover:-translate-y-0.5",
-      {
-        "opacity-50 pointer-events-none": disabled,
-        "hover:border-orange-200 dark:hover:border-orange-600 hover:text-orange-600 dark:hover:text-orange-400": !disabled
-      }
-    );
-
   return (
-    <div className="flex h-full w-full flex-col items-center justify-between gap-8">
-      <div className="flex-1 flex flex-col items-center justify-center gap-8 w-full max-w-3xl">
-        <div className="text-center space-y-2">
-          <h3 className="text-2xl sm:text-3xl font-black text-slate-800 dark:text-slate-100 leading-relaxed">
+    <div className="flex h-full w-full flex-col items-center justify-center">
+      <div className="flex flex-col items-center w-full max-w-2xl px-6">
+
+        {/* Sentence Display */}
+        <div className="text-center mb-6">
+          <h3 className="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-slate-100 leading-relaxed">
             {displaySentence}
           </h3>
           {translationText && (
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{translationText}</p>
+            <p className="text-base text-slate-400 dark:text-slate-500 mt-2">{translationText}</p>
           )}
         </div>
 
-        <div className={answerBoxClass}>
-          <div className="flex flex-wrap items-center gap-3 w-full">
+        {/* Answer Box */}
+        <div className={classNames(
+          "w-full min-h-[80px] rounded-2xl border px-5 py-4 mb-6 transition-all duration-200",
+          status === "idle" && "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50",
+          status === "error" && "border-rose-300 dark:border-rose-700 bg-rose-50 dark:bg-rose-900/20 lesson-animate-shake",
+          status === "success" && "border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20"
+        )}>
+          <div className="flex flex-wrap items-center justify-center gap-2 min-h-[40px]">
             {selected.length === 0 && (
-              <span className="text-lg font-medium text-slate-300 dark:text-slate-600 select-none">
+              <span className="text-sm text-slate-300 dark:text-slate-600 select-none">
                 点击下方词块组成句子
               </span>
             )}
             {selected.map(token => (
               <span
                 key={token.id}
-                className="rounded-xl bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 px-4 py-2 text-lg font-bold shadow-sm animate-in zoom-in duration-200"
+                className="rounded-lg bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-300 px-3 py-1.5 text-base font-semibold animate-in zoom-in duration-150"
               >
                 {token.text}
               </span>
@@ -200,12 +190,18 @@ export const TilesLessonExperience = ({ stage, onSuccess, onMistake }: TilesLess
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-3 w-full">
+        {/* Word Tiles Pool */}
+        <div className="w-full flex flex-wrap items-center justify-center gap-2 mb-6">
           {pool.map(token => (
             <button
               key={token.id}
               type="button"
-              className={tileButtonClass(status === "success")}
+              className={classNames(
+                "rounded-lg bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-4 py-2 text-base font-semibold text-slate-700 dark:text-slate-200 transition-all",
+                status === "success"
+                  ? "opacity-40 cursor-not-allowed"
+                  : "hover:border-orange-300 dark:hover:border-orange-500 hover:text-orange-600 dark:hover:text-orange-400 active:scale-95"
+              )}
               onClick={() => handleSelect(token)}
               disabled={status === "success"}
             >
@@ -213,38 +209,32 @@ export const TilesLessonExperience = ({ stage, onSuccess, onMistake }: TilesLess
             </button>
           ))}
           {!pool.length && selected.length !== canonicalTokens.length && (
-            <div className="rounded-xl bg-slate-100 dark:bg-slate-700 px-4 py-2 text-sm font-bold text-slate-400 dark:text-slate-500">
+            <span className="text-sm text-slate-400 dark:text-slate-500">
               所有词块都已使用
-            </div>
+            </span>
           )}
         </div>
-      </div>
 
-      <div className="flex items-center gap-4 w-full justify-center border-t border-slate-100 dark:border-slate-700 pt-6">
-        <button
-          type="button"
-          className="flex items-center gap-2 rounded-xl px-4 py-2 text-slate-500 dark:text-slate-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-          onClick={() => {
-            playClickSound();
-            speak(stage.answerEn, { rate: 0.95, preferredLocales: ["en-US", "en-GB"] });
-          }}
-        >
-          <Volume2 className="w-5 h-5" />
-          <span className="text-sm">再听一遍 (Space)</span>
-        </button>
-        <div className="h-4 w-px bg-slate-200 dark:bg-slate-700"></div>
-        <button
-          type="button"
-          className="flex items-center gap-2 rounded-xl px-4 py-2 text-slate-500 dark:text-slate-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-40"
-          onClick={() => {
-            playClickSound();
-            handleUndo();
-          }}
-          disabled={selected.length === 0}
-        >
-          <RotateCcw className="w-4 h-4" />
-          <span className="text-sm">撤回 (Backspace)</span>
-        </button>
+        {/* Actions - Compact */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="flex items-center gap-2 px-4 py-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            onClick={() => { playClickSound(); speak(stage.answerEn, { rate: 0.75, preferredLocales: ["en-US", "en-GB"] }); }}
+          >
+            <Volume2 className="w-4 h-4" />
+            <span className="text-sm font-medium">再听一遍</span>
+          </button>
+          <button
+            type="button"
+            className="flex items-center gap-2 px-4 py-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-40"
+            onClick={() => { playClickSound(); handleUndo(); }}
+            disabled={selected.length === 0}
+          >
+            <RotateCcw className="w-4 h-4" />
+            <span className="text-sm font-medium">撤回</span>
+          </button>
+        </div>
       </div>
     </div>
   );

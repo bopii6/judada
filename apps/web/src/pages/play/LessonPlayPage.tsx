@@ -8,7 +8,7 @@ import { TilesLessonExperience } from "../../components/play/TilesLessonExperien
 import { TypingLessonExperience } from "../../components/play/TypingLessonExperience";
 import { StagesProgressSidebar } from "../../components/StagesProgressSidebar";
 import { progressStore } from "../../store/progressStore";
-import { ArrowLeft, Star, Keyboard, MousePointer2, Share2, Volume2, LifeBuoy } from "lucide-react";
+import { ArrowLeft, Star, Keyboard, MousePointer2, Share2, Volume2, LifeBuoy, Trophy, Sparkles, X, Flag, Flame, Target } from "lucide-react";
 import { formatStageOriginLabel } from "../../utils/stageOrigin";
 import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
 
@@ -218,222 +218,210 @@ export const LessonPlayPage = () => {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans selection:bg-orange-100 dark:selection:bg-orange-900 selection:text-orange-700 dark:selection:text-orange-300 transition-colors">
-      {/* Elegant Background Elements */}
-      <div className="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-[-20%] left-[-10%] w-[800px] h-[800px] bg-orange-200/20 dark:bg-orange-900/20 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-normal animate-blob" />
-        <div className="absolute top-[-10%] right-[-20%] w-[600px] h-[600px] bg-amber-200/20 dark:bg-amber-900/20 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-normal animate-blob animation-delay-2000" />
-        <div className="absolute bottom-[-20%] left-[20%] w-[600px] h-[600px] bg-orange-200/20 dark:bg-orange-900/20 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-normal animate-blob animation-delay-4000" />
+    <div className="relative min-h-screen w-full bg-[#f8f9fc] dark:bg-slate-950 font-sans selection:bg-orange-100 dark:selection:bg-orange-900 selection:text-orange-700 dark:selection:text-orange-300">
+
+      {/* Premium Background Atmosphere */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute top-[-20%] left-[-10%] w-[1000px] h-[1000px] bg-gradient-to-br from-indigo-100/40 to-purple-100/40 dark:from-indigo-900/10 dark:to-purple-900/10 rounded-full blur-[120px] mix-blend-multiply dark:mix-blend-normal opacity-70" />
+        <div className="absolute top-[20%] right-[-10%] w-[800px] h-[800px] bg-gradient-to-bl from-orange-100/40 to-amber-100/40 dark:from-orange-900/10 dark:to-amber-900/10 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-normal opacity-70" />
       </div>
 
-      {/* Top Navigation */}
-      <header className="relative z-20 mx-auto flex w-full items-center justify-between px-6 py-4 sm:px-8 bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border-b border-white/50 dark:border-slate-700/50 sticky top-0">
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
-            className="group inline-flex items-center gap-2 text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
-            onClick={handleBack}
-          >
-            <div className="p-2 rounded-full bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 group-hover:border-slate-300 dark:group-hover:border-slate-500 group-hover:shadow-sm transition-all">
-              <ArrowLeft className="w-4 h-4" />
-            </div>
-            <span>返回课程</span>
-          </button>
-        </div>
+      {/* Main Layout Grid */}
+      <div className="relative z-10 flex h-screen overflow-hidden">
 
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-3">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/80 dark:bg-slate-700/80 px-4 py-2 border border-slate-200/60 dark:border-slate-600/60 shadow-sm backdrop-blur-sm">
-              {activeMode === "tiles" ? (
-                <MousePointer2 className="w-3.5 h-3.5 text-orange-500 dark:text-orange-400" />
-              ) : activeMode === "dictation" ? (
-                <Volume2 className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
-              ) : (
-                <Keyboard className="w-3.5 h-3.5 text-violet-500 dark:text-violet-400" />
-              )}
-              <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
-                {activeMode === "tiles" ? "点词" : activeMode === "type" ? "拼写" : "听写"}
-              </span>
-            </div>
-            {isDictationMode && (
+        {/* Left Sidebar (Map) - Preserved & Refined */}
+        {showSidebar && (
+          <aside className="hidden lg:flex flex-col w-[320px] xl:w-[360px] h-full border-r border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl relative z-20 shadow-[4px_0_30px_rgba(0,0,0,0.02)]">
+            <StagesProgressSidebar
+              stages={stages}
+              currentIndex={stageIndex}
+              className="h-full w-full bg-transparent border-none shadow-none"
+            />
+          </aside>
+        )}
+
+        {/* Right Content Area (Game) */}
+        <main className="flex-1 flex flex-col h-full relative min-w-0">
+
+          {/* Header */}
+          <header className="h-20 shrink-0 px-6 sm:px-10 flex items-center justify-between z-30 relative">
+            {/* Left: Back (Mobile Only or Breadcrumb) */}
+            <div className="flex items-center gap-4">
               <button
                 type="button"
-                onClick={handleDictationHelp}
-                disabled={dictationHelpLevel >= 2}
-                className={classNames(
-                  "inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-all border",
-                  dictationHelpLevel >= 2
-                    ? "bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500 border-slate-100 dark:border-slate-600 cursor-not-allowed"
-                    : "bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-800 shadow-sm hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:text-amber-700 dark:hover:text-amber-300"
-                )}
+                onClick={handleBack}
+                className="group flex items-center gap-2 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+                title="返回课程主页"
               >
-                <LifeBuoy className="w-3.5 h-3.5" />
-                {dictationHelpLevel === 0 ? "听不出来？求助" : dictationHelpLevel === 1 ? "再给提示" : "提示已全部展示"}
+                <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shadow-sm group-hover:scale-105 group-hover:border-slate-300 dark:group-hover:border-slate-600 transition-all">
+                  <ArrowLeft className="w-5 h-5" />
+                </div>
+                <span className="hidden sm:inline font-bold text-sm">退出挑战</span>
               </button>
-            )}
-          </div>
-          <div className="rounded-full bg-slate-900 dark:bg-slate-700 px-5 py-2 text-sm font-bold text-white dark:text-slate-100 shadow-lg shadow-slate-900/20 dark:shadow-slate-900/40 ring-2 ring-white dark:ring-slate-600">
-            {Math.max(1, currentUnitStageIndex + 1)} <span className="text-slate-500 dark:text-slate-400 mx-1">/</span> {currentUnitStages.length || stages.length}
-          </div>
-        </div>
-      </header>
-      {isDictationMode && null}
-      {/* Main Content */}
-      <main className="relative z-10 mx-auto flex w-full flex-1 items-center justify-center px-4 py-6 sm:py-10 min-h-[calc(100vh-80px)]">
-        {/* Content Container with Sidebar (for typing mode) */}
-        <div
-          className={classNames(
-            "flex w-full max-w-7xl gap-6 lg:gap-10",
-            showSidebar ? "flex-row" : "flex-col"
-          )}
-        >
-          {/* Stages Progress Sidebar (Desktop) */}
-          {showSidebar && (
-            <div className="hidden lg:block w-72 shrink-0 h-[calc(100vh-160px)] sticky top-24">
-              <StagesProgressSidebar
-                stages={stages}
-                currentIndex={stageIndex}
-                className="rounded-[2rem] border border-white/60 dark:border-slate-700/60 bg-white/60 dark:bg-slate-800/60 backdrop-blur-md shadow-sm overflow-hidden h-full"
-              />
             </div>
-          )}
 
-          {/* Game Area - No Card Container */}
-          <section
-            className={classNames(
-              "relative",
-              showSidebar ? "flex-1 min-w-0" : "w-full max-w-4xl mx-auto"
-            )}
-          >
+            {/* Center: Simplified - just origin label on larger screens */}
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden lg:flex items-center gap-2 text-xs font-medium text-slate-400 dark:text-slate-500">
+              <span className="w-1 h-1 rounded-full bg-orange-400" />
+              {stageOriginLabel ?? "PRACTICE"}
+            </div>
 
-            {completed ? (
-              <div className="relative z-10 flex h-full flex-col items-center justify-center text-center py-24 px-6">
-                <div className="w-32 h-32 bg-gradient-to-br from-yellow-100 to-amber-100 rounded-full flex items-center justify-center mb-8 animate-bounce shadow-inner">
-                  <Trophy className="w-16 h-16 text-amber-500" />
-                </div>
-                <h2 className="text-4xl sm:text-5xl font-black text-slate-800 dark:text-slate-100 mb-6 tracking-tight">太棒了！全季通关</h2>
-                <p className="max-w-md text-lg text-slate-500 dark:text-slate-400 font-medium mb-12 leading-relaxed">
-                  你已经完成了本课程的所有关卡，休息一下，或者挑战新的课程吧！
-                </p>
-                <div className="flex gap-4 text-6xl mb-12">
-                  {[...Array(3)].map((_, idx) => (
-                    <Star key={idx} className="fill-yellow-400 text-yellow-400 animate-pulse drop-shadow-sm" style={{ animationDelay: `${idx * 0.15}s` }} />
-                  ))}
-                </div>
-                <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
-                  <button
-                    type="button"
-                    className="flex-1 rounded-2xl bg-slate-900 px-8 py-4 text-lg font-bold text-white shadow-xl shadow-slate-900/20 hover:scale-[1.02] hover:bg-slate-800 transition-all active:scale-[0.98]"
-                    onClick={handleBack}
-                  >
-                    返回课程中心
-                  </button>
-                  <button
-                    type="button"
-                    className="flex-1 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-8 py-4 text-lg font-bold text-slate-700 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
-                    onClick={handleShare}
-                  >
-                    <Share2 className="w-5 h-5" />
-                    炫耀一下
-                  </button>
+            {/* Right: Mode & Stats */}
+            <div className="flex items-center gap-3 sm:gap-4">
+              {/* Mode Badge - Simplified icon only */}
+              <div className="hidden sm:flex items-center justify-center w-9 h-9 rounded-full bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60" title={activeMode === "tiles" ? "点词模式" : activeMode === "type" ? "拼写模式" : "听写模式"}>
+                {activeMode === "tiles" ? (
+                  <MousePointer2 className="w-4 h-4 text-orange-500" />
+                ) : activeMode === "dictation" ? (
+                  <Volume2 className="w-4 h-4 text-sky-500" />
+                ) : (
+                  <Keyboard className="w-4 h-4 text-purple-500" />
+                )}
+              </div>
+
+              {/* Progress Count */}
+              <div className="flex items-center gap-1.5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-2 rounded-full shadow-lg shadow-slate-900/10 dark:shadow-none">
+                <Flag className="w-3.5 h-3.5 fill-current" />
+                <span className="text-sm font-bold tracking-tight">
+                  {currentUnitStageIndex + 1} <span className="opacity-40 mx-0.5">/</span> {currentUnitStages.length}
+                </span>
+              </div>
+            </div>
+          </header>
+
+          {/* Content Container - No Scroll */}
+          <div className="flex-1 overflow-hidden p-4 sm:p-6 flex flex-col items-center relative">
+
+            {/* Combo Indicator - Absolute Position, Never Affects Layout */}
+            {!completed && combo > 1 && (
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20">
+                <div className="animate-in fade-in duration-200 flex items-center gap-1.5 px-3 py-1 bg-orange-500 text-white rounded-full text-xs font-bold shadow-lg">
+                  <Flame className="w-3 h-3 fill-white" />
+                  <span>x{combo}</span>
                 </div>
               </div>
-            ) : (
-              <div className="relative z-10 flex h-full flex-col">
-                {!isDictationMode && (
-                  <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex flex-wrap items-center gap-2 min-h-[32px]">
-                      {combo > 1 && (
-                        <span className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold uppercase tracking-wider shadow-lg shadow-orange-500/30 animate-pulse">
-                          Combo x{combo} 🔥
-                        </span>
-                      )}
-                    </div>
+            )}
 
-                    {/* Progress Bar */}
-                    <div className="w-full sm:w-56">
-                      <div className="flex justify-between text-xs font-bold text-slate-400 dark:text-slate-500 mb-2">
-                        <span>进度</span>
-                        <span>{progressPercent}%</span>
+            <div className="w-full max-w-4xl mx-auto flex flex-col flex-1 min-h-0">
+
+              {/* Main Game Area */}
+              <div className="relative flex-1 flex flex-col">
+                <div className={classNames(
+                  "relative flex-1 bg-white dark:bg-slate-800/80 rounded-2xl border border-slate-100 dark:border-slate-700/50 overflow-hidden flex flex-col",
+                  completed ? "items-center justify-center p-8 sm:p-12 text-center" : ""
+                )}>
+
+                  {completed ? (
+                    /* Success View */
+                    <div className="max-w-md w-full animate-in zoom-in-95 duration-500">
+                      <div className="mx-auto w-32 h-32 bg-gradient-to-tr from-yellow-300 to-amber-500 rounded-full flex items-center justify-center shadow-[0_15px_40px_-5px_rgba(245,158,11,0.5)] mb-8 relative">
+                        <Trophy className="w-16 h-16 text-white drop-shadow-md" />
+                        <div className="absolute inset-0 rounded-full ring-4 ring-white/30 animate-ping opacity-20" />
+                        <Sparkles className="absolute -top-2 -right-2 text-yellow-400 w-10 h-10 animate-bounce" />
                       </div>
-                      <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/60 dark:bg-slate-700/60 backdrop-blur-sm ring-1 ring-slate-200/50 dark:ring-slate-700/50">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-500 shadow-[0_0_10px_rgba(251,146,60,0.5)] transition-all duration-500 ease-out"
-                          style={{ width: `${progressPercent}%` }}
-                        />
+
+                      <h2 className="text-4xl font-black text-slate-800 dark:text-white mb-4 tracking-tight">
+                        关卡完成！
+                      </h2>
+                      <p className="text-slate-500 dark:text-slate-400 font-medium text-lg mb-10 leading-relaxed">
+                        太棒了！你已经掌握了本关卡的所有内容。
+                      </p>
+
+                      <div className="grid grid-cols-3 gap-4 mb-10">
+                        {[...Array(3)].map((_, i) => (
+                          <div key={i} className="flex flex-col items-center gap-2 animate-in slide-in-from-bottom-4 fade-in duration-500" style={{ animationDelay: `${i * 100}ms` }}>
+                            <Star className="w-10 h-10 fill-amber-400 text-amber-500 drop-shadow-md" />
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-4">
+                        <button
+                          onClick={handleBack}
+                          className="flex-1 px-8 py-4 rounded-2xl font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                        >
+                          返回列表
+                        </button>
+                        <button
+                          onClick={handleShare}
+                          className="flex-1 px-8 py-4 rounded-2xl font-bold bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xl shadow-slate-900/20 hover:scale-[1.02] hover:bg-slate-800 dark:hover:bg-slate-100 transition-all flex items-center justify-center gap-2"
+                        >
+                          <Share2 className="w-5 h-5" />
+                          炫耀一下
+                        </button>
                       </div>
                     </div>
-                  </div>
-                )}
-
-                {/* Game Area */}
-                <div className="flex-1 flex items-center justify-center min-h-[400px]">
-                  {activeMode === "tiles" ? (
-                    <TilesLessonExperience
-                      stage={currentStage}
-                      index={stageIndex}
-                      total={stages.length}
-                      onSuccess={handleSuccess}
-                      onMistake={handleMistake}
-                    />
                   ) : (
-                    <TypingLessonExperience
-                      stage={currentStage}
-                      index={stageIndex}
-                      total={stages.length}
-                      onSuccess={handleSuccess}
-                      onMistake={handleMistake}
-                      variant={isDictationMode ? "dictation" : "typing"}
-                      helpLevel={isDictationMode ? dictationHelpLevel : 0}
-                    />
+                    /* Interactive Game Area - Clean */
+                    <div className="flex-1 overflow-hidden relative">
+                      {/* Help Button (Dictation) Floater - moved inside card */}
+                      {isDictationMode && (
+                        <div className="absolute top-4 right-4 z-20">
+                          <button
+                            type="button"
+                            onClick={handleDictationHelp}
+                            disabled={dictationHelpLevel >= 2}
+                            className={classNames(
+                              "flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold shadow-sm backdrop-blur-md transition-all",
+                              dictationHelpLevel >= 2
+                                ? "bg-slate-100/80 text-slate-400 cursor-not-allowed"
+                                : "bg-white/90 text-amber-600 hover:bg-amber-50 ring-1 ring-amber-100/50"
+                            )}
+                          >
+                            <LifeBuoy className="w-3.5 h-3.5" />
+                            {dictationHelpLevel === 0 ? "求助" : dictationHelpLevel === 1 ? "再给点提示" : "无更多提示"}
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="h-full flex items-center justify-center p-4">
+                        {activeMode === "tiles" ? (
+                          <TilesLessonExperience
+                            stage={currentStage}
+                            index={stageIndex}
+                            total={stages.length}
+                            onSuccess={handleSuccess}
+                            onMistake={handleMistake}
+                          />
+                        ) : (
+                          <TypingLessonExperience
+                            stage={currentStage}
+                            index={stageIndex}
+                            total={stages.length}
+                            onSuccess={handleSuccess}
+                            onMistake={handleMistake}
+                            variant={isDictationMode ? "dictation" : "typing"}
+                            helpLevel={isDictationMode ? dictationHelpLevel : 0}
+                          />
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
-            )}
-          </section>
-        </div>
-      </main>
+            </div>
+          </div>
+        </main>
+      </div>
 
       {/* Celebration Overlay */}
       {celebration && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 dark:bg-slate-950/60 backdrop-blur-sm p-4">
-          <div className="relative flex flex-col items-center w-full max-w-sm rounded-[2.5rem] bg-white dark:bg-slate-800 px-8 py-12 text-center shadow-2xl animate-in zoom-in-95 duration-300">
-            <div className="mb-8 flex gap-2 text-6xl">
-              {[...Array(celebration.stars)].map((_, idx) => (
-                <Star key={idx} className="fill-yellow-400 text-yellow-400 animate-bounce drop-shadow-lg" style={{ animationDelay: `${idx * 0.1}s` }} />
-              ))}
-            </div>
-            <h3 className="text-3xl font-black text-slate-800 dark:text-slate-100 mb-3 tracking-tight">{celebration.message}</h3>
-            <p className="text-slate-500 dark:text-slate-400 font-bold text-lg bg-slate-100 dark:bg-slate-700 px-4 py-1 rounded-full">连击 x{celebration.combo}</p>
+        <div className="fixed top-[20%] left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center animate-out fade-out slide-out-to-top-10 duration-1000 fill-mode-forwards">
+          <div className="text-6xl font-black text-amber-500 drop-shadow-[0_4px_0_#FFF] dark:drop-shadow-[0_4px_0_#000] tracking-tighter animate-bounce">
+            {celebration.message}
           </div>
+          {celebration.combo > 1 && (
+            <div className="mt-2 px-4 py-1 bg-slate-900 text-white text-sm font-bold rounded-full shadow-xl">
+              COMBO x{celebration.combo}
+            </div>
+          )}
         </div>
       )}
+
     </div>
   );
 };
 
-type TrophyProps = SVGProps<SVGSVGElement>;
+// Helper for 'isMaster' check if needed, though mostly visual
+const isMaster = false; // logic placeholder if we want to show master UI during play
 
-function Trophy(props: TrophyProps) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-      <path d="M4 22h16" />
-      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-      <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-    </svg>
-  )
-}
