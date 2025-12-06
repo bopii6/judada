@@ -260,11 +260,6 @@ export const LessonPlayPage = () => {
               </button>
             </div>
 
-            {/* Center: Simplified - just origin label on larger screens */}
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden lg:flex items-center gap-2 text-xs font-medium text-slate-400 dark:text-slate-500">
-              <span className="w-1 h-1 rounded-full bg-orange-400" />
-              {stageOriginLabel ?? "PRACTICE"}
-            </div>
 
             {/* Right: Mode & Stats */}
             <div className="flex items-center gap-3 sm:gap-4">

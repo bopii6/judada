@@ -186,8 +186,8 @@ export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
     return (
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between text-xs text-slate-500">
-          <span>第 {activeRound.roundNumber} 组 · {summary.total} 关卡</span>
-          <span>已完成 {summary.completed}/{summary.total} ｜ 累积 {summary.stars} 星</span>
+          <span className="text-slate-500 dark:text-slate-400">第 {activeRound.roundNumber} 组 · {summary.total} 关卡</span>
+          <span className="text-slate-500 dark:text-slate-400">已完成 {summary.completed}/{summary.total} ｜ 累积 {summary.stars} 星</span>
         </div>
 
         <div className="relative">
@@ -198,9 +198,8 @@ export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
                 aria-label="上一组"
                 onClick={() => goSlide("prev")}
                 disabled={!canPrev}
-                className={`absolute left-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full border bg-white dark:bg-slate-800 shadow-lg flex items-center justify-center transition-all ${
-                  canPrev ? "text-slate-600 hover:scale-105" : "text-slate-300 cursor-not-allowed"
-                }`}
+                className={`absolute left-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full border bg-white dark:bg-slate-800 shadow-lg flex items-center justify-center transition-all ${canPrev ? "text-slate-600 hover:scale-105" : "text-slate-300 cursor-not-allowed"
+                  }`}
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
@@ -209,9 +208,8 @@ export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
                 aria-label="下一组"
                 onClick={() => goSlide("next")}
                 disabled={!canNext}
-                className={`absolute right-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full border bg-white dark:bg-slate-800 shadow-lg flex items-center justify-center transition-all ${
-                  canNext ? "text-slate-600 hover:scale-105" : "text-slate-300 cursor-not-allowed"
-                }`}
+                className={`absolute right-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full border bg-white dark:bg-slate-800 shadow-lg flex items-center justify-center transition-all ${canNext ? "text-slate-600 hover:scale-105" : "text-slate-300 cursor-not-allowed"
+                  }`}
               >
                 <ArrowRight className="w-5 h-5" />
               </button>
@@ -342,12 +340,11 @@ export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
                   <p className="font-semibold text-slate-600 dark:text-slate-100">
                     {unitSummary.completed}/{unitSummary.total} 关卡 · {unit.rounds.length} 组练习
                   </p>
-                  <p className="text-xs text-slate-400">任意单元第一关随时可练</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">任意单元第一关随时可练</p>
                 </div>
                 <div
-                  className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all ${
-                    expanded ? "border-slate-900 text-slate-900 dark:border-white dark:text-white rotate-180" : "border-slate-200 text-slate-400"
-                  }`}
+                  className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all ${expanded ? "border-slate-900 text-slate-900 dark:border-white dark:text-white rotate-180" : "border-slate-200 text-slate-400"
+                    }`}
                 >
                   <ChevronDown className="w-5 h-5" />
                 </div>
@@ -365,17 +362,16 @@ export const AdventureMap = ({ stages, onStart }: AdventureMapProps) => {
                         key={round.roundNumber}
                         type="button"
                         onClick={() => handleRoundChange(unit.unitNumber, round.roundNumber, roundIdx)}
-                        className={`rounded-2xl border p-3 text-left transition-all ${
-                          isActive ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-600 border-slate-200"
-                        } hover:border-slate-400`}
+                        className={`rounded-2xl border p-3 text-left transition-all ${isActive ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white" : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"
+                          } hover:border-slate-400`}
                       >
                         <div className="flex items-center justify-between text-xs">
                           <span>{round.title ?? `第 ${round.roundNumber} 组`}</span>
                           <span>{summary.completed}/{summary.total}</span>
                         </div>
-                        <div className="mt-2 h-1.5 w-full rounded-full bg-white/30">
+                        <div className="mt-2 h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-600">
                           <div
-                            className={`h-full rounded-full ${isActive ? "bg-orange-300" : "bg-slate-300"}`}
+                            className={`h-full rounded-full ${isActive ? "bg-orange-300" : "bg-slate-400 dark:bg-slate-500"}`}
                             style={{ width: `${summary.total ? (summary.completed / summary.total) * 100 : 0}%` }}
                           />
                         </div>
@@ -433,10 +429,10 @@ const CheckpointCard = ({ stage, displayNumber, stars, status, onStart }: Checkp
   const subtitle = ellipsis(englishSnippet, 30);
 
   const styleMap: Record<StageStatus, string> = {
-    locked: "border-slate-200 text-slate-400 bg-slate-50/70 cursor-not-allowed",
-    current: "border-orange-300 bg-orange-50 text-orange-700 shadow-[0_12px_30px_rgba(251,146,60,0.25)]",
-    done: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    mastered: "border-purple-300 bg-purple-50 text-purple-700 shadow-[0_12px_30px_rgba(168,85,247,0.25)]"
+    locked: "border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 bg-slate-50/70 dark:bg-slate-800/70 cursor-not-allowed",
+    current: "border-orange-300 dark:border-orange-600 bg-orange-50 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 shadow-[0_12px_30px_rgba(251,146,60,0.25)]",
+    done: "border-emerald-200 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300",
+    mastered: "border-purple-300 dark:border-purple-600 bg-purple-50 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 shadow-[0_12px_30px_rgba(168,85,247,0.25)]"
   };
 
   return (
@@ -455,8 +451,8 @@ const CheckpointCard = ({ stage, displayNumber, stars, status, onStart }: Checkp
         )}
       </div>
 
-      <p className="text-base font-semibold text-slate-800">{subtitle || `第 ${displayNumber} 关`}</p>
-      <p className="text-xs text-slate-400">第 {displayNumber} 关</p>
+      <p className="text-base font-semibold text-slate-800 dark:text-slate-100">{subtitle || `第 ${displayNumber} 关`}</p>
+      <p className="text-xs text-slate-400 dark:text-slate-500">第 {displayNumber} 关</p>
 
       <div className="mt-auto flex items-center justify-between text-xs font-bold">
         <span className="inline-flex items-center gap-1">

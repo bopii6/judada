@@ -115,10 +115,10 @@ export const CourseOverviewPage = () => {
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-20">
 
-      <header className="relative overflow-hidden rounded-[1.25rem] bg-gradient-to-r from-orange-50 via-white to-slate-50 text-slate-900 p-5 sm:p-7 shadow-[0_20px_45px_rgba(15,23,42,0.12)] border border-orange-50/60">
+      <header className="relative overflow-hidden rounded-[1.25rem] bg-gradient-to-r from-orange-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 text-slate-900 dark:text-white p-5 sm:p-7 shadow-[0_20px_45px_rgba(15,23,42,0.12)] dark:shadow-none border border-orange-50/60 dark:border-slate-700/60">
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute -top-24 -left-16 w-80 h-80 bg-orange-100 blur-[160px] opacity-70" />
-          <div className="absolute -bottom-20 right-10 w-72 h-72 bg-amber-100 blur-[140px] opacity-50" />
+          <div className="absolute -top-24 -left-16 w-80 h-80 bg-orange-100 dark:bg-orange-900/30 blur-[160px] opacity-70" />
+          <div className="absolute -bottom-20 right-10 w-72 h-72 bg-amber-100 dark:bg-amber-900/30 blur-[140px] opacity-50" />
         </div>
         {course.coverUrl && (
           <div className="absolute inset-y-0 right-0 hidden lg:block opacity-30">
@@ -134,17 +134,17 @@ export const CourseOverviewPage = () => {
           <div className="flex-1 space-y-6">
             <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
               {course.grade && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-3 py-1 text-orange-600 border border-orange-100">
+                <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 dark:bg-orange-900/30 px-3 py-1 text-orange-600 dark:text-orange-400 border border-orange-100 dark:border-orange-800/50">
                   {course.grade}
                 </span>
               )}
               {course.publisher && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-3 py-1 text-slate-500 border border-slate-100">
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 dark:bg-slate-800 px-3 py-1 text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-700">
                   {course.publisher}
                 </span>
               )}
               {course.semester && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-3 py-1 text-slate-500 border border-slate-100">
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 dark:bg-slate-800 px-3 py-1 text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-700">
                   {course.semester}
                 </span>
               )}
@@ -154,21 +154,21 @@ export const CourseOverviewPage = () => {
               <h1 className="text-3xl sm:text-4xl font-black leading-tight">
                 {course.title || "课程闯关路线"}
               </h1>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 4 个单元 · 256 条核心句子 · 老师 24h 内语音点评。家长可查看学习日报，孩子完成关卡即可解锁奖章。
               </p>
               <div className="flex flex-wrap gap-10 text-slate-900">
                 <div>
                   <p className="text-4xl font-black">{heroStats.unitCount}</p>
-                  <p className="text-xs text-slate-500">教材单元</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">教材单元</p>
                 </div>
                 <div>
                   <p className="text-4xl font-black">{heroStats.totalStages}</p>
-                  <p className="text-xs text-slate-500">核心句子</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">核心句子</p>
                 </div>
                 <div>
                   <p className="text-4xl font-black">{heroStats.completionPercent}%</p>
-                  <p className="text-xs text-slate-500">当前进度</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">当前进度</p>
                 </div>
               </div>
             </div>
@@ -185,7 +185,7 @@ export const CourseOverviewPage = () => {
               <button
                 type="button"
                 onClick={scrollToAdventure}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-5 py-3 text-base font-black text-slate-600 hover:bg-slate-50"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 dark:border-slate-700 px-5 py-3 text-base font-black text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
               >
                 查看练习路线
               </button>
@@ -206,7 +206,7 @@ export const CourseOverviewPage = () => {
                 </div>
               </div>
             ) : (
-              <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 w-64 h-80 flex items-center justify-center text-slate-400">
+              <div className="rounded-[1.5rem] border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 w-64 h-80 flex items-center justify-center text-slate-400">
                 无封面
               </div>
             )}

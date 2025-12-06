@@ -24,7 +24,7 @@ interface WordSlot {
   fillableLength: number;
 }
 
-// Only allow letters and digits for user input - symbols are auto-inserted
+// Only allow letters and digits for user input
 const sanitizeLetters = (value: string) => value.replace(/[^A-Za-z0-9]/g, "");
 
 const buildWordSlots = (text: string): WordSlot[] => {
@@ -32,12 +32,10 @@ const buildWordSlots = (text: string): WordSlot[] => {
 
   const tokens = text.split(/\s+/).filter(Boolean);
   const slots: WordSlot[] = tokens.map((token, index) => {
-    // Extract trailing punctuation (. , ! ? ;) as suffix - sentence-end punctuation
-    // But keep internal symbols (apostrophes, colons, decimal points) in core
     let core = token;
     let suffix = "";
 
-    // Check for trailing punctuation
+    // Extract trailing punctuation as suffix
     const trailingMatch = token.match(/^(.+?)([.,!?;]+)$/);
     if (trailingMatch) {
       core = trailingMatch[1];
@@ -46,8 +44,8 @@ const buildWordSlots = (text: string): WordSlot[] => {
 
     return {
       id: `${index}-${token}`,
-      core,              // e.g. "It's" or "1.6" - includes apostrophes, colons, decimal points
-      suffix,            // e.g. "." at sentence end (user doesn't type this)
+      core,
+      suffix,
       length: core.length,
       prefill: "",
       fillableLength: core.length
@@ -57,38 +55,63 @@ const buildWordSlots = (text: string): WordSlot[] => {
   return slots;
 };
 
-// Insert symbols (apostrophes, colons, decimal points) at correct positions
-const autoInsertSymbols = (input: string, core: string): string => {
-  let result = "";
-  let inputIndex = 0;
+// Build display value: only insert symbols when preceding letters are CORRECT
+const buildDisplayValue = (letters: string, core: string): string => {
+  if (!letters) return "";
 
-  for (let i = 0; i < core.length && inputIndex <= input.length; i++) {
+  let result = "";
+  let letterIndex = 0;
+
+  // Get expected letters (without symbols) from core
+  const expectedLetters = core.replace(/[^A-Za-z0-9]/g, "").toLowerCase();
+
+  for (let i = 0; i < core.length && letterIndex <= letters.length; i++) {
     const coreChar = core[i];
-    // If this position in core is a symbol (apostrophe, colon, or decimal point)
-    if (coreChar === "'" || coreChar === ":" || coreChar === ".") {
-      result += coreChar;  // Auto-insert the symbol
-    } else {
-      // Take the next character from user input
-      if (inputIndex < input.length) {
-        result += input[inputIndex];
+    const isSymbol = coreChar === "'" || coreChar === ":" || coreChar === ".";
+
+    if (isSymbol) {
+      // Check if all letters BEFORE this symbol position are correct
+      // Count how many letter positions we've passed
+      let letterPositionsBefore = 0;
+      for (let j = 0; j < i; j++) {
+        const c = core[j];
+        if (c !== "'" && c !== ":" && c !== ".") {
+          letterPositionsBefore++;
+        }
       }
-      inputIndex++;
+
+      // Check if user has typed enough letters AND all are correct
+      const userLettersBefore = letters.slice(0, letterPositionsBefore).toLowerCase();
+      const expectedBefore = expectedLetters.slice(0, letterPositionsBefore);
+
+      if (userLettersBefore.length >= letterPositionsBefore && userLettersBefore === expectedBefore) {
+        // All preceding letters are correct - show the symbol
+        result += coreChar;
+      }
+      // If not correct, don't add the symbol
+    } else {
+      // This is a letter position
+      if (letterIndex < letters.length) {
+        result += letters[letterIndex];
+        letterIndex++;
+      }
     }
   }
 
   return result;
 };
 
-// Extract only letters/digits from a string (for counting and comparison)
+// Extract only letters/digits from a string
 const extractLettersDigits = (str: string): string => str.replace(/[^A-Za-z0-9]/g, "");
 
 const assembleWordInputs = (slots: WordSlot[], inputs: string[]): string =>
   slots
     .map((slot, index) => {
       if (!slot.fillableLength) return slot.core;
-      const typedPart = (inputs[index] ?? "").trim();
-      if (!typedPart) return "";
-      return slot.suffix ? `${typedPart}${slot.suffix}` : typedPart;
+      const letters = inputs[index] ?? "";
+      if (!letters) return "";
+      const displayValue = buildDisplayValue(letters, slot.core);
+      return slot.suffix ? `${displayValue}${slot.suffix}` : displayValue;
     })
     .filter(Boolean)
     .join(" ");
@@ -121,6 +144,7 @@ export const TypingLessonExperience = ({
   const displaySentence = isDictationMode ? translationText || "请根据语音提示默写英文句子" : englishPrompt;
   const wordSlots = useMemo(() => buildWordSlots(answerText), [answerText]);
 
+  // Store raw letters only (without symbols)
   const [wordInputs, setWordInputs] = useState<string[]>([]);
   const [wordErrors, setWordErrors] = useState<Record<number, boolean>>({});
   const [feedback, setFeedback] = useState<{ type: "correct" | "incorrect" | null; message?: string }>({ type: null });
@@ -194,25 +218,23 @@ export const TypingLessonExperience = ({
     if (isInputLocked) return;
 
     // Extract only letters and digits from raw input
-    const lettersOnly = sanitizeLetters(rawValue).toLowerCase();
+    const newLetters = sanitizeLetters(rawValue).toLowerCase();
 
     // Count how many letters/digits the expected word has
     const expectedLetters = extractLettersDigits(slot.core);
     const maxLetters = expectedLetters.length;
 
     // Limit to max letters needed
-    const trimmedLetters = lettersOnly.slice(0, maxLetters);
+    const trimmedLetters = newLetters.slice(0, maxLetters);
 
-    // Auto-insert symbols at correct positions
-    const withSymbols = autoInsertSymbols(trimmedLetters, slot.core);
-
-    if (withSymbols !== wordInputs[index]) {
+    if (trimmedLetters !== wordInputs[index]) {
       playClickSound();
     }
 
+    // Store raw letters only
     setWordInputs(prev => {
       const next = [...prev];
-      next[index] = withSymbols;
+      next[index] = trimmedLetters;
       return next;
     });
 
@@ -230,9 +252,9 @@ export const TypingLessonExperience = ({
 
     // Check if word is complete
     if (trimmedLetters.length >= maxLetters) {
-      const expected = slot.core.toLowerCase();
+      const expectedLettersLower = expectedLetters.toLowerCase();
 
-      if (withSymbols.toLowerCase() !== expected) {
+      if (trimmedLetters !== expectedLettersLower) {
         playErrorSound();
         setWordErrors(prev => ({ ...prev, [index]: true }));
       } else {
@@ -303,8 +325,7 @@ export const TypingLessonExperience = ({
     (slot, index) => {
       if (slot.fillableLength === 0) return true;
       const expectedLetters = extractLettersDigits(slot.core).length;
-      const inputLetters = extractLettersDigits(wordInputs[index] ?? "").length;
-      return inputLetters >= expectedLetters;
+      return (wordInputs[index] ?? "").length >= expectedLetters;
     }
   ).length;
   const isSubmitDisabled = isInputLocked || !requiredWordCount || completedWordCount !== requiredWordCount;
@@ -333,6 +354,9 @@ export const TypingLessonExperience = ({
           {wordSlots.map((slot, index) => {
             const slotWidthCh = getSlotWidthCh(slot);
             const isLockedSlot = slot.fillableLength === 0;
+            // Build display value with symbols from stored letters (only if correct)
+            const displayValue = buildDisplayValue(wordInputs[index] ?? "", slot.core);
+            const expectedLetterCount = extractLettersDigits(slot.core).length;
 
             return (
               <div key={slot.id} className="inline-flex items-baseline">
@@ -350,10 +374,10 @@ export const TypingLessonExperience = ({
 
                     <input
                       ref={el => { blockRefs.current[index] = el; }}
-                      value={wordInputs[index] ?? ""}
+                      value={displayValue}
                       onChange={e => handleWordInputChange(index, e.target.value)}
                       onKeyDown={e => handleWordKeyDown(e, index)}
-                      maxLength={slot.fillableLength || undefined}
+                      maxLength={expectedLetterCount + 5}
                       disabled={isInputLocked}
                       style={{ width: `${slotWidthCh + 0.5}ch` }}
                       className={classNames(
