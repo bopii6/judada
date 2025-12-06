@@ -38,27 +38,41 @@ export const AppLayout = () => {
           className={`fixed inset-y-0 left-0 z-50 w-56 bg-white dark:bg-slate-800 border-r border-slate-100 dark:border-slate-700 shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.3)] transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
             }`}
         >
-          <div className="flex items-center justify-between px-8 py-8">
-            <div className="flex items-center gap-3">
-              <img
-                src="/icons/maodou-logo-final.png"
-                alt="Maodou English Logo"
-                className="h-12 w-auto drop-shadow-sm hover:scale-105 transition-transform duration-300"
-              />
-              <div className="flex flex-col justify-center">
-                <h1 className="text-xl font-black text-slate-800 dark:text-slate-100 tracking-tight leading-none mb-0.5">毛豆英语</h1>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-orange-500 dark:text-orange-400 font-extrabold">MAODOU ENGLISH</p>
+          {/* 简洁的Logo区域 - 无背景框 */}
+          <div className="px-6 py-8">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <img
+                    src="/icons/maodou-logo-final.png"
+                    alt="Maodou English"
+                    className="h-20 w-auto drop-shadow-xl hover:scale-105 transition-all duration-300"
+                    style={{
+                      WebkitMaskImage: 'linear-gradient(black, black)',
+                      maskImage: 'linear-gradient(black, black)'
+                    }}
+                  />
+                </div>
+                <div className="flex flex-col justify-center gap-1">
+                  <h1 className="text-[28px] font-black text-slate-900 dark:text-slate-50 tracking-[-0.02em] leading-none">
+                    毛豆英语
+                  </h1>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-orange-500 dark:text-orange-400 leading-none">
+                    MAODOU ENGLISH
+                  </p>
+                </div>
               </div>
+
+              <button
+                className="lg:hidden text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                onClick={() => setSidebarOpen(false)}
+                aria-label="关闭菜单"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-            <button
-              className="lg:hidden text-slate-400 hover:text-slate-600 transition-colors"
-              onClick={() => setSidebarOpen(false)}
-              aria-label="关闭菜单"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
           </div>
 
           <nav className="flex flex-col px-6 py-4 space-y-2">

@@ -1,0 +1,39 @@
+<svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bean" x1="40" y1="30" x2="110" y2="130" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8CCF35"/>
+      <stop offset="1" stop-color="#3BA55D"/>
+    </linearGradient>
+    <linearGradient id="bean-highlight" x1="40" y1="20" x2="120" y2="110" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E3FFB3" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="140%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#3BA55D" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+  
+  <!-- 毛豆本体 - 无背景框 -->
+  <g filter="url(#shadow)">
+    <path d="M42 42C57 22 98 18 122 38C146 58 149 95 131 121C113 147 75 159 47 145C19 131 14 106 20 79C26 54 27 62 42 42Z" fill="url(#bean)"/>
+    <path d="M114 56C93 38 59 44 44 66C29 88 25 119 46 134C51 138 55 139 62 140C54 130 52 115 56 100C61 83 74 68 93 63C108 58 116 57 114 56Z" fill="url(#bean-highlight)" opacity="0.85"/>
+    
+    <!-- 眼睛 -->
+    <circle cx="76" cy="83" r="6" fill="#0F172A"/>
+    <circle cx="99" cy="85" r="6" fill="#0F172A"/>
+    
+    <!-- 笑容 -->
+    <path d="M87 100C90 100 93 101 95 103" stroke="#0F172A" stroke-width="4" stroke-linecap="round"/>
+    
+    <!-- 高光 -->
+    <path d="M64 71C62 64 65 58 72 55" stroke="#D7F8A2" stroke-width="6" stroke-linecap="round"/>
+    
+    <!-- 学士帽 -->
+    <circle cx="118" cy="46" r="16" fill="#9FDD4B"/>
+    <path d="M130 38C130 42 126 46 120 46C114 46 110 42 110 38" stroke="#77B829" stroke-width="5" stroke-linecap="round"/>
+    
+    <!-- ABC书本 -->
+    <rect x="45" y="110" width="28" height="36" rx="3" fill="#E53E3E"/>
+    <text x="59" y="133" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white" text-anchor="middle">ABC</text>
+  </g>
+</svg>

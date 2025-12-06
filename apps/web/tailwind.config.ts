@@ -27,7 +27,9 @@ export default {
         "maodou-spin-fast": "maodou-spin 6s linear infinite",
         "maodou-pulse": "maodou-pulse 3s ease-in-out infinite",
         "maodou-progress": "maodou-progress 2.4s ease-in-out infinite",
-        "maodou-run": "maodou-run 2.4s ease-in-out infinite"
+        "maodou-run": "maodou-run 2.4s ease-in-out infinite",
+        "maodou-progress-elegant": "maodou-progress-elegant 3s ease-out forwards",
+        "shimmer": "shimmer 2.5s ease-in-out infinite"
       },
       keyframes: {
         blob: {
@@ -54,9 +56,9 @@ export default {
           "100%": { transform: "rotate(360deg)" }
         },
         "maodou-pulse": {
-          "0%": { opacity: 0.45, transform: "scale(0.95)" },
-          "50%": { opacity: 0.8, transform: "scale(1.05)" },
-          "100%": { opacity: 0.45, transform: "scale(0.95)" }
+          "0%": { opacity: "0.45", transform: "scale(0.95)" },
+          "50%": { opacity: "0.8", transform: "scale(1.05)" },
+          "100%": { opacity: "0.45", transform: "scale(0.95)" }
         },
         "maodou-progress": {
           "0%": { width: "15%" },
@@ -67,6 +69,17 @@ export default {
           "0%": { transform: "translateX(0)" },
           "70%": { transform: "translateX(calc(100% - 4rem))" },
           "100%": { transform: "translateX(calc(100% - 4rem))" }
+        },
+        "maodou-progress-elegant": {
+          "0%": { width: "0%" },
+          "20%": { width: "25%" },
+          "50%": { width: "60%" },
+          "80%": { width: "85%" },
+          "100%": { width: "100%" }
+        },
+        "shimmer": {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(100%)" }
         }
       },
     }
