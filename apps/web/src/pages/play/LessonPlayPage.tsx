@@ -8,7 +8,7 @@ import { TilesLessonExperience } from "../../components/play/TilesLessonExperien
 import { TypingLessonExperience } from "../../components/play/TypingLessonExperience";
 import { StagesProgressSidebar } from "../../components/StagesProgressSidebar";
 import { progressStore } from "../../store/progressStore";
-import { ArrowLeft, Star, Keyboard, MousePointer2, Share2, Volume2, LifeBuoy, Trophy, Sparkles, X, Flag, Flame, Target } from "lucide-react";
+import { ArrowLeft, Star, Keyboard, MousePointer2, Share2, Volume2, LifeBuoy, Trophy, Sparkles, X, Flag, Flame, Target, BookOpen } from "lucide-react";
 import { formatStageOriginLabel } from "../../utils/stageOrigin";
 import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
 
@@ -371,6 +371,16 @@ export const LessonPlayPage = () => {
                             <LifeBuoy className="w-3.5 h-3.5" />
                             {dictationHelpLevel === 0 ? "求助" : dictationHelpLevel === 1 ? "再给点提示" : "无更多提示"}
                           </button>
+                        </div>
+                      )}
+                      {/* Textbook Source Badge - Premium Feature */}
+                      {stageOriginLabel && (
+                        <div className="absolute top-4 left-4 z-20">
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-full border border-emerald-200 dark:border-emerald-800/50 shadow-sm">
+                            <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">教材原句</span>
+                            <span className="text-xs text-emerald-600/80 dark:text-emerald-400/80">{stageOriginLabel}</span>
+                          </div>
                         </div>
                       )}
 
