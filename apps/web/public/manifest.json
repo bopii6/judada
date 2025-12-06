@@ -1,7 +1,7 @@
 {
   "name": "毛豆英语",
   "short_name": "毛豆英语",
-  "description": "毛豆英语 - 为小朋友打造的卡通闯关式英语学习平台",
+  "description": "3-18岁青少儿英语口语闯关平台，趣味学霸养成",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -24,15 +24,15 @@
   ],
   "icons": [
     {
-      "src": "/icons/maodou-logo.svg",
+      "src": "/icons/maodou-logo-bold.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/maodou-logo.svg",
+      "src": "/icons/maodou-logo-bold.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "maskable any"
     }
   ],
@@ -44,9 +44,9 @@
       "url": "/courses",
       "icons": [
         {
-          "src": "/icons/maodou-logo.svg",
+          "src": "/icons/maodou-logo-final.png",
           "sizes": "96x96",
-          "type": "image/svg+xml"
+          "type": "image/png"
         }
       ]
     },
@@ -57,9 +57,9 @@
       "url": "/",
       "icons": [
         {
-          "src": "/icons/maodou-logo.svg",
+          "src": "/icons/maodou-logo-final.png",
           "sizes": "96x96",
-          "type": "image/svg+xml"
+          "type": "image/png"
         }
       ]
     }

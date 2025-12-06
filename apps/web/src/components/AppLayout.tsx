@@ -40,12 +40,14 @@ export const AppLayout = () => {
         >
           <div className="flex items-center justify-between px-8 py-8">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-500 shadow-inner shadow-emerald-100/60">
-                <img src="/icons/maodou-logo.svg" alt="毛豆英语 Logo" className="h-7 w-7 drop-shadow-sm" />
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.3em] text-emerald-500 dark:text-emerald-400 font-bold">MAODOU ENGLISH</p>
-                <h1 className="text-lg font-black text-slate-800 dark:text-slate-100 tracking-tight">毛豆英语</h1>
+              <img
+                src="/icons/maodou-logo-final.png"
+                alt="Maodou English Logo"
+                className="h-12 w-auto drop-shadow-sm hover:scale-105 transition-transform duration-300"
+              />
+              <div className="flex flex-col justify-center">
+                <h1 className="text-xl font-black text-slate-800 dark:text-slate-100 tracking-tight leading-none mb-0.5">毛豆英语</h1>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-orange-500 dark:text-orange-400 font-extrabold">MAODOU ENGLISH</p>
               </div>
             </div>
             <button

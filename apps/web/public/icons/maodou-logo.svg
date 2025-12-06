@@ -18,8 +18,8 @@
   </defs>
   <rect x="8" y="8" width="144" height="144" rx="40" fill="url(#bg)"/>
   <g filter="url(#shadow)">
-    <path d="M55 40C71 26 98 30 114 48C130 66 132 92 118 111C104 129 78 138 57 129C36 120 24 101 28 79C32 58 39 48 55 40Z" fill="url(#bean)"/>
-    <path d="M104 54C86 42 62 48 50 63C38 78 34 101 51 114C55 117 58 118 63 119C57 111 56 99 60 88C64 76 74 66 87 62C98 58 106 55 104 54Z" fill="url(#bean-highlight)" opacity="0.85"/>
+    <path d="M42 42C57 22 98 18 122 38C146 58 149 95 131 121C113 147 75 159 47 145C19 131 14 106 20 79C26 54 27 62 42 42Z" fill="url(#bean)"/>
+    <path d="M114 56C93 38 59 44 44 66C29 88 25 119 46 134C51 138 55 139 62 140C54 130 52 115 56 100C61 83 74 68 93 63C108 58 116 57 114 56Z" fill="url(#bean-highlight)" opacity="0.85"/>
     <circle cx="76" cy="83" r="6" fill="#0F172A"/>
     <circle cx="99" cy="85" r="6" fill="#0F172A"/>
     <path d="M87 100C90 100 93 101 95 103" stroke="#0F172A" stroke-width="4" stroke-linecap="round"/>

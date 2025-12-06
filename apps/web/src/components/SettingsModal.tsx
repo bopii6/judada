@@ -428,10 +428,10 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                             {activeTab === 'about' && (
                                 <div className="text-center py-10">
                                     <div className="w-24 h-24 bg-indigo-100 dark:bg-indigo-900/30 rounded-3xl mx-auto flex items-center justify-center mb-6">
-                                        <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">MD</span>
+                                        <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">ME</span>
                                     </div>
-                                    <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-2">毛豆英语</h3>
-                                    <p className="text-slate-500 mb-8">Maodou Learning Lab v2.4.0</p>
+                                    <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-2">Maodou English</h3>
+                                    <p className="text-slate-500 mb-8">Maodou English v2.4.0</p>
 
                                     <div className="flex justify-center gap-4">
                                         <a href="#" className="text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400">服务条款</a>
